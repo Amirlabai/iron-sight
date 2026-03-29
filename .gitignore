@@ -1,0 +1,23 @@
+# Log files
+*.log
+*.txt
+*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Project Specific
+status.md
+lamas_data.json
+history.json
+archive/

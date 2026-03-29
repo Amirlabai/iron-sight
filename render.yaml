@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: iron-sight-backend
+    env: python
+    region: frankfurt # Low latency for Israel
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: python backend/main.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: PORT
+        value: 10000
