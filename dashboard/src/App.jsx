@@ -177,29 +177,22 @@ function App() {
             <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
             <MapController center={mapConfig.center} zoom={mapConfig.zoom} />
 
-            {/* High-Fidelity Israel Boundary (Dual-Layer Optimized) */}
-            <Polygon
-              positions={TACTICAL_BOUNDARIES.Israel}
-              pathOptions={{
-                color: '#ffffff',
-                weight: 8,
-                opacity: 0.15,
-                fill: false,
-                smoothFactor: 2.0,
-                className: 'israel-border-halo'
-              }}
-            />
-            <Polygon
-              positions={TACTICAL_BOUNDARIES.Israel}
-              pathOptions={{
-                color: '#ffffff',
-                weight: 2,
-                fillOpacity: 0.005,
-                fillColor: '#ffffff',
-                smoothFactor: 2.0,
-                className: 'israel-border-glow'
-              }}
-            />
+            {/* Full Tactical Boundary Suite (Permanent Persistence) */}
+            {Object.entries(TACTICAL_BOUNDARIES).map(([name, coords]) => (
+              <Polygon
+                key={`boundary-standby-${name}`}
+                positions={coords}
+                pathOptions={{
+                  color: name === 'Israel' ? '#ffffff' : 'rgba(255, 255, 255, 0.2)',
+                  weight: name === 'Israel' ? 3 : 1,
+                  fill: true,
+                  fillColor: name === 'Israel' ? '#ffffff' : '#ff0000',
+                  fillOpacity: name === 'Israel' ? 0.005 : 0.01,
+                  smoothFactor: 1.0,
+                  className: name === 'Israel' ? 'israel-border-static' : 'standby-border'
+                }}
+              />
+            ))}
 
             {currentEvent?.clusters.map((cluster, idx) => (
               <React.Fragment key={`cluster-group-${idx}`}>

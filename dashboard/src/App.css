@@ -212,21 +212,14 @@ body {
 .stat-item .label { font-size: 11px; color: var(--text-sub); letter-spacing: 1px; margin-bottom: 5px; display: block; }
 .stat-item .value { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 
-.israel-border-glow { 
-    pointer-events: none; 
-    animation: border-breath 4s infinite alternate ease-in-out;
-    will-change: opacity, stroke-width;
-}
-
-.israel-border-halo {
+.israel-border-static {
     pointer-events: none;
-    animation: border-breath 4s infinite alternate ease-in-out;
-    opacity: 0.2;
+    stroke-opacity: 0.8;
 }
 
-@keyframes border-breath {
-    from { opacity: 0.6; stroke-width: 2; }
-    to { opacity: 1; stroke-width: 2.5; }
+.standby-border {
+    pointer-events: none;
+    stroke-dasharray: 4, 4; /* Tactical dashed look for standby */
 }
 
 /* Custom Tactical Marker */
@@ -237,14 +230,14 @@ body {
 .origin-pin::after { content: ''; position: absolute; top:50%; left:50%; transform: translate(-50%, -50%); width: 4px; height: 4px; background: white; border-radius: 50%; }
 
 .origin-threat-glow {
-    /* Throttled to 5 cycles (~10s) to save GPU */
-    animation: pulse 2s 5 ease-in-out;
+    /* Throttled to 5 seconds to minimize GPU overhead and map clutter */
+    animation: pulse 1s 5 forwards ease-in-out;
     pointer-events: none;
     will-change: fill-opacity, stroke-opacity;
 }
 
 .origin-threat-halo {
-    animation: pulse 2s 5 ease-in-out;
+    animation: pulse 1s 5 forwards ease-in-out;
     opacity: 0.3;
     pointer-events: none;
 }
@@ -260,17 +253,18 @@ body {
 @keyframes pulse { 
     0% { fill-opacity: 0.1; stroke-opacity: 0.2; } 
     50% { fill-opacity: 0.3; stroke-opacity: 0.6; } 
-    100% { fill-opacity: 0.1; stroke-opacity: 0.2; } 
+    100% { fill-opacity: 0; stroke-opacity: 0.1; } /* Terminate fill visibility */
 }
 
 .pulse-animation { 
-    /* Throttled to 5 cycles (~10s) then stops */
-    animation: pulse 2s 5 ease-in-out; 
+    /* Disciplined Pulse: 5s duration followed by fill termination */
+    animation: pulse 1s 5 forwards ease-in-out; 
 }
 
 .trajectory-line { 
     stroke-dasharray: 8; 
-    animation: dash 3s linear infinite; 
+    /* Halt animation after 5s to save GPU and maps clutter */
+    animation: dash 2.5s 2 forwards linear; 
     will-change: stroke-dashoffset;
 }
 
