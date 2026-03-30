@@ -294,6 +294,7 @@ class TrackingEngine:
             "Iran": [32.4279, 53.6880]
         }
         self.boundaries = {}
+        self.calc_boundaries = {}
         # Strategic Pin Aliasing (Always ensure strategic corridors are mapped for pinning)
         self.origins["North Iran"] = self.origins["Iran"]
         
@@ -318,6 +319,16 @@ class TrackingEngine:
             with open(borders_path, 'r') as f:
                 self.boundaries = json.load(f)
             logger.info("TACTICAL BOUNDARIES LOADED")
+            
+            calc_path = os.path.join(os.path.dirname(__file__), 'calculation_borders.json')
+            if os.path.exists(calc_path):
+                with open(calc_path, 'r') as f:
+                    self.calc_boundaries = json.load(f)
+                logger.info("STRATEGIC CALCULATION BORDERS LOADED")
+            else:
+                self.calc_boundaries = self.boundaries.copy()
+                logger.info("USING TACTICAL BOUNDARIES FOR CALCULATION (FALLBACK)")
+                
         except Exception as e:
             logger.warning(f"Using fallback boundaries: {e}")
             self.boundaries = {
@@ -327,6 +338,7 @@ class TrackingEngine:
                 "Iran": [[25.0, 61.0], [38.0, 63.0], [40.0, 44.0], [25.0, 55.0]],
                 "North Iran": [[36.8, 53.8], [39.8, 43.8], [33.1, 46.2], [36.8, 53.8]]
             }
+            self.calc_boundaries = self.boundaries.copy()
 
     def get_distance(self, c1, c2):
         return ((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2)**0.5
@@ -352,7 +364,27 @@ class TrackingEngine:
         return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
 
     def is_point_in_polygon(self, point, poly_name):
-        """Standard Ray-Casting algorithm for boundary detection."""
+        """Standard Ray-Casting algorithm for boundary detection using Calculation Borders."""
+        if poly_name not in self.calc_boundaries: return False
+        poly = self.calc_boundaries[poly_name]
+        x, y = point
+        n = len(poly)
+        inside = False
+        p1x, p1y = poly[0]
+        for i in range(n + 1):
+            p2x, p2y = poly[i % n]
+            if y > min(p1y, p2y):
+                if y <= max(p1y, p2y):
+                    if x <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or x <= xinters:
+                            inside = not inside
+            p1x, p1y = p2x, p2y
+        return inside
+
+    def is_point_in_tactical_polygon(self, point, poly_name):
+        """Standard Ray-Casting algorithm for boundary detection using Detailed Silhouettes."""
         if poly_name not in self.boundaries: return False
         poly = self.boundaries[poly_name]
         x, y = point
@@ -465,7 +497,7 @@ class TrackingEngine:
                 
             # Priority 1: Long-Range (Deep Projections Scan for strategic depth)
             # We scan multiple depths to hit different Iranian/Regional polygons
-            for depth in [13.0, 14.0, 16.0, 18.0, 20.0]:
+            for depth in [0.5, 1.0, 1.5, 2.0, 2.5,9, 11, 13.0, 14.0, 16.0, 18.0, 20.0]:
                 proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
                 for territory in ["North Iran", "Iran", "Yemen"]:
                     if self.is_point_in_polygon(proj, territory):
@@ -511,7 +543,14 @@ class TrackingEngine:
             v_lat, v_lon = -v_lat, -v_lon
 
         scalar = depth if depth is not None else self.strategic_depths.get(origin_name, 10.0)
-        return [cnt_lat + v_lat * scalar, cnt_lon + v_lon * scalar]
+        proj = [cnt_lat + v_lat * scalar, cnt_lon + v_lon * scalar]
+        
+        # VALIDATION: Ensure the projected point lands inside the detailed tactical silhouette
+        if not self.is_point_in_tactical_polygon(proj, origin_name):
+            logger.warning(f"UNRELIABLE_PROJECTION_DETECTED: Core check failed for {origin_name} at {proj}. Falling back to standard origin pin.")
+            return self.origins.get(origin_name, proj)
+            
+        return proj
 
     def analyze_threat(self, cities_raw):
         """Standalone analysis engine for both live alerts and sandbox 'Dry Runs'."""

@@ -6,8 +6,8 @@
 ## KEY MISSION COMPONENTS
 - **`backend/` (Command Center)**: Standalone Python 3.12 tactical engine.
     - **Threat Processor**: 10km spatial clustering for unified target zones.
-    - **Trajectory Engine**: Normalized 2D PCA vectoring for straight-line strike axis projection.
-    - **Geodata Store**: High-resolution national border silhouettes (`tactical_borders.json`).
+    - **Trajectory Engine**: Normalized 2D PCA vectoring with **Strategic Calculation Borders** for drift-resistant origin detection.
+    - **Geodata Store**: Dual-tier boundary system (`tactical_borders.json` for visuals, `calculation_borders.json` for logic).
     - **Telemetry Broadcast**: WebSocket & API server with **CORS and Mission-Key authentication**.
     - **Persistence Layer**: MongoDB Atlas (M0) with `motor` asynchronous driver for mission history.
 - **`dashboard/` (Intelligence Dashboard)**: Premium Vite + React command interface.
