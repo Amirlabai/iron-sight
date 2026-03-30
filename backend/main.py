@@ -9,6 +9,11 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from functools import lru_cache
+from motor.motor_asyncio import AsyncIOMotorClient
+from dotenv import load_dotenv
+
+# Load Secrets
+load_dotenv()
 
 # --- Configuration ---
 POLL_INTERVAL = 3       # Seconds between API polls
@@ -16,8 +21,15 @@ WS_PORT = int(os.environ.get("PORT", 8080)) # Dynamic port for Deployment
 TIMEZONE = ZoneInfo("Asia/Jerusalem")
 LAMAS_DATA_URL = "https://raw.githubusercontent.com/idodov/RedAlert/refs/heads/main/apps/red_alerts_israel/lamas_data.json"
 LOCAL_DATA_FILE = "lamas_data.json"
-HISTORY_FILE = "history.json"
 OREF_API_URL = "https://www.oref.org.il/WarningMessages/alert/alerts.json"
+
+# DB Config
+MONGO_URI = os.getenv("MONGO_URI")
+DB_NAME = os.getenv("DB_NAME", "iron_sight_db")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "salvo_history")
+
+if not MONGO_URI:
+    logging.warning("MONGO_URI not found in environment. Persistence disabled.")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -32,8 +44,9 @@ def standardize_name(name):
 
 # --- WebSocket Manager ---
 class WebSocketManager:
-    def __init__(self, port=WS_PORT):
+    def __init__(self, mongo_manager, port=WS_PORT):
         self.port = port
+        self.mm = mongo_manager
         self.clients = set()
         self.app = web.Application()
         self.app.router.add_get('/ws', self.ws_handler)
@@ -45,14 +58,12 @@ class WebSocketManager:
         self.clients.add(ws)
         logger.info(f"Client connected. Total: {len(self.clients)}")
         
-        # Send current history on connect
+        # Send current history from MongoDB on connect
         try:
-            if os.path.exists(HISTORY_FILE):
-                with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
-                    hist = json.load(f)
-                    await ws.send_str(json.dumps({"type": "history_sync", "data": hist}))
-        except ConnectionResetError:
-            pass # Client disconnected during handshake
+            history = await self.mm.get_history(limit=50)
+            await ws.send_str(json.dumps({"type": "history_sync", "data": history}))
+        except Exception as e:
+            logger.error(f"Error fetching history for client: {e}")
 
         try:
             async for msg in ws:
@@ -75,6 +86,39 @@ class WebSocketManager:
         site = web.TCPSite(self.runner, '0.0.0.0', self.port)
         await site.start()
         logger.info(f"WebSocket server started on port {self.port}")
+
+# --- Persistence Manager ---
+class MongoManager:
+    def __init__(self, uri, db_name, collection_name):
+        self.client = AsyncIOMotorClient(uri) if uri else None
+        self.db = self.client[db_name] if self.client else None
+        self.collection = self.db[collection_name] if self.db else None
+
+    async def save_salvo(self, salvo):
+        if not self.collection: return
+        try:
+            # Use update_one with upsert to avoid duplicates if same ID appears
+            await self.collection.update_one(
+                {"id": salvo["id"]},
+                {"$set": salvo},
+                upsert=True
+            )
+            logger.info(f"Salvo {salvo['id']} saved to MongoDB.")
+        except Exception as e:
+            logger.error(f"Failed to save salvo to MongoDB: {e}")
+
+    async def get_history(self, limit=50):
+        if not self.collection: return []
+        try:
+            cursor = self.collection.find().sort("_id", -1).limit(limit)
+            history = await cursor.to_list(length=limit)
+            # Remove MongoDB _id for clean JSON serialization
+            for item in history:
+                item.pop("_id", None)
+            return history
+        except Exception as e:
+            logger.error(f"Failed to fetch history from MongoDB: {e}")
+            return []
 
 # --- Data Manager ---
 class LamasDataManager:
@@ -299,16 +343,16 @@ async def main():
     dm = LamasDataManager()
     await dm.load()
     engine = TrackingEngine(dm)
-    ws = WebSocketManager()
+    
+    # Persistence Initialize
+    mm = MongoManager(MONGO_URI, DB_NAME, COLLECTION_NAME)
+    
+    ws = WebSocketManager(mm)
     await ws.start()
 
-    # History setup
-    history = []
-    if os.path.exists(HISTORY_FILE):
-        try:
-            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
-                history = json.load(f)
-        except: history = []
+    # Database sync status check
+    history_snapshot = await mm.get_history(limit=5)
+    logger.info(f"Database sync active. Found {len(history_snapshot)} recent salvos.")
 
     headers = {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.oref.org.il/', 'X-Requested-With': 'XMLHttpRequest'}
     last_alert_id = None
@@ -327,12 +371,12 @@ async def main():
                 # Salvo Processing
                 if active_salvo and (now - salvo_start_time > 90):
                     # Salvo finalized after 90s window
-                    history.insert(0, active_salvo)
-                    history = history[:50]
-                    with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
-                        json.dump(history, f, ensure_ascii=False, indent=2)
+                    await mm.save_salvo(active_salvo)
                     
+                    # Broadcast updated history
+                    history = await mm.get_history(limit=50)
                     await ws.broadcast({"type": "history_sync", "data": history})
+                    
                     logger.info(f"SALVO FINALIZED: {active_salvo['id']} - {len(active_salvo['clusters'])} clusters.")
                     active_salvo = None
 
