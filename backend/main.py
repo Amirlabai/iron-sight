@@ -268,7 +268,7 @@ class LamasDataManager:
                     text = await resp.text()
                     text = text.lstrip('\ufeff').strip()
                     data = json.loads(text)
-            with open(LOCAL_DATA_FILE, 'w', encoding='utf-8-sig') as f:
+            with open(data_path, 'w', encoding='utf-8-sig') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
 
         self.areas = data.get('areas', {})

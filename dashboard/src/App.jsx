@@ -25,7 +25,10 @@ const DEFAULT_ZOOM = 8;
 // Mission Networking: Use relative paths for Proxy support, or environment overrides
 const WS_HOST = import.meta.env.VITE_WS_URL || window.location.host;
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const API_PROTOCOL = window.location.protocol;
+
 const WEBSOCKET_URL = `${WS_PROTOCOL}//${WS_HOST}/ws`;
+const TACTICAL_API_URL = `${API_PROTOCOL}//${WS_HOST}`;
 const MISSION_KEY = import.meta.env.VITE_MISSION_KEY;
 
 // Tactical Sound Effect
@@ -122,7 +125,7 @@ function App() {
     connect(); 
     
     // Fetch regional data for Sandbox
-    fetch('/api/cities').then(res => res.json()).then(data => setRegionalData(data)).catch(err => console.error("CITIES_FETCH_FAILED", err));
+    fetch(`${TACTICAL_API_URL}/api/cities`).then(res => res.json()).then(data => setRegionalData(data)).catch(err => console.error("CITIES_FETCH_FAILED", err));
 
     // Fail-Safe: Don't let the splash screen hang indefinitely on network/sync hiccups
     const missionTimer = setTimeout(() => {
@@ -207,7 +210,7 @@ function App() {
     setIsAnalyzing(true);
     try {
       const cities = sandboxInput.split(/[;\n]/).map(c => c.trim()).filter(c => c);
-      const resp = await fetch('/api/analyze', {
+      const resp = await fetch(`${TACTICAL_API_URL}/api/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cities })
