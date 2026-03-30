@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, ShieldAlert, Navigation2, Zap, RotateCcw, History, Radio, Clock, Map as MapIcon, Volume2, VolumeX, Terminal, Shield, ChevronDown, ChevronRight } from 'lucide-react';
 import { TACTICAL_BOUNDARIES } from './tactical_geodata';
+import { Analytics } from '@vercel/analytics/react';
 import './App.css';
 
 // Fix Leaflet icon issue
@@ -640,6 +641,7 @@ function App() {
           </div>
         </aside>
       </main>
+      <Analytics />
     </div>
   );
 }
