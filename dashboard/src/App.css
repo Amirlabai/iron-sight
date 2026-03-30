@@ -231,10 +231,52 @@ body {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border);
     border-radius: 20px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
+    transition: all 0.3s ease;
 }
+
+.status-pill.online {
+    background: rgba(62, 240, 162, 0.1);
+    color: var(--success);
+    border-color: rgba(62, 240, 162, 0.2);
+}
+
+.status-pill.online .pulse-dot {
+    background: var(--success);
+    box-shadow: 0 0 10px var(--success);
+}
+
+.status-pill.degraded {
+    background: rgba(255, 148, 77, 0.1);
+    color: #ff944d;
+    border-color: rgba(255, 148, 77, 0.2);
+}
+
+.status-pill.degraded .pulse-dot {
+    background: #ff944d;
+    box-shadow: 0 0 10px #ff944d;
+}
+
+.status-pill.offline {
+    opacity: 0.5;
+}
+
+.pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-sub);
+    animation: simple-pulse 2s infinite;
+}
+
+@keyframes simple-pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
 
 .return-live-btn {
     display: flex;

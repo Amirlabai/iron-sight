@@ -693,60 +693,95 @@ async def main():
                         last_alert_id = None
                         last_alert_time = None
 
-                async with session.get(OREF_API_URL) as resp:
-                    if resp.status == 200:
-                        text = (await resp.text()).lstrip('\ufeff').strip()
-                        if not text:
-                            await asyncio.sleep(POLL_INTERVAL)
+                # --- Multi-Source Relay Bridge ---
+                target_sources = [
+                    {"name": "OREF_OFFICIAL", "url": OREF_API_URL, "headers": headers},
+                    {"name": "COMMUNITY_RELAY_A", "url": "https://api.redalerts.info/", "headers": {'User-Agent': 'Mozilla/5.0'}},
+                    {"name": "COMMUNITY_RELAY_B", "url": "https://redalerts.me/api/alerts", "headers": {'User-Agent': 'Mozilla/5.0'}}
+                ]
+                
+                fetched_data = None
+                source_used = None
+                
+                for src in target_sources:
+                    try:
+                        async with session.get(src["url"], headers=src["headers"], timeout=5) as resp:
+                            if resp.status == 200:
+                                text = (await resp.text()).lstrip('\ufeff').strip()
+                                if text:
+                                    fetched_data = json.loads(text)
+                                    source_used = src["name"]
+                                    break
+                            else:
+                                if src["name"] == "OREF_OFFICIAL":
+                                    logger.warning(f"UPSTREAM_BLOCK_DETECTED: {src['name']} returned HTTP {resp.status}")
+                    except Exception as e:
+                        logger.debug(f"Source {src['name']} failed: {e}")
+                        continue
+
+                # --- Status & Analytics Broadcast ---
+                if now % 60 < POLL_INTERVAL:
+                    h_status = "OPERATIONAL" if fetched_data else "DEGRADED"
+                    await ws.broadcast({
+                        "type": "health_status",
+                        "status": h_status,
+                        "upstream_source": source_used or "NONE (BLOCKED)",
+                        "version": VERSION
+                    })
+
+                if fetched_data:
+                    alert_id = fetched_data.get('id')
+                    
+                    if alert_id != last_alert_id:
+                        title = fetched_data.get('title', '')
+                        logger.info(f"ALERT_DETECTED [Source: {source_used}]: ID={alert_id}, Title={title}")
+                        
+                        if "האירוע הסתיים" in title:
+                            if not threat_ended_time and last_alert_id:
+                                logger.info("Official End of Threat detected. Timer started (5m).")
+                                threat_ended_time = now
                             continue
-                        
-                        data = json.loads(text)
-                        alert_id = data.get('id')
-                        
-                        if alert_id != last_alert_id:
-                            title = data.get('title', '')
+
+                        # Rocket alert (cat=1)
+                        if int(fetched_data.get('cat', 1)) == 1:
+                            last_alert_id = alert_id
+                            last_alert_time = now
+                            threat_ended_time = None
                             
-                            if "האירוע הסתיים" in title:
-                                if not threat_ended_time and last_alert_id:
-                                    logger.info("Official End of Threat detected. Timer started (5m).")
-                                    threat_ended_time = now
-                                continue
-
-                            # Rocket alert (cat=1)
-                            if int(data.get('cat', 1)) == 1:
-                                last_alert_id = alert_id
-                                last_alert_time = now
-                                threat_ended_time = None
-                                                       # 1. Analyze the current threat alert
-                                cities_raw = data.get('data', [])
-                                analysis = engine.analyze_threat(cities_raw)
+                            # Analyze the current threat alert
+                            cities_raw = fetched_data.get('data', [])
+                            analysis = engine.analyze_threat(cities_raw)
+                            
+                            if analysis:
+                                # Initialize salvo if new or timed out
+                                if not active_salvo or (now - salvo_start_time > 60):
+                                    active_salvo = {
+                                        "id": alert_id,
+                                        "time": datetime.now(TIMEZONE).strftime("%H:%M:%S"),
+                                        "date": datetime.now(TIMEZONE).strftime("%Y-%m-%d"),
+                                        "version": VERSION,
+                                        "all_cities": []
+                                    }
+                                    salvo_start_time = now
                                 
-                                if analysis:
-                                    # Initialize salvo if new or timed out
-                                    if not active_salvo or (now - salvo_start_time > 60):
-                                        active_salvo = {
-                                            "id": alert_id,
-                                            "time": datetime.now(TIMEZONE).strftime("%H:%M:%S"),
-                                            "date": datetime.now(TIMEZONE).strftime("%Y-%m-%d"),
-                                            "version": VERSION,
-                                            "all_cities": []
-                                        }
-                                        salvo_start_time = now
-                                    
-                                    # Run deep analysis on the cumulative salvo cities
-                                    all_names = [c['name'] for c in active_salvo["all_cities"]]
-                                    for city in analysis["all_cities"]:
-                                        if city['name'] not in all_names:
-                                            active_salvo["all_cities"].append(city)
-                                            all_names.append(city['name'])
-                                    
-                                    # Re-calculate with full salvo data
-                                    full_analysis = engine.analyze_threat([c['name'] for c in active_salvo["all_cities"]])
-                                    active_salvo.update(full_analysis)
-                                    active_salvo["id"] = alert_id # Keep the latest alert ID
-
-                                    await ws.broadcast({"type": "alert", **active_salvo})
-                                    logger.info(f"BROADCAST: {alert_id} - UNIFIED STRATEGIC SALVO: {len(active_salvo['all_cities'])} hits.")
+                                # Run deep analysis on the cumulative salvo cities
+                                all_names = [c['name'] for c in active_salvo["all_cities"]]
+                                for city in analysis["all_cities"]:
+                                    if city['name'] not in all_names:
+                                        active_salvo["all_cities"].append(city)
+                                        all_names.append(city['name'])
+                                
+                                # Re-calculate with full salvo data
+                                full_analysis = engine.analyze_threat([c['name'] for c in active_salvo["all_cities"]])
+                                active_salvo.update(full_analysis)
+                                active_salvo["id"] = alert_id 
+                                
+                                await ws.broadcast({"type": "alert", **active_salvo})
+                                logger.info(f"BROADCAST: {alert_id} - UNIFIED STRATEGIC SALVO: {len(active_salvo['all_cities'])} hits.")
+                else:
+                    # Log failure every 60s
+                    if now % 60 < POLL_INTERVAL:
+                        logger.warning("HEALTH_CHECK_CRITICAL: All upstream sources are blocked or offline.")
 
             except Exception as e:
                 logger.error(f"Loop error: {e}")

@@ -8,8 +8,12 @@
     - **Threat Processor**: 10km spatial clustering for unified target zones.
     - **Trajectory Engine**: Normalized 2D PCA vectoring with **Strategic Calculation Borders** for drift-resistant origin detection.
     - **Geodata Store**: Dual-tier boundary system (`tactical_borders.json` for visuals, `calculation_borders.json` for logic).
-    - **Telemetry Broadcast**: WebSocket & API server with **CORS and Mission-Key authentication**.
-    - **Persistence Layer**: MongoDB Atlas (M0) with `motor` asynchronous driver for mission history.
+    - **Telemetry Broadcast**: WebSocket & API- **Backend**: Python 3.12 Engine (Render)
+  - WebSocket Manager (Broadcasting)
+  - MongoManager (Tactical History)
+  - **Relay Bridge (Uplink Mirroring)**: Official -> Community -> Mirror
+- **Database**: MongoDB Atlas (M0)
+- **Deployment**: Render (Backend) / Vercel (Frontend)
 - **`dashboard/` (Intelligence Dashboard)**: Premium Vite + React command interface.
     - **Map Dynamics**: Leaflet-driven strategic view with Origin-to-Israel corridor auto-centering.
     - **Tactical Silhouettes**: 360° high-res 4K-Tactical border rendering (`tactical_geodata.js`).

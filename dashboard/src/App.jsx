@@ -23,10 +23,12 @@ L.Marker.prototype.options.icon = DefaultIcon;
 const ISRAEL_CENTER = [31.7683, 35.2137];
 const DEFAULT_ZOOM = 8;
 
-// Mission Networking: Use relative paths for Proxy support, or environment overrides
-const WS_HOST = import.meta.env.VITE_WS_URL || window.location.host;
+// Mission Networking: Sanitize and construct URLs
+const RAW_HOST = import.meta.env.VITE_WS_URL || window.location.host;
+const WS_HOST = RAW_HOST.replace(/^https?:\/\//, '');
+
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const API_PROTOCOL = window.location.protocol;
+const API_PROTOCOL = window.location.protocol === 'https:' ? 'https:' : 'http:';
 
 const WEBSOCKET_URL = `${WS_PROTOCOL}//${WS_HOST}/ws`;
 const TACTICAL_API_URL = `${API_PROTOCOL}//${WS_HOST}`;
@@ -85,6 +87,7 @@ function App() {
   const [expandedRegions, setExpandedRegions] = useState(new Set());
   const [citySearch, setCitySearch] = useState('');
   const [sandboxInput, setSandboxInput] = useState('');
+  const [tacticalHealth, setTacticalHealth] = useState({ status: 'OPERATIONAL', source: 'SYNCING...' });
   const ws = useRef(null);
   const lastAlertSoundTime = useRef(0);
 
@@ -117,6 +120,8 @@ function App() {
       } else if (data.type === 'reset') {
         setLiveEvent(null);
         if (viewMode === 'live') { setMapConfig({ center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM }); }
+      } else if (data.type === 'health_status') {
+        setTacticalHealth({ status: data.status, source: data.upstream_source });
       }
     };
     ws.current.onclose = () => { setIsConnected(false); setTimeout(connect, 3000); };
@@ -265,9 +270,13 @@ function App() {
           )}
 
           {viewMode === 'live' && (
-            <div className={`status-pill ${isConnected ? 'online' : 'offline'}`}>
+            <div className={`status-pill ${isConnected ? (tacticalHealth.status === 'DEGRADED' ? 'degraded' : 'online') : 'offline'}`}>
               <div className="pulse-dot"></div>
-              {isConnected ? 'LIVE INTERCEPT' : 'RECONNECTING...'}
+              {isConnected ? (
+                tacticalHealth.status === 'DEGRADED' 
+                  ? `UPLINK DEGRADED` 
+                  : `LIVE INTERCEPT: ${tacticalHealth.source}`
+              ) : 'RECONNECTING...'}
             </div>
           )}
 
