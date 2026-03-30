@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Circle, Polyline, useMap, Marker, Popup, GeoJSON, Tooltip, Polygon } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, ShieldAlert, Navigation2, Zap, RotateCcw, History, Radio, Clock, Map as MapIcon, Volume2, VolumeX, Terminal, Shield } from 'lucide-react';
+import { Activity, ShieldAlert, Navigation2, Zap, RotateCcw, History, Radio, Clock, Map as MapIcon, Volume2, VolumeX, Terminal, Shield, ChevronDown, ChevronRight } from 'lucide-react';
 import { TACTICAL_BOUNDARIES } from './tactical_geodata';
 import './App.css';
 
@@ -75,6 +75,12 @@ function App() {
   const [isReady, setIsReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [sandboxEvent, setSandboxEvent] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [regionalData, setRegionalData] = useState({});
+  const [expandedRegions, setExpandedRegions] = useState(new Set());
+  const [citySearch, setCitySearch] = useState('');
+  const [sandboxInput, setSandboxInput] = useState('');
   const ws = useRef(null);
   const lastAlertSoundTime = useRef(0);
 
@@ -115,6 +121,9 @@ function App() {
   useEffect(() => { 
     connect(); 
     
+    // Fetch regional data for Sandbox
+    fetch('/api/cities').then(res => res.json()).then(data => setRegionalData(data)).catch(err => console.error("CITIES_FETCH_FAILED", err));
+
     // Fail-Safe: Don't let the splash screen hang indefinitely on network/sync hiccups
     const missionTimer = setTimeout(() => {
       if (!isReady) {
@@ -171,6 +180,36 @@ function App() {
     } catch (err) { console.error("CALIBRATION_FAILED:", err); }
   };
 
+  const toggleCity = (city) => {
+    const currentCities = sandboxInput.split(/[;\n]/).map(c => c.trim()).filter(c => c);
+    if (currentCities.includes(city)) {
+      setSandboxInput(currentCities.filter(c => c !== city).join('; '));
+    } else {
+      setSandboxInput([...currentCities, city].join('; '));
+    }
+  };
+
+  const toggleRegion = (regionName, e) => {
+    e.stopPropagation();
+    const regionCities = Object.keys(regionalData[regionName]);
+    const currentCities = sandboxInput.split(/[;\n]/).map(c => c.trim()).filter(c => c);
+    const allInRegionSelected = regionCities.every(c => currentCities.includes(c));
+
+    if (allInRegionSelected) {
+      setSandboxInput(currentCities.filter(c => !regionCities.includes(c)).join('; '));
+    } else {
+      const uniqueNew = [...new Set([...currentCities, ...regionCities])];
+      setSandboxInput(uniqueNew.join('; '));
+    }
+  };
+
+  const toggleExpand = (region) => {
+    const next = new Set(expandedRegions);
+    if (next.has(region)) next.delete(region);
+    else next.add(region);
+    setExpandedRegions(next);
+  };
+
   const returnToLive = () => {
     setViewMode('live');
     if (!liveEvent) setMapConfig({ center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM });
@@ -183,7 +222,41 @@ function App() {
     }
   };
 
-  const currentEvent = viewMode === 'live' ? liveEvent : archiveEvent;
+  const runSandboxAnalysis = async () => {
+    if (!sandboxInput.trim()) return;
+    setIsAnalyzing(true);
+    try {
+      const cities = sandboxInput.split(/[;\n]/).map(c => c.trim()).filter(c => c);
+      const resp = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cities })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        setSandboxEvent(data);
+        setViewMode('sandbox');
+        setMapConfig({
+          center: data.center,
+          zoom: data.zoom_level || 8
+        });
+      }
+    } catch (err) {
+      console.error("SANDBOX_ANALYSIS_FAILED:", err);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+  const currentEvent = viewMode === 'sandbox' ? sandboxEvent : (viewMode === 'live' ? liveEvent : archiveEvent);
+  
+  // Tactical Color Tokens (Mirrored in CSS variables)
+  const TACTICAL_RED = '#ff4d4d';
+  const TACTICAL_BLUE = '#4d94ff';
+  const HIGHLIGHT_RED = '#ff0000';
+  const HIGHLIGHT_BLUE = '#0066ff';
+
+  const tacticalColor = viewMode === 'sandbox' ? TACTICAL_BLUE : TACTICAL_RED;
+  const highlightColor = viewMode === 'sandbox' ? HIGHLIGHT_BLUE : HIGHLIGHT_RED;
 
   return (
     <div className={`dashboard-container ${viewMode}`}>
@@ -200,14 +273,29 @@ function App() {
           <button className="icon-btn" onClick={() => setIsMuted(!isMuted)}>
             {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
-          {viewMode === 'archive' ? (
+          
+          {viewMode === 'archive' && (
             <button className="return-live-btn" onClick={returnToLive}>
               <Radio size={16} /> RETURN TO LIVE
             </button>
-          ) : (
+          )}
+
+          {viewMode === 'live' && (
             <div className={`status-pill ${isConnected ? 'online' : 'offline'}`}>
               <div className="pulse-dot"></div>
               {isConnected ? 'LIVE INTERCEPT' : 'RECONNECTING...'}
+            </div>
+          )}
+
+          {viewMode === 'sandbox' && (
+            <div className="flex gap-2">
+              <button className="return-live-btn sandbox" onClick={() => { setViewMode('live'); setSandboxEvent(null); }}>
+                <RotateCcw size={16} /> TERMINATE ANALYSIS
+              </button>
+              <div className="status-pill sandbox">
+                <div className="pulse-dot"></div>
+                TACTICAL SANDBOX ACTIVE
+              </div>
             </div>
           )}
         </div>
@@ -217,6 +305,7 @@ function App() {
         <div className="map-wrapper">
           <div className="map-overlay-info">
             {viewMode === 'archive' && <div className="archive-watermark">HISTORICAL DATA REWIND | {archiveEvent?.time}</div>}
+            {viewMode === 'sandbox' && <div className="sandbox-watermark">DRY RUN ANALYSIS | Hypo-Salvo</div>}
           </div>
           <MapContainer
             center={ISRAEL_CENTER}
@@ -250,7 +339,7 @@ function App() {
                     <Polygon
                       positions={cluster.hull}
                       pathOptions={{
-                        color: '#ff4d4d',
+                        color: tacticalColor,
                         weight: 12,
                         opacity: 0.1,
                         fill: false,
@@ -261,9 +350,9 @@ function App() {
                     <Polygon
                       positions={cluster.hull}
                       pathOptions={{
-                        fillColor: '#ff4d4d',
+                        fillColor: tacticalColor,
                         fillOpacity: 0.3,
-                        color: '#ff4d4d',
+                        color: tacticalColor,
                         weight: 2,
                         smoothFactor: 2.0,
                         className: viewMode === 'live' ? 'pulse-animation' : ''
@@ -278,7 +367,7 @@ function App() {
                       center={cluster.centroid}
                       radius={2000}
                       pathOptions={{
-                        color: '#ff4d4d',
+                        color: tacticalColor,
                         weight: 12,
                         opacity: 0.1,
                         fill: false,
@@ -289,9 +378,9 @@ function App() {
                       center={cluster.centroid}
                       radius={2000}
                       pathOptions={{
-                        fillColor: '#ff4d4d',
+                        fillColor: tacticalColor,
                         fillOpacity: 0.4,
-                        color: '#ff4d4d',
+                        color: tacticalColor,
                         weight: 2,
                         className: viewMode === 'live' ? 'pulse-animation' : ''
                       }}
@@ -306,7 +395,7 @@ function App() {
                 <Polyline
                   positions={[traj.origin_coords, traj.target_coords]}
                   pathOptions={{
-                    color: '#ff4d4d',
+                    color: tacticalColor,
                     weight: 10,
                     opacity: 0.1,
                     smoothFactor: 2.0,
@@ -316,7 +405,7 @@ function App() {
                 <Polyline
                   positions={[traj.origin_coords, traj.target_coords]}
                   pathOptions={{
-                    color: '#ff4d4d',
+                    color: tacticalColor,
                     weight: 2,
                     dashArray: '10, 10',
                     smoothFactor: 2.0,
@@ -329,8 +418,8 @@ function App() {
                     className: 'custom-origin-marker',
                     html: `
                       <div class="origin-wrapper">
-                        <div class="origin-label">ORIGIN: ${traj.origin.toUpperCase()}</div>
-                        <div class="origin-pin"></div>
+                        <div class="origin-label" style="background: ${tacticalColor}">ORIGIN: ${traj.origin.toUpperCase()}</div>
+                        <div class="origin-pin" style="background: ${tacticalColor}4D; box-shadow: 0 0 10px ${tacticalColor}"></div>
                       </div>
                     `,
                     iconSize: [100, 50],
@@ -349,7 +438,7 @@ function App() {
                     <Polygon
                       positions={TACTICAL_BOUNDARIES[org.name]}
                       pathOptions={{
-                        color: '#ff0000',
+                        color: highlightColor,
                         weight: 15,
                         opacity: 0.05,
                         fill: false,
@@ -360,9 +449,9 @@ function App() {
                     <Polygon
                       positions={TACTICAL_BOUNDARIES[org.name]}
                       pathOptions={{
-                        fillColor: '#ff0000',
+                        fillColor: highlightColor,
                         fillOpacity: 0.1,
-                        color: '#ff0000',
+                        color: highlightColor,
                         weight: 1,
                         smoothFactor: 2.0,
                         className: 'origin-threat-glow'
@@ -375,7 +464,7 @@ function App() {
                       center={org.coords}
                       radius={40000}
                       pathOptions={{
-                        color: '#ff0000',
+                        color: highlightColor,
                         weight: 20,
                         opacity: 0.05,
                         fill: false,
@@ -386,9 +475,9 @@ function App() {
                       center={org.coords}
                       radius={40000}
                       pathOptions={{
-                        fillColor: '#ff0000',
+                        fillColor: highlightColor,
                         fillOpacity: 0.1,
-                        color: '#ff0000',
+                        color: highlightColor,
                         weight: 1,
                         className: 'origin-threat-glow'
                       }}
@@ -407,6 +496,9 @@ function App() {
             </button>
             <button className={`tab-btn ${activeTab === 'archive' ? 'active' : ''}`} onClick={() => setActiveTab('archive')}>
               <History size={18} /> HISTORY
+            </button>
+            <button className={`tab-btn ${activeTab === 'sandbox' ? 'active' : ''}`} onClick={() => setActiveTab('sandbox')}>
+              <Shield size={18} /> SANDBOX
             </button>
           </div>
 
@@ -438,7 +530,7 @@ function App() {
                     </div>
                   )}
                 </motion.div>
-              ) : (
+              ) : activeTab === 'archive' ? (
                 <motion.div key="history-tab" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="archive-panel">
                   {history.length === 0 ? (
                     <div className="empty-state"><Clock size={48} color="#333" /><p>NO HISTORY RECORDED</p></div>
@@ -492,6 +584,104 @@ function App() {
                           )}
                         </div>
                       ))}
+                    </div>
+                  )}
+                </motion.div>
+              ) : (
+                <motion.div key="sandbox-tab" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="sandbox-panel">
+                  <div className="stats-card sandbox">
+                    <div className="card-header"><Shield size={20} /><h2>TACTICAL SANDBOX</h2></div>
+                    <p className="text-xs text-sub mb-4 italic">Hypothesize threat vectors by plotting city clusters.</p>
+                    
+                    {/* Regional Selection Suite */}
+                    <div className="regional-picker">
+                      <div className="picker-controls">
+                        <div className="search-box">
+                          <Terminal size={14} />
+                          <input 
+                            type="text" 
+                            placeholder="Filter regions or cities..." 
+                            value={citySearch}
+                            onChange={(e) => setCitySearch(e.target.value)}
+                          />
+                        </div>
+                        <div className="master-toggles">
+                          <button onClick={() => setExpandedRegions(new Set(Object.keys(regionalData)))}>EXPAND ALL</button>
+                          <button onClick={() => setExpandedRegions(new Set())}>COLLAPSE</button>
+                        </div>
+                      </div>
+
+                      <div className="regions-container">
+                        {Object.entries(regionalData)
+                          .filter(([name, cities]) => 
+                            name.includes(citySearch) || 
+                            Object.keys(cities).some(c => c.includes(citySearch))
+                          )
+                          .map(([region, cities]) => {
+                            const regionCities = Object.keys(cities);
+                            const currentCities = sandboxInput.split(/[;\n]/).map(c => c.trim()).filter(c => c);
+                            const selectedInRegion = regionCities.filter(c => currentCities.includes(c));
+                            const isExpanded = expandedRegions.has(region) || citySearch.length > 0;
+
+                            return (
+                              <div key={region} className={`region-group ${isExpanded ? 'expanded' : ''}`}>
+                                <div className="region-header" onClick={() => toggleExpand(region)}>
+                                  <div className="region-info">
+                                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                    <span className="region-name">{region}</span>
+                                    <span className="count-pill">{selectedInRegion.length}/{regionCities.length}</span>
+                                  </div>
+                                  <button 
+                                    className={`select-all-btn ${selectedInRegion.length === regionCities.length ? 'all' : ''}`}
+                                    onClick={(e) => toggleRegion(region, e)}
+                                  >
+                                    {selectedInRegion.length === regionCities.length ? 'DESELECT' : 'SELECT ALL'}
+                                  </button>
+                                </div>
+                                {isExpanded && (
+                                  <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} className="region-cities">
+                                    {regionCities
+                                      .filter(c => c.includes(citySearch))
+                                      .map(city => (
+                                      <button 
+                                        key={city} 
+                                        className={`city-pill ${currentCities.includes(city) ? 'active' : ''}`}
+                                        onClick={() => toggleCity(city)}
+                                      >
+                                        {city}
+                                      </button>
+                                    ))}
+                                  </motion.div>
+                                )}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+
+                    <textarea 
+                      className="sandbox-textarea"
+                      placeholder="Targets (separated by ; or New-Line)..."
+                      value={sandboxInput}
+                      onChange={(e) => setSandboxInput(e.target.value)}
+                    />
+                    <button 
+                      className="analyze-btn" 
+                      onClick={runSandboxAnalysis}
+                      disabled={isAnalyzing}
+                    >
+                      {isAnalyzing ? 'ENGINE PROCESSING...' : 'EXECUTE ANALYSIS'}
+                    </button>
+                  </div>
+                  {sandboxEvent && (
+                    <div className="sandbox-results">
+                      <div className="alert-item sandbox">
+                        <div className="alert-marker sandbox"></div>
+                        <div className="alert-info">
+                          <h3>{sandboxEvent.title}</h3>
+                          <p>Origin mapped to {sandboxEvent.trajectories?.[0]?.origin}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </motion.div>

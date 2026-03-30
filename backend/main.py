@@ -78,6 +78,8 @@ class WebSocketManager:
         self.add_route("GET", "/ws", self.ws_handler)
         self.add_route("POST", "/api/calibrate", self.calibrate_handler)
         self.add_route("GET", "/api/history", self.history_handler)
+        self.add_route("GET", "/api/cities", self.cities_handler)
+        self.add_route("POST", "/api/analyze", self.analyze_handler)
         
         self.runner = None
 
@@ -139,12 +141,12 @@ class WebSocketManager:
             mid_lat, mid_lon = cluster.get("centroid", [31.7, 35.2])
             
             # Force the new origin logic
-            # (Note: engine is accessible via global but we should use standard logic)
-            zoom_map = {"Gaza": 10, "Lebanon": 8, "Iran": 6, "North Iran": 6, "Yemen": 6}
-            strategic_zoom = zoom_map.get(new_origin, 8)
+            strategic_zoom = self.engine.zoom_levels.get(new_origin, 8)
             
             # Use TrackingEngine 
-            origin_coords = self.engine.get_capped_origin_coords(cities, new_origin)
+            origin_coords = self.engine.get_projected_origin(cities, new_origin)
+            
+            fixed_pin = self.engine.origins.get(new_origin, origin_coords)
             
             # Update the DB
             update_data = {
@@ -153,10 +155,10 @@ class WebSocketManager:
                     "origin": new_origin,
                     "origin_coords": origin_coords,
                     "target_coords": [mid_lat, mid_lon],
-                    "marker_coords": origin_coords
+                    "marker_coords": fixed_pin
                 }],
                 "zoom_level": strategic_zoom,
-                "center": [(origin_coords[0] + 31.7)/2, (origin_coords[1] + 35.2)/2]
+                "center": [(fixed_pin[0] + 31.7)/2, (fixed_pin[1] + 35.2)/2]
             }
             
             await self.mm.collection.update_one({"id": salvo_id}, {"$set": update_data})
@@ -172,6 +174,32 @@ class WebSocketManager:
             return web.json_response(history)
         except Exception as e:
             logger.error(f"HISTORY_API_ERROR: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def cities_handler(self, request):
+        """Return the hierarchical city list grouped by regions."""
+        try:
+            # We expose the regions from the engine's data manager
+            return web.json_response(self.engine.dm.areas)
+        except Exception as e:
+            logger.error(f"CITIES_API_ERROR: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def analyze_handler(self, request):
+        """Process a list of cities and return the tactical analysis without broadcast."""
+        try:
+            data = await request.json()
+            cities = data.get("cities", [])
+            if not cities:
+                return web.json_response({"error": "No cities provided"}, status=400)
+                
+            analysis = self.engine.analyze_threat(cities)
+            if not analysis:
+                return web.json_response({"error": "Could not map cities to coordinates"}, status=404)
+                
+            return web.json_response(analysis)
+        except Exception as e:
+            logger.error(f"ANALYZE_API_ERROR: {e}")
             return web.json_response({"error": str(e)}, status=500)
 
     async def broadcast(self, data):
@@ -192,7 +220,7 @@ class MongoManager:
     def __init__(self, uri, db_name, collection_name):
         self.client = AsyncIOMotorClient(uri) if uri else None
         self.db = self.client[db_name] if self.client is not None else None
-        self.collection = self.db[collection_name] if self.db is not None else None
+        self.collection = self.db[collection_name] if self.client is not None else None
 
     async def save_salvo(self, salvo):
         if self.collection is None: return
@@ -224,10 +252,12 @@ class MongoManager:
 class LamasDataManager:
     def __init__(self):
         self.city_map = {}
+        self.areas = {}
 
     async def load(self):
-        if os.path.exists(LOCAL_DATA_FILE):
-            with open(LOCAL_DATA_FILE, 'r', encoding='utf-8-sig') as f:
+        data_path = os.path.join(os.path.dirname(__file__), LOCAL_DATA_FILE)
+        if os.path.exists(data_path):
+            with open(data_path, 'r', encoding='utf-8-sig') as f:
                 data = json.load(f)
         else:
             logger.info("Downloading city data...")
@@ -241,7 +271,8 @@ class LamasDataManager:
             with open(LOCAL_DATA_FILE, 'w', encoding='utf-8-sig') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
 
-        for area, cities in data.get('areas', {}).items():
+        self.areas = data.get('areas', {})
+        for area, cities in self.areas.items():
             for city, details in cities.items():
                 std = standardize_name(city)
                 self.city_map[std] = {
@@ -262,13 +293,29 @@ class TrackingEngine:
             "Yemen": [15.3547, 44.2067],
             "Iran": [32.4279, 53.6880]
         }
-        # Load Strategic Boundaries from JSON
         self.boundaries = {}
         # Strategic Pin Aliasing (Always ensure strategic corridors are mapped for pinning)
         self.origins["North Iran"] = self.origins["Iran"]
         
+        # Strategic metadata
+        self.strategic_depths = {
+            "Gaza": 0.5,
+            "Lebanon": 1.0,
+            "Iran": 18.0,
+            "North Iran": 16.0,
+            "Yemen": 20.0
+        }
+        self.zoom_levels = {
+            "Gaza": 10,
+            "Lebanon": 8,
+            "Iran": 6,
+            "North Iran": 6,
+            "Yemen": 6
+        }
+        
         try:
-            with open('tactical_borders.json', 'r') as f:
+            borders_path = os.path.join(os.path.dirname(__file__), 'tactical_borders.json')
+            with open(borders_path, 'r') as f:
                 self.boundaries = json.load(f)
             logger.info("TACTICAL BOUNDARIES LOADED")
         except Exception as e:
@@ -416,30 +463,35 @@ class TrackingEngine:
             if dist_next < dist_now:
                 v_lat, v_lon = -v_lat, -v_lon
                 
-                # Priority 1: Long-Range (Deep Projections Scan for strategic depth)
-                # We scan multiple depths to hit different Iranian/Regional polygons
-                for depth in [13.0, 14.0, 16.0, 18.0, 20.0]:
-                    proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
-                    for territory in ["North Iran", "Iran", "Yemen"]:
-                        if self.is_point_in_polygon(proj, territory):
-                            return territory
+            # Priority 1: Long-Range (Deep Projections Scan for strategic depth)
+            # We scan multiple depths to hit different Iranian/Regional polygons
+            for depth in [13.0, 14.0, 16.0, 18.0, 20.0]:
+                proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
+                for territory in ["North Iran", "Iran", "Yemen"]:
+                    if self.is_point_in_polygon(proj, territory):
+                        if territory == "North Iran":
+                            return "Iran", depth+2.0
+                        if territory == "Iran":
+                            return "Iran", depth+4.0
+                        if territory == "Yemen":
+                            return "Yemen", depth
 
-                # Priority 2: Short-Range (Shallow Projections Scan for regional neighbors)
-                for depth in [1.5, 2.0, 2.5]:
-                    proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
-                    for territory in ["Lebanon", "Gaza"]:
-                        if self.is_point_in_polygon(proj, territory):
-                            return territory
+            # Priority 2: Short-Range (Shallow Projections Scan for regional neighbors)
+            for depth in [0.5, 1.0, 1.5, 2.0, 2.5]:
+                proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
+                for territory in ["Lebanon", "Gaza"]:
+                    if self.is_point_in_polygon(proj, territory):
+                        return territory, depth
 
         # 2. Last-Resort Heuristics (Proximity fallbacks for single-point or non-linear clusters)
-        if centroid[0] > 32.8: return "Lebanon"
-        if centroid[0] < 31.7 and centroid[1] < 34.6: return "Gaza"
-        if centroid[0] < 31.0: return "Yemen"
+        if centroid[0] > 32.8: return "Lebanon", self.strategic_depths["Lebanon"]
+        if centroid[0] < 31.7 and centroid[1] < 34.6: return "Gaza", self.strategic_depths["Gaza"]
+        if centroid[0] < 31.0: return "Yemen", self.strategic_depths["Yemen"]
         
-        return "Iran"
+        return "Iran", self.strategic_depths["Iran"]
 
-    def get_capped_origin_coords(self, cluster_cities, origin_name):
-        """Project the PCA vector as a pure straight line back toward the launch territory."""
+    def get_projected_origin(self, cluster_cities, origin_name, depth=None):
+        """Project the PCA vector back toward the launch territory using tactical depth."""
         cnt_lat = sum(c['coords'][0] for c in cluster_cities) / len(cluster_cities)
         cnt_lon = sum(c['coords'][1] for c in cluster_cities) / len(cluster_cities)
         vector = self.calculate_regression_vector(cluster_cities)
@@ -448,27 +500,104 @@ class TrackingEngine:
         if not vector: return origin_center
         
         v_lat, v_lon = vector
-        # Normalize vector for consistent projection depth
         mag = (v_lat**2 + v_lon**2)**0.5
         if mag == 0: return origin_center
         v_lat, v_lon = v_lat/mag, v_lon/mag
-        # Orient vector toward origin country
+        
+        # Orient away from target
         dist_current = self.get_distance([cnt_lat, cnt_lon], origin_center)
         dist_forward = self.get_distance([cnt_lat + v_lat*0.1, cnt_lon + v_lon*0.1], origin_center)
         if dist_forward > dist_current:
             v_lat, v_lon = -v_lat, -v_lon
 
-        # Dynamic Strategic Depth Mapping
-        depth_map = {
-            "Gaza": 0.5,
-            "Lebanon": 1.0,
-            "Iran": 18.0,
-            "North Iran": 14.0,
-            "Yemen": 20.0
-        }
-        scalar = depth_map.get(origin_name, 10.0)
-        
+        scalar = depth if depth is not None else self.strategic_depths.get(origin_name, 10.0)
         return [cnt_lat + v_lat * scalar, cnt_lon + v_lon * scalar]
+
+    def analyze_threat(self, cities_raw):
+        """Standalone analysis engine for both live alerts and sandbox 'Dry Runs'."""
+        city_coords = []
+        for c in cities_raw:
+            std = standardize_name(c)
+            if std in self.dm.city_map:
+                city_coords.append({
+                    "name": c, 
+                    "coords": [self.dm.city_map[std]['lat'], self.dm.city_map[std]['lon']]
+                })
+        
+        if not city_coords:
+            return None
+
+        # 1. Neighborhood Clustering (Chain-Link)
+        raw_clusters = self.cluster(city_coords)
+        
+        # 2. Strategic Origin Consolidation
+        origin_groups = {}
+        for cl in raw_clusters:
+            org_name, depth = self.get_origin(cl['cities'])
+            if org_name not in origin_groups:
+                origin_groups[org_name] = {"cities": [], "depth": depth}
+            
+            city_names = {c['name'] for c in origin_groups[org_name]["cities"]}
+            for city in cl['cities']:
+                if city['name'] not in city_names:
+                    origin_groups[org_name]["cities"].append(city)
+                    city_names.add(city['name'])
+        
+        # 3. Final Tactical Mapping
+        processed_clusters = []
+        trajectories = []
+        highlight_origins = []
+        
+        for org_name, group in origin_groups.items():
+            cities = group["cities"]
+            depth = group["depth"]
+            
+            cnt_lat = sum(c['coords'][0] for c in cities) / len(cities)
+            cnt_lon = sum(c['coords'][1] for c in cities) / len(cities)
+            centroid = [cnt_lat, cnt_lon]
+            
+            hull = self.get_convex_hull([c['coords'] for c in cities])
+            border_entry = self.get_projected_origin(cities, org_name, depth=depth)
+            fixed_pin = self.origins[org_name]
+            
+            trajectories.append({
+                "origin": org_name,
+                "origin_coords": border_entry,
+                "marker_coords": fixed_pin,
+                "target_coords": centroid
+            })
+            processed_clusters.append({
+                "origin": org_name,
+                "centroid": centroid,
+                "cities": cities,
+                "hull": hull
+            })
+            highlight_origins.append({
+                "name": "Iran" if org_name == "North Iran" else org_name,
+                "coords": fixed_pin
+            })
+
+        # Strategic Map Focus
+        isr_center = [31.7683, 35.2137]
+        main_origin = trajectories[0]['marker_coords'] if trajectories else isr_center
+        mid_lat = (main_origin[0] + isr_center[0]) / 2
+        mid_lon = (main_origin[1] + isr_center[1]) / 2
+        
+        strategic_zoom = self.zoom_levels.get(list(origin_groups.keys())[0], 8)
+        
+        origin_names = sorted(list(origin_groups.keys()))
+        display_origins = [("Iran" if o == "North Iran" else o) for o in origin_names]
+        title = f"{' & '.join(set(display_origins))} Salvo"
+        
+        return {
+            "title": title,
+            "clusters": processed_clusters,
+            "trajectories": trajectories,
+            "highlight_origins": highlight_origins,
+            "center": [mid_lat, mid_lon],
+            "zoom_level": strategic_zoom,
+            "all_cities": city_coords
+        }
 
 # --- Main Application ---
 async def main():
@@ -549,111 +678,36 @@ async def main():
                                 last_alert_id = alert_id
                                 last_alert_time = now
                                 threat_ended_time = None
-                                
+                                                       # 1. Analyze the current threat alert
                                 cities_raw = data.get('data', [])
-                                city_coords = []
-                                for c in cities_raw:
-                                    std = standardize_name(c)
-                                    if std in dm.city_map:
-                                        city_coords.append({"name": c, "coords": [dm.city_map[std]['lat'], dm.city_map[std]['lon']]})
+                                analysis = engine.analyze_threat(cities_raw)
                                 
-                                    if city_coords:
-                                        # Initialize salvo cities if new
-                                        if not active_salvo or (now - salvo_start_time > 60):
-                                            active_salvo = {
-                                                "id": alert_id,
-                                                "time": datetime.now(TIMEZONE).strftime("%H:%M:%S"),
-                                                "date": datetime.now(TIMEZONE).strftime("%Y-%m-%d"),
-                                                "title": "Tactical Alert", # Default, updated below
-                                                "version": VERSION,
-                                                "all_cities": []
-                                            }
-                                            salvo_start_time = now
-                                        
-                                        # Merge current alert cities into salvo
-                                        active_salvo["all_cities"].extend(city_coords)
-                                        
-                                        # 1. Neighborhood Clustering (Chain-Link)
-                                        raw_clusters = engine.cluster(active_salvo["all_cities"])
-                                        
-                                        # 2. Strategic Origin Consolidation: Merge everything from the same country
-                                        origin_groups = {}
-                                        for cl in raw_clusters:
-                                            org_name = engine.get_origin(cl['cities'])
-                                            if org_name not in origin_groups:
-                                                origin_groups[org_name] = []
-                                            
-                                            # Deduplicate cities within the strategic group for tactical accuracy
-                                            city_names = {c['name'] for c in origin_groups[org_name]}
-                                            for city in cl['cities']:
-                                                if city['name'] not in city_names:
-                                                    origin_groups[org_name].append(city)
-                                                    city_names.add(city['name'])
-                                        
-                                        # 3. Final Tactical Mapping
-                                        processed_clusters = []
-                                        trajectories = []
-                                        highlight_origins = []
-                                        
-                                        for org_name, cities in origin_groups.items():
-                                            # Group centroid
-                                            cnt_lat = sum(c['coords'][0] for c in cities) / len(cities)
-                                            cnt_lon = sum(c['coords'][1] for c in cities) / len(cities)
-                                            centroid = [cnt_lat, cnt_lon]
-                                            
-                                            hull = engine.get_convex_hull([c['coords'] for c in cities])
-                                            border_entry = engine.get_capped_origin_coords(cities, org_name)
-                                            fixed_pin = engine.origins[org_name]
-                                            
-                                            trajectories.append({
-                                                "origin": org_name,
-                                                "origin_coords": border_entry, # Starting point of line
-                                                "marker_coords": fixed_pin,    # Fixed location for Label/Pin
-                                                "target_coords": centroid
-                                            })
-                                            processed_clusters.append({
-                                                "origin": org_name,
-                                                "centroid": centroid,
-                                                "cities": cities,
-                                                "hull": hull
-                                            })
-                                            highlight_origins.append({
-                                                "name": "Iran" if org_name == "North Iran" else org_name,
-                                                "coords": fixed_pin
-                                            })
-
-                                        # Strategic Map Focus: Midpoint between Origin Pin and Israel Center
-                                        isr_center = [31.7683, 35.2137]
-                                        main_origin = trajectories[0]['marker_coords'] if trajectories else isr_center
-                                        mid_lat = (main_origin[0] + isr_center[0]) / 2
-                                        mid_lon = (main_origin[1] + isr_center[1]) / 2
-                                        
-                                        # Granular Strategic Zoom & Framing
-                                        zoom_map = {
-                                            "Gaza": 10,
-                                            "Lebanon": 8,
-                                            "Iran": 6,
-                                            "North Iran": 6,
-                                            "Yemen": 6
+                                if analysis:
+                                    # Initialize salvo if new or timed out
+                                    if not active_salvo or (now - salvo_start_time > 60):
+                                        active_salvo = {
+                                            "id": alert_id,
+                                            "time": datetime.now(TIMEZONE).strftime("%H:%M:%S"),
+                                            "date": datetime.now(TIMEZONE).strftime("%Y-%m-%d"),
+                                            "version": VERSION,
+                                            "all_cities": []
                                         }
-                                        strategic_zoom = zoom_map.get(list(origin_groups.keys())[0], 8)
-                                        salvo_center = [mid_lat, mid_lon]
+                                        salvo_start_time = now
+                                    
+                                    # Run deep analysis on the cumulative salvo cities
+                                    all_names = [c['name'] for c in active_salvo["all_cities"]]
+                                    for city in analysis["all_cities"]:
+                                        if city['name'] not in all_names:
+                                            active_salvo["all_cities"].append(city)
+                                            all_names.append(city['name'])
+                                    
+                                    # Re-calculate with full salvo data
+                                    full_analysis = engine.analyze_threat([c['name'] for c in active_salvo["all_cities"]])
+                                    active_salvo.update(full_analysis)
+                                    active_salvo["id"] = alert_id # Keep the latest alert ID
 
-                                        # Final Metadata Enrichment
-                                        origin_names = sorted(list(origin_groups.keys()))
-                                        display_origins = [("Iran" if o == "North Iran" else o) for o in origin_names]
-                                        active_salvo["title"] = f"{' & '.join(set(display_origins))} Salvo"
-                                        
-                                        active_salvo.update({
-                                            "clusters": processed_clusters,
-                                            "trajectories": trajectories,
-                                            "highlight_origins": highlight_origins,
-                                            "center": salvo_center,
-                                            "zoom_level": strategic_zoom
-                                        })
-
-                                        await ws.broadcast({"type": "alert", **active_salvo})
-                                        logger.info(f"BROADCAST: {alert_id} - UNIFIED STRATEGIC SALVO: {len(active_salvo['all_cities'])} hits.")
+                                    await ws.broadcast({"type": "alert", **active_salvo})
+                                    logger.info(f"BROADCAST: {alert_id} - UNIFIED STRATEGIC SALVO: {len(active_salvo['all_cities'])} hits.")
 
             except Exception as e:
                 logger.error(f"Loop error: {e}")

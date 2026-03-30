@@ -1,15 +1,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=JetBrains+Mono:wght@400&display=swap');
 
+/* 
+   --- IRON SIGHT TACTICAL DESIGN SYSTEM ---
+   Principles:
+   1. High Contrast: Use dark backgrounds with vibrant tactical overlays.
+   2. Status-Driven: Red for Live/Threat, Blue for Sandbox/Archive.
+   3. Glassmorphism: Use blur and transparency for premium depth.
+   4. Motion: 5s disciplined animations to minimize GPU overhead.
+*/
+
 :root {
     --bg-primary: #0a0a0c;
     --bg-secondary: rgba(20, 20, 22, 0.85);
     /* Glassmorphism base */
-    --accent: #ff4d4d;
+    --tactical-red: #ff4d4d;
+    --tactical-blue: #4d94ff;
+    --highlight-red: #ff0000;
+    --highlight-blue: #0066ff;
+    --accent: var(--tactical-red);
     --text-main: #e0e0e0;
     --text-sub: #888;
     --border: rgba(255, 255, 255, 0.08);
     --success: #3ef0a2;
-    --archive: #4d94ff;
+    --archive: var(--tactical-blue);
     --sidebar-width: 400px;
 }
 
@@ -210,6 +223,41 @@ body {
     color: white;
 }
 
+.status-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+.return-live-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 1.5px;
+    box-shadow: 0 0 15px rgba(255, 77, 77, 0.3);
+    transition: all 0.3s ease;
+}
+
+.return-live-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 25px rgba(255, 77, 77, 0.5);
+}
+
 .main-content {
     display: flex;
     flex: 1;
@@ -220,6 +268,45 @@ body {
     flex: 1;
     position: relative;
     background: var(--bg-primary);
+}
+
+.map-overlay-info {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.archive-watermark, .sandbox-watermark {
+    padding: 8px 15px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    backdrop-filter: blur(5px);
+}
+
+.status-pill.sandbox {
+    background: rgba(77, 148, 255, 0.1);
+    color: var(--tactical-blue);
+    border: 1px solid rgba(77, 148, 255, 0.2);
+    box-shadow: 0 0 15px rgba(77, 148, 255, 0.1);
+}
+
+.archive-watermark {
+    color: var(--tactical-blue);
+    border: 1px solid rgba(77, 148, 255, 0.3);
+}
+
+.sandbox-watermark {
+    color: var(--tactical-blue);
+    border: 1px solid rgba(77, 148, 255, 0.5);
+    background: rgba(10, 30, 60, 0.6);
 }
 
 .leaflet-container {
@@ -261,7 +348,7 @@ body {
 
 .tab-btn.active {
     color: var(--accent);
-    background: rgba(255, 77, 77, 0.05);
+    background: rgba(255, 77, 77, 0.05); /* Fallback for transparency */
     box-shadow: inset 0 -2px 0 var(--accent);
 }
 
@@ -325,6 +412,11 @@ body {
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid var(--border);
     margin-bottom: 25px;
+}
+
+.stats-card.sandbox {
+    border-color: rgba(77, 148, 255, 0.2);
+    background: rgba(77, 148, 255, 0.03);
 }
 
 .card-header {
@@ -503,4 +595,217 @@ body {
     to {
         stroke-dashoffset: 0;
     }
+}
+
+/* --- Sandbox Components --- */
+.sandbox-textarea {
+    width: 100%;
+    min-height: 120px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    color: var(--text-main);
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    resize: none;
+    margin-bottom: 15px;
+    transition: border-color 0.3s;
+}
+
+.sandbox-textarea:focus {
+    outline: none;
+    border-color: var(--archive);
+}
+
+.analyze-btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--archive);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.analyze-btn:hover:not(:disabled) {
+    background: #66a3ff;
+    box-shadow: 0 0 20px rgba(77, 148, 255, 0.3);
+}
+
+.analyze-btn:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+.alert-item.sandbox {
+    border-color: rgba(77, 148, 255, 0.3);
+}
+
+.alert-marker.sandbox {
+    background: var(--archive);
+    box-shadow: 0 0 10px var(--archive);
+}
+
+/* --- Sandbox Regional Picker --- */
+.regional-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.picker-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.search-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0 10px;
+    color: var(--text-sub);
+}
+
+.search-box input {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 8px 0;
+    color: var(--text-main);
+    font-size: 12px;
+}
+
+.search-box input:focus {
+    outline: none;
+}
+
+.master-toggles {
+    display: flex;
+    gap: 5px;
+}
+
+.master-toggles button {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    color: var(--text-sub);
+    font-size: 9px;
+    font-weight: 700;
+    padding: 5px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+}
+
+.master-toggles button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.regions-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 5px;
+}
+
+.region-group {
+    border-bottom: 1px solid var(--border);
+}
+
+.region-group:last-child {
+    border-bottom: none;
+}
+
+.region-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.region-header:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.region-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.count-pill {
+    font-size: 10px;
+    color: var(--tactical-blue);
+    background: rgba(77, 148, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.select-all-btn {
+    font-size: 9px;
+    font-weight: 700;
+    background: transparent;
+    border: 1px solid var(--tactical-blue);
+    color: var(--tactical-blue);
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.select-all-btn.all {
+    background: var(--tactical-blue);
+    color: white;
+}
+
+.region-cities {
+    padding: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.city-pill {
+    font-size: 11px;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-sub);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.city-pill:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.city-pill.active {
+    background: rgba(77, 148, 255, 0.2);
+    border-color: var(--tactical-blue);
+    color: white;
+    box-shadow: 0 0 10px rgba(77, 148, 255, 0.2);
 }
