@@ -16,29 +16,39 @@ async def migrate_history():
     with open(history_path, 'r', encoding='utf-8') as f:
         history = json.load(f)
 
-    print(f"Migrating {len(history)} records to Dynamic Strategic Depth...")
-
     for event in history:
+        new_highlights = []
+        highlight_names = set()
+        
         for traj in event.get('trajectories', []):
-            origin_name = traj.get('origin')
-            # Extract cities from the cluster to re-calculate the PCA vector
-            # (Note: In a real app we'd store the vector, but here we rebuild from centroid/cities if available)
-            # Actually, TrackingEngine.get_capped_origin_coords needs the cluster cities list.
-            
-            # Find the cluster that matches this trajectory's target_coords (centroid)
+            # Re-classify and Re-project every track based on V3.8 Theater Heuristics
             target_centroid = traj.get('target_coords')
-            matching_cluster = next((c for c in event.get('clusters', []) if c['centroid'] == target_centroid), None)
+            matching_cluster = next((c for c in event.get('clusters', []) if (c['centroid'][0] == target_centroid[0] and c['centroid'][1] == target_centroid[1])), None)
             
-            if matching_cluster and origin_name:
-                # Re-calculate using the new Dynamic Depth logic
-                new_origin_coords = engine.get_capped_origin_coords(matching_cluster['cities'], origin_name)
+            if matching_cluster:
+                # 1. Re-detect origin (e.g., Iran -> North Iran if applicable)
+                new_org_name = engine.get_origin(matching_cluster['cities'])
+                traj['origin'] = new_org_name
+                
+                # 2. Re-project trajectory depth (e.g., North Iran 16.0)
+                new_origin_coords = engine.get_capped_origin_coords(matching_cluster['cities'], new_org_name)
                 traj['origin_coords'] = new_origin_coords
-                print(f"Updated {origin_name} projection to {new_origin_coords}")
+                
+                # 3. Strategic Highlight Alias (Always keep the whole country red)
+                highlight_name = "Iran" if new_org_name == "North Iran" else new_org_name
+                if highlight_name not in highlight_names:
+                    fixed_pin = engine.origins.get(highlight_name, [0, 0])
+                    new_highlights.append({"name": highlight_name, "coords": fixed_pin})
+                    highlight_names.add(highlight_name)
+                
+                print(f"Archive Re-Classification: {new_org_name} detected at {new_origin_coords}")
+        
+        event['highlight_origins'] = new_highlights
 
     with open(history_path, 'w', encoding='utf-8') as f:
         json.dump(history, f, indent=2, ensure_ascii=False)
 
-    print("Archive Migration Complete. High-Resolution Dynamic Depth is now locked into history.")
+    print("Archive Migration Complete. V3.8 Theater Intelligence is now synchronized.")
 
 if __name__ == "__main__":
     import asyncio

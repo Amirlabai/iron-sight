@@ -1,7 +1,7 @@
 # IRON SIGHT MISSION CONTEXT (V3.7 - FULL TACTICAL)
 
 ## PROJECT OVERVIEW
-`Iron Sight` (V3.5) is a high-fidelity tactical radar system for the "Red Alerts Israel" theater. It converts raw Pikud HaOref API feeds into actionable intelligence through real-time clustering, trajectory vectoring, and strategic mapping.
+`Iron Sight` (V0.0.0) is a high-fidelity tactical radar system for the "Red Alerts Israel" theater. It converts raw Pikud HaOref API feeds into actionable intelligence through real-time clustering, trajectory vectoring, and strategic mapping.
 
 ## KEY MISSION COMPONENTS
 - **`backend/` (Command Center)**: Standalone Python 3.12 tactical engine.

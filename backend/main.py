@@ -130,8 +130,11 @@ class TrackingEngine:
                 "Gaza": [[31.2, 34.2], [31.6, 34.6], [31.5, 34.5], [31.1, 34.1]],
                 "Lebanon": [[33.1, 35.1], [33.5, 35.4], [34.5, 36.1], [34.6, 36.6], [33.9, 36.4], [33.1, 35.5]],
                 "Yemen": [[12.6, 43.1], [15.3, 42.6], [17.5, 43.2], [19.0, 48.0], [17.0, 53.0], [13.0, 49.0], [12.6, 43.1]],
-                "Iran": [[25.0, 61.0], [30.0, 63.0], [38.0, 63.0], [40.0, 48.0], [40.0, 44.0], [35.0, 45.0], [30.0, 48.0], [25.0, 55.0], [25.0, 61.0]]
+                "Iran": [[25.0, 61.0], [30.0, 63.0], [38.0, 63.0], [40.0, 48.0], [40.0, 44.0], [35.0, 45.0], [30.0, 48.0], [25.0, 55.0], [25.0, 61.0]],
+                "North Iran": [[36.862, 53.854], [37.439, 50.097], [39.791, 48.229], [39.859, 43.879], [33.137, 46.208], [36.862, 53.854]]
             }
+            # Strategic Pin Aliasing
+            self.origins["North Iran"] = self.origins["Iran"]
 
     def get_distance(self, c1, c2):
         return ((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2)**0.5
@@ -155,6 +158,26 @@ class TrackingEngine:
 
     def _cross_product(self, o, a, b):
         return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    def is_point_in_polygon(self, point, poly_name):
+        """Standard Ray-Casting algorithm for boundary detection."""
+        if poly_name not in self.boundaries: return False
+        poly = self.boundaries[poly_name]
+        x, y = point
+        n = len(poly)
+        inside = False
+        p1x, p1y = poly[0]
+        for i in range(n + 1):
+            p2x, p2y = poly[i % n]
+            if y > min(p1y, p2y):
+                if y <= max(p1y, p2y):
+                    if x <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or x <= xinters:
+                            inside = not inside
+            p1x, p1y = p2x, p2y
+        return inside
 
     def calculate_regression_vector(self, cities):
         """Find the Dominant Axis of the cluster using PCA (Eigenvectors of Covariance)."""
@@ -232,6 +255,11 @@ class TrackingEngine:
         if centroid_lat > 32.7: return "Lebanon"
         if centroid_lat < 31.7 and centroid_lon < 34.6: return "Gaza"
         if centroid_lat < 31.0: return "Yemen"
+        
+        # Iranian Theater Discrimination (North vs Regional)
+        if self.is_point_in_polygon([centroid_lat, centroid_lon], "North Iran"):
+            return "North Iran"
+            
         return "Iran"
 
     def get_capped_origin_coords(self, cluster_cities, origin_name):
@@ -258,6 +286,7 @@ class TrackingEngine:
         depths = {
             "Gaza": 0.5,
             "Lebanon": 1,
+            "North Iran": 16.0,
             "Iran": 18.0,
             "Yemen": 20.0
         }
@@ -409,7 +438,7 @@ async def main():
                                                 "hull": hull
                                             })
                                             highlight_origins.append({
-                                                "name": org_name,
+                                                "name": "Iran" if org_name == "North Iran" else org_name,
                                                 "coords": fixed_pin
                                             })
 
