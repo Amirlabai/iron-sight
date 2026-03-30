@@ -13,8 +13,8 @@
 - **`dashboard/` (Intelligence Dashboard)**: Premium Vite + React command interface.
     - **Map Dynamics**: Leaflet-driven strategic view with Origin-to-Israel corridor auto-centering.
     - **Tactical Silhouettes**: 360° high-res 4K-Tactical border rendering (`tactical_geodata.js`).
-    - **Mission Archive**: Historical rewind and playback telemetry synchronized with backend logs.
+    - **Mission Archive**: Historical rewind and playback telemetry synchronized with backend logs. Streamlined observer-only interface.
     - **Aesthetics**: Military-grade Glassmorphic UI with responsive glows and **calibrated radar scans**.
 
 ## ALPHA DEVELOPMENT FOCUS
-Transitioned to v0.1.1 (Alpha). Successfully implemented CORS and Mission-Key security layers to prepare for production deployment via Render/Vercel. Decoupled archive from ephemeral storage using MongoDB Atlas.
+Transitioned to v0.1.1 (Alpha). Successfully implemented CORS and Mission-Key security layers to prepare for production deployment via Render/Vercel. Decoupled archive from ephemeral storage using MongoDB Atlas. Maintained Python 3.12.0 as the primary tactical runtime for stability.

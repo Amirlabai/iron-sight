@@ -159,26 +159,6 @@ function App() {
     }
   };
 
-  const calibrateSalvo = async (salvoId, origin) => {
-    try {
-      const resp = await fetch('/api/calibrate', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Mission-Key': MISSION_KEY
-        },
-        body: JSON.stringify({ id: salvoId, origin })
-      });
-      if (resp.ok) {
-        // Refresh the archive list to reflect changes
-        const update = await fetch('/api/history');
-        if (update.ok) setHistory(await update.json());
-        // Close archive view to reset focus
-        setArchiveEvent(null);
-        setViewMode('live');
-      }
-    } catch (err) { console.error("CALIBRATION_FAILED:", err); }
-  };
 
   const toggleCity = (city) => {
     const currentCities = sandboxInput.split(/[;\n]/).map(c => c.trim()).filter(c => c);
@@ -538,49 +518,16 @@ function App() {
                     <div className="history-list">
                       {history.map((event, i) => (
                         <div key={i} className={`history-item ${archiveEvent?.id === event.id && viewMode === 'archive' ? 'selected' : ''}`} onClick={() => selectArchive(event)}>
-                          {archiveEvent?.id === event.id && viewMode === 'archive' ? (
-                            <div className="flex flex-col gap-4">
-                              <div className="flex items-center justify-between">
-                                <h2 className="text-xl font-bold text-red-500">
-                                  {archiveEvent.title || 'ARCHIVE_SALVO'}
-                                </h2>
-                                <span className="text-xs text-secondary-500 font-mono italic opacity-50">
-                                  ID: {archiveEvent.id}
-                                </span>
-                              </div>
-
-                              {/* Tactical Calibration Control Panel */}
-                              <div className="flex flex-col gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                                <span className="text-[10px] uppercase tracking-widest text-red-500/60 font-bold">
-                                  Theater Calibration (Manual Override)
-                                </span>
-                                <div className="flex flex-wrap gap-2">
-                                  {['Gaza', 'Lebanon', 'Iran', 'North Iran', 'Yemen'].map(front => (
-                                    <button
-                                      key={front}
-                                      onClick={(e) => { e.stopPropagation(); calibrateSalvo(archiveEvent.id, front); }}
-                                      className={`
-                                        px-3 py-1 text-[10px] font-bold rounded border transition-all
-                                        ${archiveEvent.manual_origin === front 
-                                          ? 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-500/20' 
-                                          : 'bg-transparent border-red-500/30 text-red-500/70 hover:bg-red-500/20 hover:border-red-500'}
-                                      `}
-                                    >
-                                      {front.toUpperCase()}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
+                          <div className="history-meta">
+                            <span className="time">{event.time}</span>
+                            <span className="date">{event.date}</span>
+                          </div>
+                          <div className="history-title text-red-500 font-bold">{event.title || 'Unknown Salvo'}</div>
+                          <div className="history-preview mb-2">{event.clusters?.[0]?.cities?.slice(0, 3).map(c => c.name).join(', ') || 'Processing targets...'}...</div>
+                          {archiveEvent?.id === event.id && viewMode === 'archive' && (
+                            <div className="text-[10px] text-secondary-500 font-mono italic opacity-50 border-t border-red-500/20 pt-2">
+                              MISSION_ID: {archiveEvent.id}
                             </div>
-                          ) : (
-                            <>
-                              <div className="history-meta">
-                                <span className="time">{event.time}</span>
-                                <span className="date">{event.date}</span>
-                              </div>
-                              <div className="history-title">{event.title || 'Unknown Salvo'}</div>
-                              <div className="history-preview">{event.clusters?.[0]?.cities?.slice(0, 3).map(c => c.name).join(', ') || 'Processing targets...'}...</div>
-                            </>
                           )}
                         </div>
                       ))}
