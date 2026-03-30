@@ -17,4 +17,4 @@
     - **Aesthetics**: Military-grade Glassmorphic UI with responsive glows and pulse animations.
 
 ## ALPHA DEVELOPMENT FOCUS
-Transitioned to v0.1.0 (Alpha). The priority is ensuring the mission archive is decoupled from the ephemeral filesystem to support future cloud testing. Preparing for initial deployment staging.
+Transitioned to v0.1.1 (Alpha). The priority is ensuring the mission archive is decoupled from the ephemeral filesystem. Successfully patched legacy MongoDB entries with the **Vector-Priority** engine to ensure historical data consistency ahead of final delivery.

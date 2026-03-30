@@ -54,12 +54,15 @@ def standardize_name(name):
 
 # --- WebSocket Manager ---
 class WebSocketManager:
-    def __init__(self, mongo_manager, port=WS_PORT):
+    def __init__(self, mongo_manager, engine, port=WS_PORT):
         self.port = port
         self.mm = mongo_manager
+        self.engine = engine
         self.clients = set()
         self.app = web.Application()
         self.app.router.add_get('/ws', self.ws_handler)
+        self.app.router.add_post('/api/calibrate', self.calibrate_handler)
+        self.app.router.add_get('/api/history', self.history_handler)
         self.runner = None
 
     async def ws_handler(self, request):
@@ -88,6 +91,62 @@ class WebSocketManager:
             logger.info(f"Client disconnected. Total: {len(self.clients)}")
         return ws
 
+    async def calibrate_handler(self, request):
+        """Manually override a salvo's origin and re-calculate strategic parameters."""
+        try:
+            data = await request.json()
+            salvo_id = data.get("id")
+            new_origin = data.get("origin")
+            
+            if not salvo_id or not new_origin:
+                return web.json_response({"error": "Missing ID or Origin"}, status=400)
+                
+            # Get the salvo
+            salvo = await self.mm.collection.find_one({"id": salvo_id})
+            if not salvo:
+                return web.json_response({"error": "Salvo not found"}, status=404)
+                
+            # Re-calculate with the new origin
+            cluster = salvo.get("clusters", [{}])[0]
+            cities = cluster.get("cities", [])
+            mid_lat, mid_lon = cluster.get("centroid", [31.7, 35.2])
+            
+            # Force the new origin logic
+            # (Note: engine is accessible via global but we should use standard logic)
+            zoom_map = {"Gaza": 10, "Lebanon": 8, "Iran": 6, "North Iran": 6, "Yemen": 6}
+            strategic_zoom = zoom_map.get(new_origin, 8)
+            
+            # Use TrackingEngine 
+            origin_coords = self.engine.get_capped_origin_coords(cities, new_origin)
+            
+            # Update the DB
+            update_data = {
+                "manual_origin": new_origin,
+                "trajectories": [{
+                    "origin": new_origin,
+                    "origin_coords": origin_coords,
+                    "target_coords": [mid_lat, mid_lon],
+                    "marker_coords": origin_coords
+                }],
+                "zoom_level": strategic_zoom,
+                "center": [(origin_coords[0] + 31.7)/2, (origin_coords[1] + 35.2)/2]
+            }
+            
+            await self.mm.collection.update_one({"id": salvo_id}, {"$set": update_data})
+            return web.json_response({"status": "success", "new_origin": new_origin})
+        except Exception as e:
+            logger.error(f"CALIBRATION_ERROR: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def history_handler(self, request):
+        """Serve the latest mission archive for frontend synchronization."""
+        try:
+            history = await self.mm.get_history(limit=50)
+            return web.json_response(history)
+        except Exception as e:
+            logger.error(f"HISTORY_API_ERROR: {e}")
+            return web.json_response({"error": str(e)}, status=500)
+
     async def broadcast(self, data):
         if not self.clients: return
         message = json.dumps(data, ensure_ascii=False)
@@ -105,11 +164,11 @@ class WebSocketManager:
 class MongoManager:
     def __init__(self, uri, db_name, collection_name):
         self.client = AsyncIOMotorClient(uri) if uri else None
-        self.db = self.client[db_name] if self.client else None
-        self.collection = self.db[collection_name] if self.db else None
+        self.db = self.client[db_name] if self.client is not None else None
+        self.collection = self.db[collection_name] if self.db is not None else None
 
     async def save_salvo(self, salvo):
-        if not self.collection: return
+        if self.collection is None: return
         try:
             # Use update_one with upsert to avoid duplicates if same ID appears
             await self.collection.update_one(
@@ -122,7 +181,7 @@ class MongoManager:
             logger.error(f"Failed to save salvo to MongoDB: {e}")
 
     async def get_history(self, limit=50):
-        if not self.collection: return []
+        if self.collection is None: return []
         try:
             cursor = self.collection.find().sort("_id", -1).limit(limit)
             history = await cursor.to_list(length=limit)
@@ -178,21 +237,22 @@ class TrackingEngine:
         }
         # Load Strategic Boundaries from JSON
         self.boundaries = {}
+        # Strategic Pin Aliasing (Always ensure strategic corridors are mapped for pinning)
+        self.origins["North Iran"] = self.origins["Iran"]
+        
         try:
             with open('tactical_borders.json', 'r') as f:
                 self.boundaries = json.load(f)
+            logger.info("TACTICAL BOUNDARIES LOADED")
         except Exception as e:
-            logger.warning(f"Could not load tactical_borders.json: {e}")
-            # Minimal fallbacks
+            logger.warning(f"Using fallback boundaries: {e}")
             self.boundaries = {
-                "Gaza": [[31.2, 34.2], [31.6, 34.6], [31.5, 34.5], [31.1, 34.1]],
-                "Lebanon": [[33.1, 35.1], [33.5, 35.4], [34.5, 36.1], [34.6, 36.6], [33.9, 36.4], [33.1, 35.5]],
-                "Yemen": [[12.6, 43.1], [15.3, 42.6], [17.5, 43.2], [19.0, 48.0], [17.0, 53.0], [13.0, 49.0], [12.6, 43.1]],
-                "Iran": [[25.0, 61.0], [30.0, 63.0], [38.0, 63.0], [40.0, 48.0], [40.0, 44.0], [35.0, 45.0], [30.0, 48.0], [25.0, 55.0], [25.0, 61.0]],
-                "North Iran": [[36.862, 53.854], [37.439, 50.097], [39.791, 48.229], [39.859, 43.879], [33.137, 46.208], [36.862, 53.854]]
+                "Gaza": [[31.2, 34.2], [31.6, 34.6], [31.5, 34.6], [31.2, 34.3]],
+                "Lebanon": [[33.1, 35.1], [33.5, 35.9], [34.7, 36.0], [34.7, 35.8]],
+                "Yemen": [[12.6, 43.5], [16.6, 53.1], [19.0, 52.0], [17.5, 43.4]],
+                "Iran": [[25.0, 61.0], [38.0, 63.0], [40.0, 44.0], [25.0, 55.0]],
+                "North Iran": [[36.8, 53.8], [39.8, 43.8], [33.1, 46.2], [36.8, 53.8]]
             }
-            # Strategic Pin Aliasing
-            self.origins["North Iran"] = self.origins["Iran"]
 
     def get_distance(self, c1, c2):
         return ((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2)**0.5
@@ -299,25 +359,56 @@ class TrackingEngine:
                 clusters.append({'centroid': city['coords'], 'cities': [city]})
         return clusters
 
-    def get_origin(self, cluster_cities):
-        """Identify origin based on trend vector and geographic cluster centroid."""
-        centroid_lat = sum(c['coords'][0] for c in cluster_cities) / len(cluster_cities)
-        centroid_lon = sum(c['coords'][1] for c in cluster_cities) / len(cluster_cities)
-        
+    def get_origin(self, cluster_cities, manual_origin=None):
+        """Detect the likely source territory based on trajectory regression vector."""
+        if manual_origin:
+            return manual_origin
+            
+        centroid = [
+            sum(c['coords'][0] for c in cluster_cities) / len(cluster_cities),
+            sum(c['coords'][1] for c in cluster_cities) / len(cluster_cities)
+        ]
+
         vector = self.calculate_regression_vector(cluster_cities)
         
-        # Tactical Origin Heuristics
+        # 1. Vector-Based Trajectory Priority
         if vector:
-            if abs(vector[1]) < 2 and centroid_lat > 32.5: return "Lebanon"
-        
-        if centroid_lat > 32.7: return "Lebanon"
-        if centroid_lat < 31.7 and centroid_lon < 34.6: return "Gaza"
-        if centroid_lat < 31.0: return "Yemen"
-        
-        # Iranian Theater Discrimination (North vs Regional)
-        if self.is_point_in_polygon([centroid_lat, centroid_lon], "North Iran"):
-            return "North Iran"
+            v_lat, v_lon = vector
+            mag = (v_lat**2 + v_lon**2)**0.5
+            if mag == 0:
+                # Strategic Default: Single-hit targets gain a North-East axis for origin detection
+                v_lat, v_lon = 0.5, 1.0
+                mag = (v_lat**2 + v_lon**2)**0.5
             
+            v_lat, v_lon = v_lat/mag, v_lon/mag
+            
+            # CONSISTENT ORIENTATION: Point AWAY from target (Israel) to trace origin
+            isr = [31.7, 35.2]
+            dist_now = self.get_distance(centroid, isr)
+            dist_next = self.get_distance([centroid[0] + v_lat*0.1, centroid[1] + v_lon*0.1], isr)
+            if dist_next < dist_now:
+                v_lat, v_lon = -v_lat, -v_lon
+                
+                # Priority 1: Long-Range (Deep Projections Scan for strategic depth)
+                # We scan multiple depths to hit different Iranian/Regional polygons
+                for depth in [13.0, 14.0, 16.0, 18.0, 20.0]:
+                    proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
+                    for territory in ["North Iran", "Iran", "Yemen"]:
+                        if self.is_point_in_polygon(proj, territory):
+                            return territory
+
+                # Priority 2: Short-Range (Shallow Projections Scan for regional neighbors)
+                for depth in [1.5, 2.0, 2.5]:
+                    proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
+                    for territory in ["Lebanon", "Gaza"]:
+                        if self.is_point_in_polygon(proj, territory):
+                            return territory
+
+        # 2. Last-Resort Heuristics (Proximity fallbacks for single-point or non-linear clusters)
+        if centroid[0] > 32.8: return "Lebanon"
+        if centroid[0] < 31.7 and centroid[1] < 34.6: return "Gaza"
+        if centroid[0] < 31.0: return "Yemen"
+        
         return "Iran"
 
     def get_capped_origin_coords(self, cluster_cities, origin_name):
@@ -341,14 +432,14 @@ class TrackingEngine:
             v_lat, v_lon = -v_lat, -v_lon
 
         # Dynamic Strategic Depth Mapping
-        depths = {
+        depth_map = {
             "Gaza": 0.5,
-            "Lebanon": 1,
-            "North Iran": 16.0,
+            "Lebanon": 1.0,
             "Iran": 18.0,
+            "North Iran": 14.0,
             "Yemen": 20.0
         }
-        scalar = depths.get(origin_name, 10.0)
+        scalar = depth_map.get(origin_name, 10.0)
         
         return [cnt_lat + v_lat * scalar, cnt_lon + v_lon * scalar]
 
@@ -361,7 +452,7 @@ async def main():
     # Persistence Initialize
     mm = MongoManager(MONGO_URI, DB_NAME, COLLECTION_NAME)
     
-    ws = WebSocketManager(mm)
+    ws = WebSocketManager(mm, engine)
     await ws.start()
 
     # Database sync status check
@@ -445,6 +536,9 @@ async def main():
                                             active_salvo = {
                                                 "id": alert_id,
                                                 "time": datetime.now(TIMEZONE).strftime("%H:%M:%S"),
+                                                "date": datetime.now(TIMEZONE).strftime("%Y-%m-%d"),
+                                                "title": "Tactical Alert", # Default, updated below
+                                                "version": VERSION,
                                                 "all_cities": []
                                             }
                                             salvo_start_time = now
@@ -491,6 +585,7 @@ async def main():
                                                 "target_coords": centroid
                                             })
                                             processed_clusters.append({
+                                                "origin": org_name,
                                                 "centroid": centroid,
                                                 "cities": cities,
                                                 "hull": hull
@@ -506,14 +601,27 @@ async def main():
                                         mid_lat = (main_origin[0] + isr_center[0]) / 2
                                         mid_lon = (main_origin[1] + isr_center[1]) / 2
                                         
-                                        is_long_range = any(t['origin'] in ["Yemen", "Iran"] for t in trajectories)
-                                        strategic_zoom = 6 if is_long_range else 10
+                                        # Granular Strategic Zoom & Framing
+                                        zoom_map = {
+                                            "Gaza": 10,
+                                            "Lebanon": 8,
+                                            "Iran": 6,
+                                            "North Iran": 6,
+                                            "Yemen": 6
+                                        }
+                                        strategic_zoom = zoom_map.get(list(origin_groups.keys())[0], 8)
+                                        salvo_center = [mid_lat, mid_lon]
 
+                                        # Final Metadata Enrichment
+                                        origin_names = sorted(list(origin_groups.keys()))
+                                        display_origins = [("Iran" if o == "North Iran" else o) for o in origin_names]
+                                        active_salvo["title"] = f"{' & '.join(set(display_origins))} Salvo"
+                                        
                                         active_salvo.update({
                                             "clusters": processed_clusters,
                                             "trajectories": trajectories,
                                             "highlight_origins": highlight_origins,
-                                            "center": [mid_lat, mid_lon],
+                                            "center": salvo_center,
                                             "zoom_level": strategic_zoom
                                         })
 
@@ -529,4 +637,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Shutting down...")
+        logger.info("TACTICAL_ENGINE_SHUTDOWN")

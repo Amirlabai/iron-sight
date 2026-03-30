@@ -21,7 +21,9 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 const ISRAEL_CENTER = [31.7683, 35.2137];
 const DEFAULT_ZOOM = 8;
-const WS_HOST = import.meta.env.VITE_WS_URL || `${window.location.hostname}:8080`;
+
+// Mission Networking: Use relative paths for Proxy support, or environment overrides
+const WS_HOST = import.meta.env.VITE_WS_URL || window.location.host;
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const WEBSOCKET_URL = `${WS_PROTOCOL}//${WS_HOST}/ws`;
 
@@ -73,6 +75,7 @@ function App() {
   const [isMuted, setIsMuted] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const ws = useRef(null);
+  const lastAlertSoundTime = useRef(0);
 
   const connect = useCallback(() => {
     ws.current = new WebSocket(WEBSOCKET_URL);
@@ -84,7 +87,11 @@ function App() {
         setLoadingProgress(100);
         setTimeout(() => setIsReady(true), 1500);
       } else if (data.type === 'alert') {
-        if (!isMuted) PING_SOUND.play().catch(() => { });
+        const now = Date.now();
+        if (!isMuted && now - lastAlertSoundTime.current > 20000) {
+          PING_SOUND.play().catch(() => { });
+          lastAlertSoundTime.current = now;
+        }
         const newEvent = { clusters: data.clusters, trajectories: data.trajectories, time: data.time, zoom_level: data.zoom_level };
         setLiveEvent(newEvent);
         if (viewMode === 'archive') { setViewMode('live'); setActiveTab('live'); }
@@ -104,7 +111,22 @@ function App() {
     ws.current.onclose = () => { setIsConnected(false); setTimeout(connect, 3000); };
   }, [viewMode, isMuted]);
 
-  useEffect(() => { connect(); return () => ws.current?.close(); }, [connect]);
+  useEffect(() => { 
+    connect(); 
+    
+    // Fail-Safe: Don't let the splash screen hang indefinitely on network/sync hiccups
+    const missionTimer = setTimeout(() => {
+      if (!isReady) {
+        console.warn("MISSION_SYNC_TIMEOUT: Entering UI manually.");
+        setIsReady(true);
+      }
+    }, 6000);
+
+    return () => {
+      ws.current?.close();
+      clearTimeout(missionTimer);
+    }; 
+  }, [connect, isReady]);
 
   const selectArchive = (event) => {
     setArchiveEvent(event);
@@ -112,12 +134,37 @@ function App() {
     if (event.trajectories.length > 0) {
       const mainTraj = event.trajectories[0];
       const origin_coords = mainTraj.marker_coords || mainTraj.origin_coords;
-      const isLongRange = ["Iran", "Yemen"].includes(mainTraj.origin);
+      const zoomMap = {
+        'Gaza': 10,
+        'Lebanon': 8,
+        'Iran': 6,
+        'North Iran': 6,
+        'Yemen': 6
+      };
+      
       setMapConfig({
         center: [(origin_coords[0] + ISRAEL_CENTER[0]) / 2, (origin_coords[1] + ISRAEL_CENTER[1]) / 2],
-        zoom: isLongRange ? 6 : 10
+        zoom: zoomMap[mainTraj.origin] || 8
       });
     }
+  };
+
+  const calibrateSalvo = async (salvoId, origin) => {
+    try {
+      const resp = await fetch('/api/calibrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: salvoId, origin })
+      });
+      if (resp.ok) {
+        // Refresh the archive list to reflect changes
+        const update = await fetch('/api/history');
+        if (update.ok) setHistory(await update.json());
+        // Close archive view to reset focus
+        setArchiveEvent(null);
+        setViewMode('live');
+      }
+    } catch (err) { console.error("CALIBRATION_FAILED:", err); }
   };
 
   const returnToLive = () => {
@@ -177,22 +224,20 @@ function App() {
             <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
             <MapController center={mapConfig.center} zoom={mapConfig.zoom} />
 
-            {/* Full Tactical Boundary Suite (Permanent Persistence) */}
-            {Object.entries(TACTICAL_BOUNDARIES).map(([name, coords]) => (
-              <Polygon
-                key={`boundary-standby-${name}`}
-                positions={coords}
-                pathOptions={{
-                  color: name === 'Israel' ? '#ffffff' : 'rgba(255, 255, 255, 0.2)',
-                  weight: name === 'Israel' ? 3 : 1,
-                  fill: true,
-                  fillColor: name === 'Israel' ? '#ffffff' : '#ff0000',
-                  fillOpacity: name === 'Israel' ? 0.005 : 0.01,
-                  smoothFactor: 1.0,
-                  className: name === 'Israel' ? 'israel-border-static' : 'standby-border'
-                }}
-              />
-            ))}
+            {/* Israel Base Layer Only (Detected origins highlighted dynamically below) */}
+            <Polygon
+              key="israel-base-layer"
+              positions={TACTICAL_BOUNDARIES['Israel']}
+              pathOptions={{
+                color: '#ffffff',
+                weight: 3,
+                fill: true,
+                fillColor: '#ffffff',
+                fillOpacity: 0.005,
+                smoothFactor: 1.0,
+                className: 'israel-border-static'
+              }}
+            />
 
             {currentEvent?.clusters.map((cluster, idx) => (
               <React.Fragment key={`cluster-group-${idx}`}>
@@ -368,19 +413,19 @@ function App() {
                   <div className="stats-card">
                     <div className="card-header"><Navigation2 size={20} /><h2>ACTIVE THREATS</h2></div>
                     <div className="stats-grid">
-                      <div className="stat-item"><span className="label">CLUSTERS</span><span className="value">{liveEvent?.clusters.length || 0}</span></div>
-                      <div className="stat-item"><span className="label">TARGETS</span><span className="value">{liveEvent?.clusters.reduce((acc, c) => acc + c.cities.length, 0) || 0}</span></div>
+                      <div className="stat-item"><span className="label">CLUSTERS</span><span className="value">{liveEvent?.clusters?.length || 0}</span></div>
+                      <div className="stat-item"><span className="label">TARGETS</span><span className="value">{liveEvent?.clusters?.reduce((acc, c) => acc + (c.cities?.length || 0), 0) || 0}</span></div>
                     </div>
                   </div>
                   {!liveEvent ? (
                     <div className="empty-state"><RotateCcw size={48} color="#333" /><p>MONITORING AIRSPACE</p></div>
                   ) : (
                     <div className="alerts-list">
-                      {liveEvent.clusters.map((c, i) => (
+                      {liveEvent.clusters?.map((c, i) => (
                         <motion.div key={i} initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="alert-item">
                           <div className="alert-marker"></div>
                           <div className="alert-info">
-                            <h3>CLUSTER {i + 1} | {liveEvent.time}</h3>
+                            <h3>{c.origin?.toUpperCase().replace('_', ' ') || `CLUSTER ${i + 1}`} | {liveEvent.time}</h3>
                             <p>{c.cities.map(ct => ct.name).join(', ')}</p>
                           </div>
                           <Zap size={16} color="#ff944d" />
@@ -397,8 +442,50 @@ function App() {
                     <div className="history-list">
                       {history.map((event, i) => (
                         <div key={i} className={`history-item ${archiveEvent?.id === event.id && viewMode === 'archive' ? 'selected' : ''}`} onClick={() => selectArchive(event)}>
-                          <div className="history-meta"><span className="time">{event.time}</span><span className="count">{event.clusters.length} CLUSTERS</span></div>
-                          <div className="history-preview">{event.clusters[0].cities.slice(0, 3).map(c => c.name).join(', ')}...</div>
+                          {archiveEvent?.id === event.id && viewMode === 'archive' ? (
+                            <div className="flex flex-col gap-4">
+                              <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-bold text-red-500">
+                                  {archiveEvent.title || 'ARCHIVE_SALVO'}
+                                </h2>
+                                <span className="text-xs text-secondary-500 font-mono italic opacity-50">
+                                  ID: {archiveEvent.id}
+                                </span>
+                              </div>
+
+                              {/* Tactical Calibration Control Panel */}
+                              <div className="flex flex-col gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                                <span className="text-[10px] uppercase tracking-widest text-red-500/60 font-bold">
+                                  Theater Calibration (Manual Override)
+                                </span>
+                                <div className="flex flex-wrap gap-2">
+                                  {['Gaza', 'Lebanon', 'Iran', 'North Iran', 'Yemen'].map(front => (
+                                    <button
+                                      key={front}
+                                      onClick={(e) => { e.stopPropagation(); calibrateSalvo(archiveEvent.id, front); }}
+                                      className={`
+                                        px-3 py-1 text-[10px] font-bold rounded border transition-all
+                                        ${archiveEvent.manual_origin === front 
+                                          ? 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-500/20' 
+                                          : 'bg-transparent border-red-500/30 text-red-500/70 hover:bg-red-500/20 hover:border-red-500'}
+                                      `}
+                                    >
+                                      {front.toUpperCase()}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="history-meta">
+                                <span className="time">{event.time}</span>
+                                <span className="date">{event.date}</span>
+                              </div>
+                              <div className="history-title">{event.title || 'Unknown Salvo'}</div>
+                              <div className="history-preview">{event.clusters?.[0]?.cities?.slice(0, 3).map(c => c.name).join(', ') || 'Processing targets...'}...</div>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>

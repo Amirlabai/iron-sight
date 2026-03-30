@@ -10,5 +10,18 @@ export default defineConfig({
   plugins: [react()],
   define: {
     __APP_VERSION__: JSON.stringify(versionData.version)
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
+      '/ws': {
+        target: 'http://localhost:8080',
+        ws: true,
+        changeOrigin: true
+      }
+    }
   }
 })
