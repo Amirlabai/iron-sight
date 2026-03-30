@@ -26,6 +26,7 @@ const DEFAULT_ZOOM = 8;
 const WS_HOST = import.meta.env.VITE_WS_URL || window.location.host;
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const WEBSOCKET_URL = `${WS_PROTOCOL}//${WS_HOST}/ws`;
+const MISSION_KEY = import.meta.env.VITE_MISSION_KEY;
 
 // Tactical Sound Effect
 const PING_SOUND = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
@@ -153,7 +154,10 @@ function App() {
     try {
       const resp = await fetch('/api/calibrate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Mission-Key': MISSION_KEY
+        },
         body: JSON.stringify({ id: salvoId, origin })
       });
       if (resp.ok) {

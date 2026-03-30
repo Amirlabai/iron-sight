@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from functools import lru_cache
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
+import aiohttp_cors
 
 # Load Secrets
 load_dotenv()
@@ -30,6 +31,9 @@ COLLECTION_NAME = os.getenv("COLLECTION_NAME", "salvo_history")
 
 if not MONGO_URI:
     logging.warning("MONGO_URI not found in environment. Persistence disabled.")
+
+MISSION_KEY = os.getenv("MISSION_KEY")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -60,10 +64,26 @@ class WebSocketManager:
         self.engine = engine
         self.clients = set()
         self.app = web.Application()
-        self.app.router.add_get('/ws', self.ws_handler)
-        self.app.router.add_post('/api/calibrate', self.calibrate_handler)
-        self.app.router.add_get('/api/history', self.history_handler)
+        
+        # --- CORS Configuration ---
+        self.cors = aiohttp_cors.setup(self.app, defaults={
+            origin: aiohttp_cors.ResourceOptions(
+                allow_credentials=True,
+                expose_headers="*",
+                allow_headers="*",
+            ) for origin in ALLOWED_ORIGINS
+        })
+
+        # Add Tactical Routes with CORS
+        self.add_route("GET", "/ws", self.ws_handler)
+        self.add_route("POST", "/api/calibrate", self.calibrate_handler)
+        self.add_route("GET", "/api/history", self.history_handler)
+        
         self.runner = None
+
+    def add_route(self, method, path, handler):
+        resource = self.app.router.add_resource(path)
+        self.cors.add(resource.add_route(method, handler))
 
     async def ws_handler(self, request):
         ws = web.WebSocketResponse()
@@ -98,6 +118,13 @@ class WebSocketManager:
             salvo_id = data.get("id")
             new_origin = data.get("origin")
             
+            # --- MISSION KEY VALIDATION ---
+            if MISSION_KEY:
+                provided_key = request.headers.get("X-Mission-Key")
+                if provided_key != MISSION_KEY:
+                    logger.warning(f"UNAUTHORIZED_ACCESS_ATTEMPT: Invalid Mission Key for Salvo {salvo_id}")
+                    return web.json_response({"error": "Unauthorized: Invalid Mission Key"}, status=401)
+
             if not salvo_id or not new_origin:
                 return web.json_response({"error": "Missing ID or Origin"}, status=400)
                 

@@ -4,3 +4,4 @@ tzdata
 motor
 dnspython
 python-dotenv
+aiohttp-cors
