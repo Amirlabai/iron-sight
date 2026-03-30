@@ -35,6 +35,16 @@ if not MONGO_URI:
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("IronSightBackend")
 
+# Load Version Info
+VERSION = "0.0.0"
+try:
+    with open(os.path.join(os.path.dirname(__file__), '..', 'version.json'), 'r') as f:
+        vdata = json.load(f)
+        VERSION = vdata.get("version", "0.0.0")
+    logger.info(f"IRON SIGHT TACTICAL ENGINE - INITIALIZED (v{VERSION})")
+except Exception as e:
+    logger.warning(f"Could not load version.json: {e}")
+
 # --- Utilities ---
 @lru_cache(maxsize=1000)
 def standardize_name(name):
@@ -61,7 +71,11 @@ class WebSocketManager:
         # Send current history from MongoDB on connect
         try:
             history = await self.mm.get_history(limit=50)
-            await ws.send_str(json.dumps({"type": "history_sync", "data": history}))
+            await ws.send_str(json.dumps({
+                "type": "history_sync", 
+                "data": history,
+                "version": VERSION
+            }))
         except Exception as e:
             logger.error(f"Error fetching history for client: {e}")
 

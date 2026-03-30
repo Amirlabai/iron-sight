@@ -56,7 +56,7 @@ function SplashScreen({ progress }) {
       <div className="progress-bar-container">
         <motion.div className="progress-bar" initial={{ width: 0 }} animate={{ width: `${progress}%` }} />
       </div>
-      <h1 className="splash-title">IRON SIGHT <span>V3.6</span></h1>
+      <h1 className="splash-title">IRON SIGHT <span>{__APP_VERSION__}</span></h1>
     </motion.div>
   );
 }
@@ -143,7 +143,7 @@ function App() {
       <header className="premium-header">
         <div className="logo-section">
           <img src="/favicon.png" className={`logo-img ${liveEvent ? 'alert-pulse' : ''}`} alt="IRON SIGHT" />
-          <h1>IRON SIGHT <span>{viewMode === 'archive' ? 'ARCHIVE' : 'LIVE'}</span></h1>
+          <h1>IRON SIGHT <span>{viewMode === 'archive' ? 'ARCHIVE' : __APP_VERSION__}</span></h1>
         </div>
         <div className="status-section">
           <button className="icon-btn" onClick={() => setIsMuted(!isMuted)}>

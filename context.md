@@ -1,4 +1,4 @@
-# IRON SIGHT MISSION CONTEXT (V3.7 - FULL TACTICAL)
+# IRON SIGHT MISSION CONTEXT (UNIFIED)
 
 ## PROJECT OVERVIEW
 `Iron Sight` (V0.0.0) is a high-fidelity tactical radar system for the "Red Alerts Israel" theater. It converts raw Pikud HaOref API feeds into actionable intelligence through real-time clustering, trajectory vectoring, and strategic mapping.
@@ -16,5 +16,5 @@
     - **Mission Archive**: Historical rewind and playback telemetry synchronized with backend logs.
     - **Aesthetics**: Military-grade Glassmorphic UI with responsive glows and pulse animations.
 
-## STRATEGIC FOCUS
-Transitioned to V4.0 (Persistence Era). The mission archive is now decoupled from the ephemeral filesystem, ensuring tactical continuity across cloud restarts. Preparing for final Render deployment.
+## ALPHA DEVELOPMENT FOCUS
+Transitioned to v0.1.0 (Alpha). The priority is ensuring the mission archive is decoupled from the ephemeral filesystem to support future cloud testing. Preparing for initial deployment staging.
