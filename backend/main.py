@@ -728,19 +728,19 @@ async def main():
                                 text = (await resp.text())[:150].strip()
                                 logger.warning(f"UPSTREAM_FAILURE: Source={src['name']} Status={resp.status} Detail={text}")
                     except Exception as e:
-                        logger.debug(f"Source {src['name']} failed: {e}")
+                        # Connection Analytics: Log timeouts or refused connections
+                        logger.warning(f"CONNECTION_ERROR [Source: {src['name']}]: {str(e)}")
                         continue
 
-                # --- Status & Analytics Broadcast ---
-                if now % 60 < POLL_INTERVAL:
-                    h_status = "OPERATIONAL" if fetched_data is not None else "DEGRADED"
-                    await ws.broadcast({
-                        "type": "health_status",
-                        "status": h_status,
-                        "upstream_source": source_used or "NONE (BLOCKED)",
-                        "version": VERSION
-                    })
-
+                # --- Real-Time Status & Analytics Broadcast (v0.3.2) ---
+                h_status = "OPERATIONAL" if fetched_data is not None else "DEGRADED"
+                await ws.broadcast({
+                    "type": "health_status",
+                    "status": h_status,
+                    "relay_scout": source_used if fetched_data else "OFFLINE",
+                    "timestamp": datetime.now(TIMEZONE).isoformat(),
+                    "version": VERSION
+                })
                 if fetched_data:
                     # Normalize list-based stream results to a single alert payload
                     alert_payload = fetched_data[0] if isinstance(fetched_data, list) and len(fetched_data) > 0 else fetched_data

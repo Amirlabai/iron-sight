@@ -1,7 +1,7 @@
 # IRON SIGHT MISSION CONTEXT (UNIFIED)
 
 ## PROJECT OVERVIEW
-`Iron Sight` (V0.3.0) is a high-fidelity tactical radar system for the "Red Alerts Israel" theater. It converts raw Pikud HaOref API feeds into actionable intelligence through real-time clustering, trajectory vectoring, and strategic mapping.
+`Iron Sight` (V0.3.2) is a high-fidelity tactical radar system for the "Red Alerts Israel" theater. It converts raw Pikud HaOref API feeds into actionable intelligence through real-time clustering, trajectory vectoring, and strategic mapping.
 
 ## KEY MISSION COMPONENTS
 - **`backend/` (Command Center)**: Standalone Python 3.12 tactical engine.
@@ -18,4 +18,4 @@
     - **Aesthetics**: Military-grade Glassmorphic UI with responsive glows and **calibrated radar scans**.
 
 ## ALPHA DEVELOPMENT FOCUS
-Transitioned to v0.3.0 (Alpha). Patched the tactical health check logic and internalized the `list-object` normalization for the Python Backend. Correctly handle empty alert arrays (`[]`) and multi-alert payloads from the integrated proxy scouts. Successfully restored the "Operational" status visibility on the dashboard while maintaining high-fidelity monitoring from the Kamatera-based Node.js relay. Hardened environment security with `RELAY_AUTH_KEY` and updated all tactical configuration layers. Maintained v0.1.1 baseline security (CORS/Mission-Key) and MongoDB Atlas persistence.
+Transitioned to v0.3.2 (Alpha). Synchronized real-time tactical health reporting and normalized the `list-object` intake stream for the Python Backend. Implemented enhanced failure analytics to expose 403 blocks and connection timeouts. Maintained v0.1.1 baseline security (CORS/Mission-Key) and MongoDB Atlas persistence across the Vercel-to-Render bridge.
