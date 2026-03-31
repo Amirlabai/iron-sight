@@ -269,12 +269,24 @@ body {
     border-radius: 50%;
     background: var(--text-sub);
     animation: simple-pulse 2s infinite;
+    flex-shrink: 0;
 }
 
 @keyframes simple-pulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.5); opacity: 0.5; }
-    100% { transform: scale(1); opacity: 1; }
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.5);
+        opacity: 0.5;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 
@@ -576,26 +588,67 @@ body {
         position: absolute;
         bottom: 0;
         left: 0;
-        height: 40%;
+        height: auto;
+        max-height: 70px;
         z-index: 2000;
         border-left: none;
         border-top: 1px solid var(--border);
+        transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
     }
 
-    .h1 {
-        font-size: 1.5rem;
+    .sidebar-expanded .sidebar {
+        max-height: 50%;
+    }
+
+    .mobile-drawer-handle {
+        display: flex;
+        justify-content: center;
+        padding: 8px 0;
+        background: rgba(255, 255, 255, 0.05);
+        cursor: pointer;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .handle-bar {
+        width: 40px;
+        height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+    }
+
+    .premium-header h1 {
+        font-size: 10px;
+        letter-spacing: 1px;
     }
 
     .premium-header {
-        padding: 0 20px;
+        height: 60px;
+        padding: 0 15px;
+    }
+
+    .status-pill {
+        padding: 6px 12px;
+        font-size: 4px;
     }
 
     .sidebar-tabs {
+        /* Keep original 2-column grid from base styles */
         display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
     }
 
     .tab-btn {
-        flex: 1;
+        /* Keep original sizing */
+        padding: 12px;
+        font-size: 10px;
+    }
+
+    /* Collapsed state needs to accommodate the 2-row grid height (approx 120px) */
+    .sidebar {
+        max-height: 120px;
     }
 }
 

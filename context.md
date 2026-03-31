@@ -1,7 +1,11 @@
-# IRON SIGHT MISSION CONTEXT (UNIFIED)
+# IRON SIGHT: TACTICAL CONTEXT (v0.5.2)
 
-## PROJECT OVERVIEW
-`Iron Sight` (V0.3.2) is a high-fidelity tactical radar system for the "Red Alerts Israel" theater. It converts raw Pikud HaOref API feeds into actionable intelligence through real-time clustering, trajectory vectoring, and strategic mapping.
+> [!IMPORTANT]
+> **SOURCE OF TRUTH DIRECTIVE**: Before modifying ANY communication logic (Headers, Endpoints, JSON payloads), you MUST read the [STRATEGIC COMMUNICATION PROTOCOL (SCP)](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md) immediately. For UI changes, color palettes, or component architecture, you MUST read the [UI DESIGN SPECIFICATION (TDS)](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/UI_DESIGN_SPEC.md) first. Failure to adhere to these protocols will result in Strategic De-sync or UI Degradation.
+
+## MISSION OVERVIEW
+Iron Sight is a real-time, strategic intelligence engine designed to detect, analyze, and visualize tactical threats in the Israeli theater. 
+It converts raw Pikud HaOref API feeds into actionable intelligence through real-time clustering, trajectory vectoring, and strategic mapping.
 
 ## KEY MISSION COMPONENTS
 - **`backend/` (Command Center)**: Standalone Python 3.12 tactical engine.
@@ -18,4 +22,4 @@
     - **Aesthetics**: Military-grade Glassmorphic UI with responsive glows and **calibrated radar scans**.
 
 ## ALPHA DEVELOPMENT FOCUS
-Transitioned to v0.5.0 (Alpha). **Uplink Consolidation**: Decommissioned all redundant fallback sources. The Israeli Relay Bridge is now the sole tactical uplink, providing high-fidelity 403-bypass intelligence directly to the Iron Sight engine.
+Transitioned to v0.5.2 (Alpha). **Uplink Consolidation**: Decommissioned redundant sources. Established the Israeli Relay Bridge as the sole tactical uplink. **Protocol Alignment**: Standardized all cross-system communication via the [COMMUNICATION_PROTOCOL.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md).

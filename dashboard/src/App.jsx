@@ -88,6 +88,7 @@ function App() {
   const [citySearch, setCitySearch] = useState('');
   const [sandboxInput, setSandboxInput] = useState('');
   const [tacticalHealth, setTacticalHealth] = useState({ status: 'OPERATIONAL', source: 'SYNCING...' });
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const ws = useRef(null);
   const lastAlertSoundTime = useRef(0);
 
@@ -106,7 +107,15 @@ function App() {
           PING_SOUND.play().catch(() => { });
           lastAlertSoundTime.current = now;
         }
-        const newEvent = { clusters: data.clusters, trajectories: data.trajectories, time: data.time, zoom_level: data.zoom_level };
+        const newEvent = { 
+          id: data.id,
+          clusters: data.clusters, 
+          trajectories: data.trajectories, 
+          highlight_origins: data.highlight_origins,
+          title: data.title,
+          time: data.time, 
+          zoom_level: data.zoom_level 
+        };
         setLiveEvent(newEvent);
         if (viewMode === 'archive') { setViewMode('live'); setActiveTab('live'); }
         if (data.trajectories.length > 0) {
@@ -247,8 +256,15 @@ function App() {
   const tacticalColor = viewMode === 'sandbox' ? TACTICAL_BLUE : TACTICAL_RED;
   const highlightColor = viewMode === 'sandbox' ? HIGHLIGHT_BLUE : HIGHLIGHT_RED;
 
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (window.innerWidth <= 1024) {
+      setIsSidebarExpanded(true);
+    }
+  };
+
   return (
-    <div className={`dashboard-container ${viewMode}`}>
+    <div className={`dashboard-container ${viewMode} ${isSidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
       <AnimatePresence>
         {!isReady && <SplashScreen progress={loadingProgress} />}
       </AnimatePresence>
@@ -483,14 +499,17 @@ function App() {
         </div>
 
         <aside className="sidebar">
+          <div className="mobile-drawer-handle" onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}>
+            <div className="handle-bar"></div>
+          </div>
           <div className="sidebar-tabs">
-            <button className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={() => setActiveTab('live')}>
+            <button className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={() => handleTabChange('live')}>
               <Activity size={18} /> LIVE
             </button>
-            <button className={`tab-btn ${activeTab === 'archive' ? 'active' : ''}`} onClick={() => setActiveTab('archive')}>
+            <button className={`tab-btn ${activeTab === 'archive' ? 'active' : ''}`} onClick={() => handleTabChange('archive')}>
               <History size={18} /> HISTORY
             </button>
-            <button className={`tab-btn ${activeTab === 'sandbox' ? 'active' : ''}`} onClick={() => setActiveTab('sandbox')}>
+            <button className={`tab-btn ${activeTab === 'sandbox' ? 'active' : ''}`} onClick={() => handleTabChange('sandbox')}>
               <Shield size={18} /> SANDBOX
             </button>
           </div>

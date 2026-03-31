@@ -29,6 +29,9 @@
 - [x] **Runtime Audit**: Verified deployment stability against Render's Python 3.14 rollout; version locked at 3.12.0 via `.python-version`.
 - [x] **Monorepo Pathing**: Explicitly set `rootDir: backend` in `render.yaml` and fixed start command with `python` prefix.
 - [x] **GitHub Actions Stabilization**: Patched `version-sync.yml` with `contents: write` permissions to allow automated version bumps.
+- [x] MISSION: UI Design Specification (TDS)
+- [x] MISSION: Tactical Mobile Optimization (Drawer & Header Scaling)
+- [x] MISSION: Pulse Normalization (Absolute Circularity)
 
 ## PLANNED (DEVELOPMENT SPRINT 5)
 - **Automatic Alert Simulation**: (TBD) Multi-state scenario playback.
@@ -37,5 +40,5 @@
 ---
 **Mission Status**: **OPERATIONAL** | REAL-TIME HEALTH RECOVERY
 
-Transitioned to v0.5.2 (Alpha). **Authentication Alignment**: Corrected the relay bridge header to `x-relay-auth` and added explicit `UNAUTHORIZED` status reporting for the health check.
+Transitioned to v0.5.4 (Alpha). **Uplink Calibration**: Restored origin country highlighting and tactical title synchronization between the backend and frontend.
 Israeli relay (63.250.61.251) is OPERATIONAL.
