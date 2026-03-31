@@ -37,5 +37,5 @@
 ---
 **Mission Status**: **OPERATIONAL** | REAL-TIME HEALTH RECOVERY
 
-Transitioned to v0.5.0 (Alpha). **Uplink Consolidation**: Decommissioned all redundant fallback sources (OREF/Community). The engine now operates exclusively via the **Israeli Relay Bridge** (Single Source of Truth). Optimized for high-fidelity reliability.
+Transitioned to v0.5.1 (Alpha). **Broadcast Hardening**: Implemented Recovery-Aware alert tracking to ensure ongoing threats are broadcasted instantly on backend restart. Added diagnostic mapping logs and normalized category detection.
 Israeli relay (63.250.61.251) is OPERATIONAL.

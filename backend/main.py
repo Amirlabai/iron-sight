@@ -759,7 +759,7 @@ async def main():
                         cities_raw = alert_payload.get('data', [])
                         
                         # --- Salvo Tracking Logic ---
-                        is_new_salvo = alert_id and alert_id != last_alert_id
+                        is_new_id = alert_id and alert_id != last_alert_id
                         has_new_cities = False
                         
                         if active_salvo and alert_id == active_salvo.get("id"):
@@ -767,52 +767,58 @@ async def main():
                             if any(c not in current_names for c in cities_raw):
                                 has_new_cities = True
 
-                        if alert_id and (is_new_salvo or has_new_cities):
+                        # Broadcast triggers: New ID, New Cities, or Recovery (active salvo is None)
+                        if alert_id and (is_new_id or has_new_cities or not active_salvo):
                             title = alert_payload.get('title', '')
                             logger.info(f"ALERT_DETECTED [Source: {source_used}]: ID={alert_id}, Title={title}")
                             
-                            if "האירוע הסתיים" in title or int(alert_payload.get('cat', 1)) == 10:
+                            # Filter out 'Event Ended' markers
+                            if "האירוע הסתיים" in title or str(alert_payload.get('cat')) == "10":
                                 if not threat_ended_time and last_alert_id:
-                                    logger.info(f"THREAT_ENDED_SIGNAL [Source: {source_used}]: Active timer started (5m).")
+                                    logger.info(f"THREAT_ENDED_SIGNAL: Active timer started (5m).")
                                     threat_ended_time = now
                                 continue
 
-                            # Rocket alert (cat=1)
-                            if int(alert_payload.get('cat', 1)) == 1:
-                                last_alert_id = alert_id
-                                last_alert_time = now
-                                threat_ended_time = None
+                            # Standard Threat (cat=1 or fallback)
+                            last_alert_id = alert_id
+                            last_alert_time = now
+                            threat_ended_time = None
+                            
+                            # Analyze the current threat alert
+                            analysis = engine.analyze_threat(cities_raw)
+                            
+                            if analysis:
+                                # Initialize/Reset salvo if needed
+                                if not active_salvo or (is_new_id and (now - salvo_start_time > 60)):
+                                    logger.info(f"INITIALIZING_SALVO: {alert_id}")
+                                    active_salvo = {
+                                        "id": alert_id,
+                                        "time": datetime.now(TIMEZONE).strftime("%H:%M:%S"),
+                                        "date": datetime.now(TIMEZONE).strftime("%Y-%m-%d"),
+                                        "version": VERSION,
+                                        "all_cities": []
+                                    }
+                                    salvo_start_time = now
                                 
-                                # Analyze the current threat alert
-                                cities_raw = alert_payload.get('data', [])
-                                analysis = engine.analyze_threat(cities_raw)
+                                # Add new hits to the rolling salvo
+                                all_names = {c['name'] for c in active_salvo["all_cities"]}
+                                for city in analysis["all_cities"]:
+                                    if city['name'] not in all_names:
+                                        active_salvo["all_cities"].append(city)
+                                        all_names.add(city['name'])
                                 
-                                if analysis:
-                                    # Initialize salvo if new or timed out
-                                    if not active_salvo or (now - salvo_start_time > 60):
-                                        active_salvo = {
-                                            "id": alert_id,
-                                            "time": datetime.now(TIMEZONE).strftime("%H:%M:%S"),
-                                            "date": datetime.now(TIMEZONE).strftime("%Y-%m-%d"),
-                                            "version": VERSION,
-                                            "all_cities": []
-                                        }
-                                        salvo_start_time = now
-                                    
-                                    # Run deep analysis on the cumulative salvo cities
-                                    all_names = [c['name'] for c in active_salvo["all_cities"]]
-                                    for city in analysis["all_cities"]:
-                                        if city['name'] not in all_names:
-                                            active_salvo["all_cities"].append(city)
-                                            all_names.append(city['name'])
-                                    
-                                    # Re-calculate with full salvo data
-                                    full_analysis = engine.analyze_threat([c['name'] for c in active_salvo["all_cities"]])
+                                # Re-calculate with full salvo data
+                                full_analysis = engine.analyze_threat([c['name'] for c in active_salvo["all_cities"]])
+                                if full_analysis:
                                     active_salvo.update(full_analysis)
                                     active_salvo["id"] = alert_id 
                                     
                                     await ws.broadcast({"type": "alert", **active_salvo})
-                                    logger.info(f"BROADCAST: {alert_id} - UNIFIED STRATEGIC SALVO: {len(active_salvo['all_cities'])} hits.")
+                                    logger.info(f"BROADCAST_SUCCESS: {alert_id} - Unified strategic salvo: {len(active_salvo['all_cities'])} cities.")
+                                else:
+                                    logger.warning(f"ANALYSIS_FAILURE: Could not re-calculate salvo for {len(active_salvo['all_cities'])} cities.")
+                            else:
+                                logger.warning(f"MAPPING_FAILURE: Cities {cities_raw} could not be resolved to coordinates.")
                 else:
                     # Log failure every 60s
                     if now % 60 < POLL_INTERVAL:
