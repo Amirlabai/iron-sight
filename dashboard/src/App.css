@@ -628,8 +628,9 @@ body {
     }
 
     .status-pill {
-        padding: 6px 12px;
+        padding: 6px 6px;
         font-size: 4px;
+        gap: 4px;
     }
 
     .sidebar-tabs {
