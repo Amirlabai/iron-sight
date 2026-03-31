@@ -700,7 +700,7 @@ async def main():
                 target_sources = []
                 if RELAY_URL:
                     target_sources.append({
-                        "name": "ISRAEL_RELAY_PRO", 
+                        "name": "PROXY", 
                         "url": RELAY_URL, 
                         "headers": {"x-relay-auth": RELAY_AUTH_KEY}
                     })
