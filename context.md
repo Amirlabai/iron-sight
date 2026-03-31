@@ -22,5 +22,5 @@ It converts raw Pikud HaOref API feeds into actionable intelligence through real
     - **Mission Archive**: Historical rewind and playback telemetry synchronized with backend logs. Streamlined observer-only interface.
     - **Aesthetics**: Military-grade Glassmorphic UI with responsive glows and **calibrated radar scans**.
 
-## ALPHA DEVELOPMENT FOCUS
-Transitioned to v0.5.2 (Alpha). **Uplink Consolidation**: Decommissioned redundant sources. Established the Israeli Relay Bridge as the sole tactical uplink. **Protocol Alignment**: Standardized all cross-system communication via the [COMMUNICATION_PROTOCOL.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md).
+## ALPHA DEVELOPMENT FOCUS (S4)
+Transitioned to v0.4.7 (Alpha). **Uplink Consolidation**: Established the Israeli Relay Bridge as the sole tactical uplink. **Protocol Alignment**: Standardized all cross-system communication via the [COMMUNICATION_PROTOCOL.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md). **Tactical Filtering**: Implemented `"cat": 10` ignore logic for "End of Threat" status messages.

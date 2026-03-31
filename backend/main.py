@@ -518,11 +518,11 @@ class TrackingEngine:
                         return "Yemen", depth
 
             # Priority 2: Short-Range (Shallow Projections Scan for regional neighbors)
-            for depth in [0.5, 1.0, 1.5, 2.0, 2.5]:
-                proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
-                for territory in ["Lebanon", "Gaza"]:
-                    if self.is_point_in_polygon(proj, territory):
-                        return territory, depth
+            depth = 0.5
+            proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
+            for territory in ["Lebanon", "Gaza"]:
+                if self.is_point_in_polygon(proj, territory):
+                    return territory, depth
 
         # 2. Last-Resort Heuristics (Proximity fallbacks for single-point or non-linear clusters)
         if centroid[0] > 32.8: return "Lebanon", self.strategic_depths["Lebanon"]
@@ -768,6 +768,16 @@ async def main():
                         if not isinstance(alert_payload, dict):
                             continue
 
+                        # --- MISSION: Ignore Threat-End Status (cat 10) ---
+                        # Skip processing and logging for explicit "end of threat" messages
+                        cat = str(alert_payload.get('cat', ''))
+                        title = alert_payload.get('title', '')
+                        if cat == "10" or "האירוע הסתיים" in title:
+                            if not threat_ended_time and last_alert_id:
+                                logger.info(f"THREAT_ENDED_SIGNAL (cat 10): Resetting dashboard in 5m.")
+                                threat_ended_time = now
+                            continue
+
                         alert_id = alert_payload.get('id')
                         # Support both Raw (data) and Wrapper (cities) formats
                         cities_raw = alert_payload.get('data') or alert_payload.get('cities', [])
@@ -782,17 +792,10 @@ async def main():
                                 has_new_cities = True
 
                         if alert_id and (is_new_id or has_new_cities or not active_salvo):
-                            title = alert_payload.get('title', '')
                             logger.info(f"ALERT_DETECTED [Source: {source_used}]: ID={alert_id}, Title='{title}', Cities={len(cities_raw)}")
                             
                             # Debug: Log raw payload for verification
                             logger.debug(f"RAW_PAYLOAD: {alert_payload}")
-                            
-                            if "האירוע הסתיים" in title or str(alert_payload.get('cat')) == "10":
-                                if not threat_ended_time and last_alert_id:
-                                    logger.info(f"THREAT_ENDED_SIGNAL: Active timer started (5m).")
-                                    threat_ended_time = now
-                                continue
 
                             # Rocket alert (cat=1 or fallback)
                             last_alert_id = alert_id
