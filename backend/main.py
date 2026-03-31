@@ -703,48 +703,44 @@ async def main():
                         last_alert_id = None
                         last_alert_time = None
 
-                # --- Parallel Multi-Source Relay Bridge ---
+                # --- Tactical Relay Uplink (Single Source of Truth) ---
                 RELAY_URL = os.getenv("RELAY_URL")
                 RELAY_AUTH_KEY = os.getenv("RELAY_AUTH_KEY")
                 
-                sources = []
-                if RELAY_URL:
-                    sources.append({"name": "PROXY", "url": RELAY_URL, "headers": {"x-relay-auth": RELAY_AUTH_KEY}})
-                
-                sources.extend([
-                    {"name": "OREF_OFFICIAL", "url": OREF_API_URL, "headers": headers},
-                    {"name": "COMMUNITY_RELAY_A", "url": "https://api.redalerts.info/", "headers": {'User-Agent': 'Mozilla/5.0'}},
-                    {"name": "COMMUNITY_RELAY_B", "url": "https://redalerts.me/api/alerts", "headers": {'User-Agent': 'Mozilla/5.0'}}
-                ])
+                if not RELAY_URL:
+                    if now % 60 < 10:
+                        logger.error("CRITICAL_CONFIGURATION_ERROR: RELAY_URL is missing. Mission status: OFFLINE.")
+                    await ws.broadcast({
+                        "type": "health_status",
+                        "status": "OFFLINE",
+                        "upstream_source": "NONE",
+                        "timestamp": datetime.now(TIMEZONE).isoformat(),
+                        "version": VERSION
+                    })
+                    await asyncio.sleep(POLL_INTERVAL)
+                    continue
 
-                async def fetch_source(src):
-                    try:
-                        start_t = time.time()
-                        async with session.get(src["url"], headers=src["headers"], timeout=5) as resp:
-                            if resp.status == 200:
-                                text = (await resp.text()).lstrip('\ufeff').strip()
-                                if text:
-                                    return {"name": src["name"], "data": json.loads(text), "time": time.time() - start_t}
-                            else:
-                                text = (await resp.text())[:100].strip()
-                                logger.warning(f"UPSTREAM_FAILURE: Source={src['name']} Status={resp.status} Detail={text}")
-                    except Exception as e:
-                        logger.warning(f"CONNECTION_ERROR [Source: {src['name']}]: {str(e)}")
-                    return None
-
-                # Execute all fetches in parallel
-                results = await asyncio.gather(*(fetch_source(s) for s in sources), return_exceptions=True)
-                
+                # Execute Tactical Fetch
                 fetched_data = None
                 source_used = None
                 
-                for res in results:
-                    if res and isinstance(res, dict) and res.get("data"):
-                        fetched_data = res["data"]
-                        source_used = res["name"]
-                        break
+                try:
+                    start_t = time.time()
+                    headers_relay = {"x-relay-auth": RELAY_AUTH_KEY}
+                    async with session.get(RELAY_URL, headers=headers_relay, timeout=5) as resp:
+                        if resp.status == 200:
+                            text = (await resp.text()).lstrip('\ufeff').strip()
+                            if text:
+                                fetched_data = json.loads(text)
+                                source_used = "PROXY"
+                        else:
+                            if now % 30 < 10:
+                                logger.warning(f"RELAY_UPLINK_DEGRADED: Status {resp.status}")
+                except Exception as e:
+                    if now % 30 < 10:
+                        logger.warning(f"RELAY_CONNECTION_FAILURE: {str(e)}")
 
-                # --- Real-Time Status & Analytics Broadcast (v0.3.2) ---
+                # --- Real-Time Status & Analytics Broadcast ---
                 h_status = "OPERATIONAL" if fetched_data is not None else "DEGRADED"
                 await ws.broadcast({
                     "type": "health_status",
@@ -753,16 +749,16 @@ async def main():
                     "timestamp": datetime.now(TIMEZONE).isoformat(),
                     "version": VERSION
                 })
+
                 if fetched_data:
-                    # Normalize list-based stream results to a single alert payload
+                    # Normalize list-based stream results
                     alert_payload = fetched_data[0] if isinstance(fetched_data, list) and len(fetched_data) > 0 else fetched_data
                     
                     if isinstance(alert_payload, dict):
                         alert_id = alert_payload.get('id')
                         cities_raw = alert_payload.get('data', [])
                         
-                        # --- Salvo Tracking Logic (v0.4.3) ---
-                        # Trigger broadcast if ID is new OR if we have new cities for the same ID
+                        # --- Salvo Tracking Logic ---
                         is_new_salvo = alert_id and alert_id != last_alert_id
                         has_new_cities = False
                         

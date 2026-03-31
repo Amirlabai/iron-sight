@@ -18,4 +18,4 @@
     - **Aesthetics**: Military-grade Glassmorphic UI with responsive glows and **calibrated radar scans**.
 
 ## ALPHA DEVELOPMENT FOCUS
-Transitioned to v0.4.3 (Alpha). Implemented **Parallel Tactical Uplink** using `asyncio.gather` for simultaneous fetching across 4 sources, reducing loop latency from 20s to 5s. Optimized Render deployment with **Instant Port Binding** to satisfy health checks before heavy data loading. Hardened salvo logic to capture multi-chunk alerts with the same ID.
+Transitioned to v0.5.0 (Alpha). **Uplink Consolidation**: Decommissioned all redundant fallback sources. The Israeli Relay Bridge is now the sole tactical uplink, providing high-fidelity 403-bypass intelligence directly to the Iron Sight engine.
