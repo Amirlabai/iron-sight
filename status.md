@@ -1,0 +1,40 @@
+# IRON SIGHT MISSION STATUS (CENTRALIZED VERSIONING)
+
+- [x] MISSION: Israel-Based Alert Relay (Node.js)
+- [x] MISSION: Multi-Source Relay Bridge (403 Bypass)
+- **High-Resolution Geodata Suite**: 360° high-fidelity silhouettes for Gaza, Lebanon, Israel, Iran, North Iran, and Yemen.
+- **Dynamic Strategic Depth**: Calibrated strike projections (Gaza 0.5°, Lebanon 1.0°, North Iran 16.0°, Iran 18.0°, Yemen 20.0°).
+- **GPU Optimized Suite**: Zero-Cost Halo system & Disciplined Pulse (5 cycles).
+- **Theater Discrimination**: Real-time `is_point_in_polygon` detection for the Iranian northern sector.
+- **Strategic Highlight Alias**: Automated regional mapping (`North Iran` -> `Iran`) for visual continuity.
+- [x] MISSION: North Iran Strategic Calibration
+- [x] MISSION: History Metadata Enrichment (Dates/Titles)
+- [x] MISSION: Origin-Aware Strategic Zooming
+- [x] MISSION: Persistence Migration (MongoDB Atlas)
+- [x] MISSION: Tactical Security Hardening (CORS & Mission-Key)
+- [x] **Streamlined Archive Interface**: Removed legacy manual calibration buttons from mission history.
+- [x] **Mission Archive Persistence**: Migrated from `history.json` to **MongoDB Atlas**.
+- [x] **Secret Intelligence Suite**: Implemented `.env` for tactical credential management.
+- [x] **Strategic Calculation Borders**: Decoupled detection polygons from visual silhouettes for robust origin vectoring.
+- [x] **Tactical Origin Validation**: Automatic fallback to fixed coordinates for unreliable projections.
+- [x] **Asynchronous DB Engine**: Integrated `motor` for non-blocking history synchronization.
+- [x] **Historical Data Patch**: Successfully re-evaluated legacy salvos via `fix_history.py`.
+- [x] **Radar Scan Calibration**: Fixed sweep direction and tail positioning for tactical accuracy.
+- [x] **Strategic Origin Consolidation**: Refactored depth-aware trajectory mapping to eliminate redundant lookups.
+- [x] **Tactical Sandbox Suite**: Automated dry-run engine for cluster analysis and trajectory previews.
+- [x] **Strategic Analysis CLI**: Independent utility for command-line theater discrimination testing.
+- [x] **Networking Stabilization**: Absolute `TACTICAL_API_URL` logic for Vercel-to-Render communication.
+- [x] **Asset Pathing Resilience**: Fixed `lamas_data.json` loading via absolute `os.path.dirname(__file__)` logic.
+- [x] **Pathing Resilience**: Fixed backend asset localization for cross-environment execution.
+- [x] **Runtime Audit**: Verified deployment stability against Render's Python 3.14 rollout; version locked at 3.12.0 via `.python-version`.
+- [x] **Monorepo Pathing**: Explicitly set `rootDir: backend` in `render.yaml` and fixed start command with `python` prefix.
+- [x] **GitHub Actions Stabilization**: Patched `version-sync.yml` with `contents: write` permissions to allow automated version bumps.
+
+## PLANNED (DEVELOPMENT SPRINT 5)
+- **Automatic Alert Simulation**: (TBD) Multi-state scenario playback.
+- **Deployment Staging**: Finalizing cloud uplink for backend/frontend persistence testing.
+
+---
+**Mission Status**: **OPERATIONAL** | REAL-TIME HEALTH RECOVERY
+
+Transitioned to v0.4.2 (Alpha). Stabilized the tactical uplink by resolving field name mismatches between the backend and frontend ('relay_scout' -> 'upstream_source'), ensuring the 'LIVE INTERCEPT' status correctly displays on the dashboard. Hardened the relay with PM2 process awareness and root health-check routes for enhanced recovery.

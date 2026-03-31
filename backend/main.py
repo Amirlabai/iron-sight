@@ -749,7 +749,7 @@ async def main():
                 await ws.broadcast({
                     "type": "health_status",
                     "status": h_status,
-                    "relay_scout": source_used if fetched_data else "OFFLINE",
+                    "upstream_source": source_used if fetched_data else "OFFLINE",
                     "timestamp": datetime.now(TIMEZONE).isoformat(),
                     "version": VERSION
                 })

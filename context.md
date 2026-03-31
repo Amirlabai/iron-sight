@@ -18,4 +18,4 @@
     - **Aesthetics**: Military-grade Glassmorphic UI with responsive glows and **calibrated radar scans**.
 
 ## ALPHA DEVELOPMENT FOCUS
-Transitioned to v0.4.1 (Alpha). Stabilized the tactical uplink by resolving PM2 process collisions and implementing Port Conflict awareness (EADDRINUSE handling) in the Israel-based relay. Hardened the backend with a root health route and silent "Event Ended" alert handling to reduce log noise. Maintained v0.1.1 baseline security (CORS/Mission-Key) and MongoDB Atlas persistence across the Vercel-to-Render bridge.
+Transitioned to v0.4.2 (Alpha). Stabilized the tactical uplink by resolving field name mismatches between the backend and frontend ('relay_scout' -> 'upstream_source'), ensuring the 'LIVE INTERCEPT' status correctly displays on the dashboard. Hardened the relay with PM2 process awareness and root health-check routes for enhanced recovery.

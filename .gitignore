@@ -16,6 +16,5 @@ dist-ssr/
 *.local
 
 # Project Specific
-status.md
 archive/
 render logs
