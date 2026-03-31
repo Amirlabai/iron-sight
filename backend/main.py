@@ -76,6 +76,7 @@ class WebSocketManager:
 
         # Add Tactical Routes with CORS
         self.add_route("GET", "/ws", self.ws_handler)
+        self.add_route("GET", "/", self.health_handler)
         self.add_route("POST", "/api/calibrate", self.calibrate_handler)
         self.add_route("GET", "/api/history", self.history_handler)
         self.add_route("GET", "/api/cities", self.cities_handler)
@@ -86,6 +87,14 @@ class WebSocketManager:
     def add_route(self, method, path, handler):
         resource = self.app.router.add_resource(path)
         self.cors.add(resource.add_route(method, handler))
+
+    async def health_handler(self, request):
+        return web.json_response({
+            "status": "OPERATIONAL",
+            "version": VERSION,
+            "engine": "IRON SIGHT TACTICAL",
+            "timestamp": datetime.now(TIMEZONE).isoformat()
+        })
 
     async def ws_handler(self, request):
         ws = web.WebSocketResponse()
@@ -727,6 +736,9 @@ async def main():
                                 # Failure Analytics Logout: Capture exact Status and Body for the Boss Man
                                 text = (await resp.text())[:150].strip()
                                 logger.warning(f"UPSTREAM_FAILURE: Source={src['name']} Status={resp.status} Detail={text}")
+                    except asyncio.TimeoutError:
+                        logger.warning(f"TIMEOUT_ERROR [Source: {src['name']}]: Request exceeded 5s.")
+                        continue
                     except Exception as e:
                         # Connection Analytics: Log timeouts or refused connections
                         logger.warning(f"CONNECTION_ERROR [Source: {src['name']}]: {str(e)}")
@@ -752,9 +764,9 @@ async def main():
                             title = alert_payload.get('title', '')
                             logger.info(f"ALERT_DETECTED [Source: {source_used}]: ID={alert_id}, Title={title}")
                             
-                            if "האירוע הסתיים" in title:
+                            if "האירוע הסתיים" in title or int(alert_payload.get('cat', 1)) == 10:
                                 if not threat_ended_time and last_alert_id:
-                                    logger.info("Official End of Threat detected. Timer started (5m).")
+                                    logger.info(f"THREAT_ENDED_SIGNAL [Source: {source_used}]: Active timer started (5m).")
                                     threat_ended_time = now
                                 continue
 

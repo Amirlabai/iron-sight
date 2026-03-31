@@ -18,4 +18,4 @@
     - **Aesthetics**: Military-grade Glassmorphic UI with responsive glows and **calibrated radar scans**.
 
 ## ALPHA DEVELOPMENT FOCUS
-Transitioned to v0.3.2 (Alpha). Synchronized real-time tactical health reporting and normalized the `list-object` intake stream for the Python Backend. Implemented enhanced failure analytics to expose 403 blocks and connection timeouts. Maintained v0.1.1 baseline security (CORS/Mission-Key) and MongoDB Atlas persistence across the Vercel-to-Render bridge.
+Transitioned to v0.4.1 (Alpha). Stabilized the tactical uplink by resolving PM2 process collisions and implementing Port Conflict awareness (EADDRINUSE handling) in the Israel-based relay. Hardened the backend with a root health route and silent "Event Ended" alert handling to reduce log noise. Maintained v0.1.1 baseline security (CORS/Mission-Key) and MongoDB Atlas persistence across the Vercel-to-Render bridge.
