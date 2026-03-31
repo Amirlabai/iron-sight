@@ -694,11 +694,22 @@ async def main():
                         last_alert_time = None
 
                 # --- Multi-Source Relay Bridge ---
-                target_sources = [
+                RELAY_URL = os.getenv("RELAY_URL")
+                RELAY_AUTH_KEY = os.getenv("RELAY_AUTH_KEY")
+                
+                target_sources = []
+                if RELAY_URL:
+                    target_sources.append({
+                        "name": "ISRAEL_RELAY_PRO", 
+                        "url": RELAY_URL, 
+                        "headers": {"x-relay-auth": RELAY_AUTH_KEY}
+                    })
+                
+                target_sources.extend([
                     {"name": "OREF_OFFICIAL", "url": OREF_API_URL, "headers": headers},
                     {"name": "COMMUNITY_RELAY_A", "url": "https://api.redalerts.info/", "headers": {'User-Agent': 'Mozilla/5.0'}},
                     {"name": "COMMUNITY_RELAY_B", "url": "https://redalerts.me/api/alerts", "headers": {'User-Agent': 'Mozilla/5.0'}}
-                ]
+                ])
                 
                 fetched_data = None
                 source_used = None
