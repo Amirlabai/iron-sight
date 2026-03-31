@@ -17,7 +17,7 @@ import aiohttp_cors
 load_dotenv()
 
 # --- Configuration ---
-POLL_INTERVAL = 3       # Seconds between API polls
+POLL_INTERVAL = 10      # Seconds between API polls (v0.3.1 Stabilized)
 WS_PORT = int(os.environ.get("PORT", 8080)) # Dynamic port for Deployment
 TIMEZONE = ZoneInfo("Asia/Jerusalem")
 LAMAS_DATA_URL = "https://raw.githubusercontent.com/idodov/RedAlert/refs/heads/main/apps/red_alerts_israel/lamas_data.json"
@@ -724,8 +724,9 @@ async def main():
                                     source_used = src["name"]
                                     break
                             else:
-                                if src["name"] == "OREF_OFFICIAL":
-                                    logger.warning(f"UPSTREAM_BLOCK_DETECTED: {src['name']} returned HTTP {resp.status}")
+                                # Failure Analytics Logout: Capture exact Status and Body for the Boss Man
+                                text = (await resp.text())[:150].strip()
+                                logger.warning(f"UPSTREAM_FAILURE: Source={src['name']} Status={resp.status} Detail={text}")
                     except Exception as e:
                         logger.debug(f"Source {src['name']} failed: {e}")
                         continue
@@ -747,7 +748,7 @@ async def main():
                     if isinstance(alert_payload, dict):
                         alert_id = alert_payload.get('id')
                         
-                        if alert_id != last_alert_id:
+                        if alert_id and alert_id != last_alert_id:
                             title = alert_payload.get('title', '')
                             logger.info(f"ALERT_DETECTED [Source: {source_used}]: ID={alert_id}, Title={title}")
                             

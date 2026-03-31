@@ -35,13 +35,18 @@ const server = http.createServer((req, res) => {
         
         oref.getActiveAlerts((err, alerts) => {
             if (err) {
-                console.error(`[RELAY] Error fetching alerts: ${err.message}`);
+                console.error(`[RELAY_ERROR] ${new Date().toISOString()} - UPSTREAM_FAIL: ${err.message}`);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'Failed to fetch upstream alerts', detail: err.message }));
                 return;
             }
 
-            console.log(`[RELAY] Polled: ${alerts.length} active alerts found.`);
+            if (alerts.length > 0) {
+                console.log(`[RELAY_ALERT] ${new Date().toISOString()} - Detected ${alerts.length} active threats.`);
+            } else {
+                process.stdout.write('.'); // Heartbeat indicator
+            }
+            
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(alerts));
         }, options);
