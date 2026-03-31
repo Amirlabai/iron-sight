@@ -742,6 +742,13 @@ async def main():
 
                 # --- Real-Time Status & Analytics Broadcast ---
                 h_status = "OPERATIONAL" if fetched_data is not None else "DEGRADED"
+                
+                # Handle Auth Failures explicitly
+                if isinstance(fetched_data, dict) and fetched_data.get('error') == 'Unauthorized':
+                    logger.error(f"RELAY_AUTH_FAILURE: The provided RELAY_AUTH_KEY was rejected by {source_used}.")
+                    h_status = "UNAUTHORIZED"
+                    fetched_data = None
+
                 await ws.broadcast({
                     "type": "health_status",
                     "status": h_status,
@@ -752,11 +759,18 @@ async def main():
 
                 if fetched_data:
                     # Normalize list-based stream results
-                    alert_payload = fetched_data[0] if isinstance(fetched_data, list) and len(fetched_data) > 0 else fetched_data
-                    
-                    if isinstance(alert_payload, dict):
+                    if isinstance(fetched_data, list):
+                        alerts_to_process = fetched_data
+                    else:
+                        alerts_to_process = [fetched_data] if fetched_data else []
+
+                    for alert_payload in alerts_to_process:
+                        if not isinstance(alert_payload, dict):
+                            continue
+
                         alert_id = alert_payload.get('id')
-                        cities_raw = alert_payload.get('data', [])
+                        # Support both Raw (data) and Wrapper (cities) formats
+                        cities_raw = alert_payload.get('data') or alert_payload.get('cities', [])
                         
                         # --- Salvo Tracking Logic ---
                         is_new_id = alert_id and alert_id != last_alert_id
@@ -767,19 +781,20 @@ async def main():
                             if any(c not in current_names for c in cities_raw):
                                 has_new_cities = True
 
-                        # Broadcast triggers: New ID, New Cities, or Recovery (active salvo is None)
                         if alert_id and (is_new_id or has_new_cities or not active_salvo):
                             title = alert_payload.get('title', '')
-                            logger.info(f"ALERT_DETECTED [Source: {source_used}]: ID={alert_id}, Title={title}")
+                            logger.info(f"ALERT_DETECTED [Source: {source_used}]: ID={alert_id}, Title='{title}', Cities={len(cities_raw)}")
                             
-                            # Filter out 'Event Ended' markers
+                            # Debug: Log raw payload for verification
+                            logger.debug(f"RAW_PAYLOAD: {alert_payload}")
+                            
                             if "האירוע הסתיים" in title or str(alert_payload.get('cat')) == "10":
                                 if not threat_ended_time and last_alert_id:
                                     logger.info(f"THREAT_ENDED_SIGNAL: Active timer started (5m).")
                                     threat_ended_time = now
                                 continue
 
-                            # Standard Threat (cat=1 or fallback)
+                            # Rocket alert (cat=1 or fallback)
                             last_alert_id = alert_id
                             last_alert_time = now
                             threat_ended_time = None
@@ -788,7 +803,6 @@ async def main():
                             analysis = engine.analyze_threat(cities_raw)
                             
                             if analysis:
-                                # Initialize/Reset salvo if needed
                                 if not active_salvo or (is_new_id and (now - salvo_start_time > 60)):
                                     logger.info(f"INITIALIZING_SALVO: {alert_id}")
                                     active_salvo = {
@@ -807,22 +821,25 @@ async def main():
                                         active_salvo["all_cities"].append(city)
                                         all_names.add(city['name'])
                                 
-                                # Re-calculate with full salvo data
-                                full_analysis = engine.analyze_threat([c['name'] for c in active_salvo["all_cities"]])
-                                if full_analysis:
-                                    active_salvo.update(full_analysis)
-                                    active_salvo["id"] = alert_id 
-                                    
-                                    await ws.broadcast({"type": "alert", **active_salvo})
-                                    logger.info(f"BROADCAST_SUCCESS: {alert_id} - Unified strategic salvo: {len(active_salvo['all_cities'])} cities.")
-                                else:
-                                    logger.warning(f"ANALYSIS_FAILURE: Could not re-calculate salvo for {len(active_salvo['all_cities'])} cities.")
+                                # Strategic Re-calculation
+                                try:
+                                    full_analysis = engine.analyze_threat([c['name'] for c in active_salvo["all_cities"]])
+                                    if full_analysis:
+                                        active_salvo.update(full_analysis)
+                                        active_salvo["id"] = alert_id 
+                                        
+                                        await ws.broadcast({"type": "alert", **active_salvo})
+                                        logger.info(f"BROADCAST_SUCCESS: {alert_id} - Unified strategic salvo: {len(active_salvo['all_cities'])} cities.")
+                                    else:
+                                        logger.warning(f"STRATEGIC_NULL: Analysis returned no trajectories for {len(active_salvo['all_cities'])} cities.")
+                                except Exception as inner:
+                                    logger.error(f"STRATEGIC_ERROR: {inner}")
                             else:
                                 logger.warning(f"MAPPING_FAILURE: Cities {cities_raw} could not be resolved to coordinates.")
                 else:
-                    # Log failure every 60s
+                    # Explicit Log for Auth/Response failures
                     if now % 60 < POLL_INTERVAL:
-                        logger.warning("HEALTH_CHECK_CRITICAL: All upstream sources are blocked or offline.")
+                        logger.warning(f"HEALTH_CHECK_FAILURE [Source: {source_used}]: Relay returned empty or unauthorized response.")
 
             except Exception as e:
                 logger.error(f"Loop error: {e}")

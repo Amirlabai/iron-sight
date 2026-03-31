@@ -37,5 +37,5 @@
 ---
 **Mission Status**: **OPERATIONAL** | REAL-TIME HEALTH RECOVERY
 
-Transitioned to v0.5.1 (Alpha). **Broadcast Hardening**: Implemented Recovery-Aware alert tracking to ensure ongoing threats are broadcasted instantly on backend restart. Added diagnostic mapping logs and normalized category detection.
+Transitioned to v0.5.2 (Alpha). **Authentication Alignment**: Corrected the relay bridge header to `x-relay-auth` and added explicit `UNAUTHORIZED` status reporting for the health check.
 Israeli relay (63.250.61.251) is OPERATIONAL.
