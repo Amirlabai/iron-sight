@@ -1,4 +1,4 @@
-# IRON SIGHT: TACTICAL CONTEXT (v0.5.2)
+# IRON SIGHT: TACTICAL CONTEXT (v0.5.5)
 
 > [!IMPORTANT]
 > **SOURCE OF TRUTH DIRECTIVE**: Before modifying ANY communication logic (Headers, Endpoints, JSON payloads), you MUST read the [STRATEGIC COMMUNICATION PROTOCOL (SCP)](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md) immediately. For UI changes, color palettes, or component architecture, you MUST read the [UI DESIGN SPECIFICATION (TDS)](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/UI_DESIGN_SPEC.md) first. Failure to adhere to these protocols will result in Strategic De-sync or UI Degradation.
@@ -23,4 +23,15 @@ It converts raw Pikud HaOref API feeds into actionable intelligence through real
     - **Aesthetics**: Military-grade Glassmorphic UI with responsive glows and **calibrated radar scans**.
 
 ## ALPHA DEVELOPMENT FOCUS (S4)
-Transitioned to v0.4.7 (Alpha). **Uplink Consolidation**: Established the Israeli Relay Bridge as the sole tactical uplink. **Protocol Alignment**: Standardized all cross-system communication via the [COMMUNICATION_PROTOCOL.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md). **Tactical Filtering**: Implemented `"cat": 10` ignore logic for "End of Threat" status messages.
+Transitioned to v0.5.5 (Alpha).
+
+### RECENT OPERATIONS
+- **Uplink Consolidation**: Established the Israeli Relay Bridge as the sole tactical uplink.
+- **Protocol Alignment**: Standardized all cross-system communication via the [SCP](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md).
+- **Tactical Filtering**: Implemented `type: newsFlash` and `instructions`-based ignore logic for "End of Threat" status messages.
+- **Relay Payload Lexicon**: Saved for future implementation:
+    - `missiles`
+    - `earthQuake`
+    - `hostileAircraftIntrusion`
+    - `newsFlash` (Status Update / Threat End)
+    - `terroristInfiltration`

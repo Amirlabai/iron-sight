@@ -17,7 +17,7 @@ import aiohttp_cors
 load_dotenv()
 
 # --- Configuration ---
-POLL_INTERVAL = 10      # Seconds between API polls (v0.3.1 Stabilized)
+POLL_INTERVAL = 10
 WS_PORT = int(os.environ.get("PORT", 8080)) # Dynamic port for Deployment
 TIMEZONE = ZoneInfo("Asia/Jerusalem")
 LAMAS_DATA_URL = "https://raw.githubusercontent.com/idodov/RedAlert/refs/heads/main/apps/red_alerts_israel/lamas_data.json"
@@ -166,8 +166,8 @@ class WebSocketManager:
                     "target_coords": [mid_lat, mid_lon],
                     "marker_coords": fixed_pin
                 }],
-                "zoom_level": strategic_zoom,
-                "center": [(fixed_pin[0] + 31.7)/2, (fixed_pin[1] + 35.2)/2]
+                "zoom_level": strategic_zoom*1.2,
+                "center": [(origin_coords[0] + mid_lat)/2, (origin_coords[1] + mid_lon)/2]
             }
             
             await self.mm.collection.update_one({"id": salvo_id}, {"$set": update_data})
@@ -627,16 +627,29 @@ class TrackingEngine:
 
         # Strategic Map Focus
         isr_center = [31.7683, 35.2137]
-        main_origin = trajectories[0]['marker_coords'] if trajectories else isr_center
-        mid_lat = (main_origin[0] + isr_center[0]) / 2
-        mid_lon = (main_origin[1] + isr_center[1]) / 2
+        main_origin = isr_center
+        strategic_zoom = 8
+        for i in ["Gaza", "Lebanon", "Iran", "Yemen"]:
+            for trajectory in trajectories:
+                if trajectory['origin'] == i:
+                    main_origin = trajectory['marker_coords']
+                    strategic_zoom = self.zoom_levels.get(i, 8)
         
-        strategic_zoom = self.zoom_levels.get(list(origin_groups.keys())[0], 8)
+        if len(processed_clusters) < 2:
+            # Single Cluster: Strong bias to impact zone, but pull back to Israel if too extreme
+            cluster_center = processed_clusters[0]['centroid']
+            mid_lat = (cluster_center[0])
+            mid_lon = (cluster_center[1])
+            strategic_zoom = 10
+        else:
+            # Multi-Theatrical: Standard theatre-wide focus (Origin to Israel)
+            mid_lat = (main_origin[0]*0.35) + (isr_center[0]*0.65)
+            mid_lon = (main_origin[1]*0.35) + (isr_center[1]*0.65)
         
         origin_names = sorted(list(origin_groups.keys()))
         display_origins = [("Iran" if o == "North Iran" else o) for o in origin_names]
         title = f"{' & '.join(set(display_origins))} Salvo"
-        
+
         return {
             "title": title,
             "clusters": processed_clusters,
@@ -659,10 +672,6 @@ async def main():
     
     # 2. SEAMLESS INITIALIZATION (Background loading)
     await dm.load()
-    
-    # Database sync status check
-    history_snapshot = await mm.get_history(limit=5)
-    logger.info(f"Database sync active. Found {len(history_snapshot)} recent salvos.")
 
     headers = {'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.oref.org.il/', 'X-Requested-With': 'XMLHttpRequest'}
     last_alert_id = None
@@ -679,8 +688,8 @@ async def main():
                 now = time.time()
 
                 # Salvo Processing
-                if active_salvo and (now - salvo_start_time > 90):
-                    # Salvo finalized after 90s window
+                if active_salvo and (now - salvo_start_time > 60*5):
+                    # Salvo finalized after 5 minutes window
                     await mm.save_salvo(active_salvo)
                     
                     # Broadcast updated history
@@ -692,8 +701,8 @@ async def main():
 
                 # Timeout logic
                 if last_alert_id:
-                    if threat_ended_time and (now - threat_ended_time > 300):
-                        logger.info("5m Timeout after explicit threat end. Resetting dashboard.")
+                    if threat_ended_time and (now - threat_ended_time > 30):
+                        logger.info("30s Timeout after explicit threat end. Resetting dashboard.")
                         await ws.broadcast({"type": "reset"})
                         last_alert_id = None
                         threat_ended_time = None
@@ -732,7 +741,7 @@ async def main():
                             text = (await resp.text()).lstrip('\ufeff').strip()
                             if text:
                                 fetched_data = json.loads(text)
-                                source_used = "PROXY"
+                                source_used = "BARRAGE"
                         else:
                             if now % 30 < 10:
                                 logger.warning(f"RELAY_UPLINK_DEGRADED: Status {resp.status}")
@@ -768,13 +777,20 @@ async def main():
                         if not isinstance(alert_payload, dict):
                             continue
 
-                        # --- MISSION: Ignore Threat-End Status (cat 10) ---
+                        # --- MISSION: Ignore Threat-End Status (newsFlash) ---
                         # Skip processing and logging for explicit "end of threat" messages
-                        cat = str(alert_payload.get('cat', ''))
-                        title = alert_payload.get('title', '')
-                        if cat == "10" or "האירוע הסתיים" in title:
+                        try:
+                            alert_type = str(alert_payload.get('type', ''))
+                            instructions = str(alert_payload.get('instructions', ''))
+                        except:
+                            alert_type = ""
+                            instructions = ""
+                        
+                        logger.info(f"Type: {alert_type}, Instructions: {instructions}")
+                        
+                        if alert_type == "newsFlash" or "האירוע הסתיים" in instructions:
                             if not threat_ended_time and last_alert_id:
-                                logger.info(f"THREAT_ENDED_SIGNAL (cat 10): Resetting dashboard in 5m.")
+                                logger.info(f"THREAT_ENDED_SIGNAL (newsFlash): Resetting dashboard in 5m.")
                                 threat_ended_time = now
                             continue
 
@@ -842,7 +858,7 @@ async def main():
                 else:
                     # Explicit Log for Auth/Response failures
                     if now % 60 < POLL_INTERVAL:
-                        logger.warning(f"HEALTH_CHECK_FAILURE [Source: {source_used}]: Relay returned empty or unauthorized response.")
+                        logger.info(f"HEALTH_CHECK [Source: {source_used}]: Relay returned empty or unauthorized response.")
 
             except Exception as e:
                 logger.error(f"Loop error: {e}")

@@ -35,7 +35,7 @@
 - [x] MISSION: Pulse Normalization (Absolute Circularity)
 - [x] **Strategic Border Utility Suite**: Implemented `border_utils.py` for high-fidelity conversion between TXT and JSON geodata.
 - [x] **Reversed Tactical Geodata**: Generated reversed-coordinate `.txt` archives for `calculation_borders` and `tactical_borders`.
-- [x] MISSION: Tactical Relay Filtering (cat: 10 Ignore Logic)
+- [x] MISSION: Tactical Relay Filtering (type: newsFlash Logic)
 
 ## PLANNED (DEVELOPMENT SPRINT 5)
 - **Automatic Alert Simulation**: (TBD) Multi-state scenario playback.
