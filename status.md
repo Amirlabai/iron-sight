@@ -31,6 +31,7 @@
 - [x] **GitHub Actions Stabilization**: Patched `version-sync.yml` with `contents: write` permissions to allow automated version bumps.
 - [x] MISSION: UI Design Specification (TDS)
 - [x] MISSION: Tactical Mobile Optimization (Drawer & Header Scaling)
+- [x] MISSION: Mobile Tab Calibration (70% Expansion)
 - [x] MISSION: Pulse Normalization (Absolute Circularity)
 
 ## PLANNED (DEVELOPMENT SPRINT 5)
