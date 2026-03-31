@@ -649,16 +649,17 @@ class TrackingEngine:
 
 # --- Main Application ---
 async def main():
-    dm = LamasDataManager()
-    await dm.load()
-    engine = TrackingEngine(dm)
-    
-    # Persistence Initialize
+    # 1. IMMEDIATE PORT BINDING (Satisfy Render's Health Check)
     mm = MongoManager(MONGO_URI, DB_NAME, COLLECTION_NAME)
+    dm = LamasDataManager()
+    engine = TrackingEngine(dm)
     
     ws = WebSocketManager(mm, engine)
     await ws.start()
-
+    
+    # 2. SEAMLESS INITIALIZATION (Background loading)
+    await dm.load()
+    
     # Database sync status check
     history_snapshot = await mm.get_history(limit=5)
     logger.info(f"Database sync active. Found {len(history_snapshot)} recent salvos.")
@@ -702,47 +703,46 @@ async def main():
                         last_alert_id = None
                         last_alert_time = None
 
-                # --- Multi-Source Relay Bridge ---
+                # --- Parallel Multi-Source Relay Bridge ---
                 RELAY_URL = os.getenv("RELAY_URL")
                 RELAY_AUTH_KEY = os.getenv("RELAY_AUTH_KEY")
                 
-                target_sources = []
+                sources = []
                 if RELAY_URL:
-                    target_sources.append({
-                        "name": "PROXY", 
-                        "url": RELAY_URL, 
-                        "headers": {"x-relay-auth": RELAY_AUTH_KEY}
-                    })
+                    sources.append({"name": "PROXY", "url": RELAY_URL, "headers": {"x-relay-auth": RELAY_AUTH_KEY}})
                 
-                target_sources.extend([
+                sources.extend([
                     {"name": "OREF_OFFICIAL", "url": OREF_API_URL, "headers": headers},
                     {"name": "COMMUNITY_RELAY_A", "url": "https://api.redalerts.info/", "headers": {'User-Agent': 'Mozilla/5.0'}},
                     {"name": "COMMUNITY_RELAY_B", "url": "https://redalerts.me/api/alerts", "headers": {'User-Agent': 'Mozilla/5.0'}}
                 ])
-                
-                fetched_data = None
-                source_used = None
-                
-                for src in target_sources:
+
+                async def fetch_source(src):
                     try:
+                        start_t = time.time()
                         async with session.get(src["url"], headers=src["headers"], timeout=5) as resp:
                             if resp.status == 200:
                                 text = (await resp.text()).lstrip('\ufeff').strip()
                                 if text:
-                                    fetched_data = json.loads(text)
-                                    source_used = src["name"]
-                                    break
+                                    return {"name": src["name"], "data": json.loads(text), "time": time.time() - start_t}
                             else:
-                                # Failure Analytics Logout: Capture exact Status and Body for the Boss Man
-                                text = (await resp.text())[:150].strip()
+                                text = (await resp.text())[:100].strip()
                                 logger.warning(f"UPSTREAM_FAILURE: Source={src['name']} Status={resp.status} Detail={text}")
-                    except asyncio.TimeoutError:
-                        logger.warning(f"TIMEOUT_ERROR [Source: {src['name']}]: Request exceeded 5s.")
-                        continue
                     except Exception as e:
-                        # Connection Analytics: Log timeouts or refused connections
                         logger.warning(f"CONNECTION_ERROR [Source: {src['name']}]: {str(e)}")
-                        continue
+                    return None
+
+                # Execute all fetches in parallel
+                results = await asyncio.gather(*(fetch_source(s) for s in sources), return_exceptions=True)
+                
+                fetched_data = None
+                source_used = None
+                
+                for res in results:
+                    if res and isinstance(res, dict) and res.get("data"):
+                        fetched_data = res["data"]
+                        source_used = res["name"]
+                        break
 
                 # --- Real-Time Status & Analytics Broadcast (v0.3.2) ---
                 h_status = "OPERATIONAL" if fetched_data is not None else "DEGRADED"
@@ -759,8 +759,19 @@ async def main():
                     
                     if isinstance(alert_payload, dict):
                         alert_id = alert_payload.get('id')
+                        cities_raw = alert_payload.get('data', [])
                         
-                        if alert_id and alert_id != last_alert_id:
+                        # --- Salvo Tracking Logic (v0.4.3) ---
+                        # Trigger broadcast if ID is new OR if we have new cities for the same ID
+                        is_new_salvo = alert_id and alert_id != last_alert_id
+                        has_new_cities = False
+                        
+                        if active_salvo and alert_id == active_salvo.get("id"):
+                            current_names = {c['name'] for c in active_salvo.get("all_cities", [])}
+                            if any(c not in current_names for c in cities_raw):
+                                has_new_cities = True
+
+                        if alert_id and (is_new_salvo or has_new_cities):
                             title = alert_payload.get('title', '')
                             logger.info(f"ALERT_DETECTED [Source: {source_used}]: ID={alert_id}, Title={title}")
                             
