@@ -732,7 +732,7 @@ async def main():
 
                 # --- Status & Analytics Broadcast ---
                 if now % 60 < POLL_INTERVAL:
-                    h_status = "OPERATIONAL" if fetched_data else "DEGRADED"
+                    h_status = "OPERATIONAL" if fetched_data is not None else "DEGRADED"
                     await ws.broadcast({
                         "type": "health_status",
                         "status": h_status,
