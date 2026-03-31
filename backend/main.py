@@ -455,7 +455,7 @@ class TrackingEngine:
             
         return [v_x, v_y]
 
-    def cluster(self, cities, threshold_km=30.0):
+    def cluster(self, cities, threshold_km=20.0):
         deg = threshold_km / 111.0
         clusters = []
         for city in cities:
@@ -506,16 +506,16 @@ class TrackingEngine:
                 
             # Priority 1: Long-Range (Deep Projections Scan for strategic depth)
             # We scan multiple depths to hit different Iranian/Regional polygons
-            for depth in [0.5, 1.0, 1.5, 2.0, 2.5,9, 11, 13.0, 14.0, 16.0, 18.0, 20.0]:
-                proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
-                for territory in ["North Iran", "Iran", "Yemen"]:
-                    if self.is_point_in_polygon(proj, territory):
-                        if territory == "North Iran":
-                            return "Iran", depth+2.0
-                        if territory == "Iran":
-                            return "Iran", depth+4.0
-                        if territory == "Yemen":
-                            return "Yemen", depth
+            depth = 6
+            proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
+            for territory in ["North Iran", "Iran", "Yemen"]:
+                if self.is_point_in_polygon(proj, territory):
+                    if territory == "North Iran":
+                        return "Iran", depth+2.0
+                    if territory == "Iran":
+                        return "Iran", depth+4.0
+                    if territory == "Yemen":
+                        return "Yemen", depth
 
             # Priority 2: Short-Range (Shallow Projections Scan for regional neighbors)
             for depth in [0.5, 1.0, 1.5, 2.0, 2.5]:

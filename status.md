@@ -33,6 +33,8 @@
 - [x] MISSION: Tactical Mobile Optimization (Drawer & Header Scaling)
 - [x] MISSION: Mobile Tab Calibration (70% Expansion)
 - [x] MISSION: Pulse Normalization (Absolute Circularity)
+- [x] **Strategic Border Utility Suite**: Implemented `border_utils.py` for high-fidelity conversion between TXT and JSON geodata.
+- [x] **Reversed Tactical Geodata**: Generated reversed-coordinate `.txt` archives for `calculation_borders` and `tactical_borders`.
 
 ## PLANNED (DEVELOPMENT SPRINT 5)
 - **Automatic Alert Simulation**: (TBD) Multi-state scenario playback.

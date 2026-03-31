@@ -11,7 +11,8 @@ It converts raw Pikud HaOref API feeds into actionable intelligence through real
 - **`backend/` (Command Center)**: Standalone Python 3.12 tactical engine.
     - **Threat Processor**: 10km spatial clustering for unified target zones.
     - **Trajectory Engine**: Normalized 2D PCA vectoring with **Strategic Calculation Borders** for drift-resistant origin detection.
-    - **Geodata Store**: Dual-tier boundary system (`tactical_borders.json` for visuals, `calculation_borders.json` for logic).
+    - **Geodata Store**: Dual-tier boundary system (`tactical_borders.json` for visuals, `calculation_borders.json` for logic). 
+    - **Border Utility**: `border_utils.py` for CLI-based `txt` <-> `json` synchronization and coordinate reversal.
     - **Relay Bridge (Israel-Based Source)**: High-fidelity Node.js Scout (`63.250.61.251`) for 403 bypass.
 - **Database**: MongoDB Atlas (M0)
 - **Deployment**: Render (Backend) / Vercel (Frontend) / Kamatera (Relay)

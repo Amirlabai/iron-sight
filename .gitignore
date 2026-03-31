@@ -18,3 +18,6 @@ dist-ssr/
 # Project Specific
 archive/
 render logs
+status.md
+backend/calculation_borders.txt
+backend/tactical_borders.txt
