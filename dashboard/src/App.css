@@ -588,33 +588,12 @@ body {
         position: absolute;
         bottom: 0;
         left: 0;
-        height: auto;
-        max-height: 70px;
         z-index: 2000;
         border-left: none;
         border-top: 1px solid var(--border);
-        transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         overflow: hidden;
-    }
-
-    .sidebar-expanded .sidebar {
-        max-height: 50%;
-    }
-
-    .mobile-drawer-handle {
-        display: flex;
-        justify-content: center;
-        padding: 8px 0;
-        background: rgba(255, 255, 255, 0.05);
-        cursor: pointer;
-        border-bottom: 1px solid var(--border);
-    }
-
-    .handle-bar {
-        width: 40px;
-        height: 4px;
-        background: var(--border);
-        border-radius: 2px;
+        background: var(--bg-secondary);
+        backdrop-filter: blur(20px);
     }
 
     .premium-header h1 {
@@ -647,10 +626,7 @@ body {
         font-size: 10px;
     }
 
-    /* Collapsed state needs to accommodate the 2-row grid height (approx 120px) */
-    .sidebar {
-        max-height: 120px;
-    }
+    /* Transition managed by Framer Motion */
 }
 
 @keyframes pulse {

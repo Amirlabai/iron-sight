@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { MapContainer, TileLayer, Circle, Polyline, useMap, Marker, Popup, GeoJSON, Tooltip, Polygon } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, Polyline, useMap, Marker, Popup, GeoJSON, Tooltip, Polygon, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { Activity, ShieldAlert, Navigation2, Zap, RotateCcw, History, Radio, Clock, Map as MapIcon, Volume2, VolumeX, Terminal, Shield, ChevronDown, ChevronRight } from 'lucide-react';
 import { TACTICAL_BOUNDARIES } from './tactical_geodata';
 import { Analytics } from '@vercel/analytics/react';
@@ -42,6 +42,13 @@ function MapController({ center, zoom }) {
   useEffect(() => {
     map.flyTo(center, zoom, { duration: 1.5 });
   }, [center, zoom, map]);
+  return null;
+}
+
+function MapClickHandler({ onMapClick }) {
+  useMapEvents({
+    click: () => onMapClick(),
+  });
   return null;
 }
 
@@ -107,14 +114,14 @@ function App() {
           PING_SOUND.play().catch(() => { });
           lastAlertSoundTime.current = now;
         }
-        const newEvent = { 
+        const newEvent = {
           id: data.id,
-          clusters: data.clusters, 
-          trajectories: data.trajectories, 
+          clusters: data.clusters,
+          trajectories: data.trajectories,
           highlight_origins: data.highlight_origins,
           title: data.title,
-          time: data.time, 
-          zoom_level: data.zoom_level 
+          time: data.time,
+          zoom_level: data.zoom_level
         };
         setLiveEvent(newEvent);
         if (viewMode === 'archive') { setViewMode('live'); setActiveTab('live'); }
@@ -136,9 +143,9 @@ function App() {
     ws.current.onclose = () => { setIsConnected(false); setTimeout(connect, 3000); };
   }, [viewMode, isMuted]);
 
-  useEffect(() => { 
-    connect(); 
-    
+  useEffect(() => {
+    connect();
+
     // Fetch regional data for Sandbox
     fetch(`${TACTICAL_API_URL}/api/cities`).then(res => res.json()).then(data => setRegionalData(data)).catch(err => console.error("CITIES_FETCH_FAILED", err));
 
@@ -153,7 +160,7 @@ function App() {
     return () => {
       ws.current?.close();
       clearTimeout(missionTimer);
-    }; 
+    };
   }, [connect, isReady]);
 
   const selectArchive = (event) => {
@@ -169,7 +176,7 @@ function App() {
         'North Iran': 6,
         'Yemen': 6
       };
-      
+
       setMapConfig({
         center: [(origin_coords[0] + ISRAEL_CENTER[0]) / 2, (origin_coords[1] + ISRAEL_CENTER[1]) / 2],
         zoom: zoomMap[mainTraj.origin] || 8
@@ -246,7 +253,7 @@ function App() {
     }
   };
   const currentEvent = viewMode === 'sandbox' ? sandboxEvent : (viewMode === 'live' ? liveEvent : archiveEvent);
-  
+
   // Tactical Color Tokens (Mirrored in CSS variables)
   const TACTICAL_RED = '#ff4d4d';
   const TACTICAL_BLUE = '#4d94ff';
@@ -255,6 +262,7 @@ function App() {
 
   const tacticalColor = viewMode === 'sandbox' ? TACTICAL_BLUE : TACTICAL_RED;
   const highlightColor = viewMode === 'sandbox' ? HIGHLIGHT_BLUE : HIGHLIGHT_RED;
+  const dragControls = useDragControls();
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -278,7 +286,7 @@ function App() {
           <button className="icon-btn" onClick={() => setIsMuted(!isMuted)}>
             {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
-          
+
           {viewMode === 'archive' && (
             <button className="return-live-btn" onClick={returnToLive}>
               <Radio size={16} /> RETURN TO LIVE
@@ -289,8 +297,8 @@ function App() {
             <div className={`status-pill ${isConnected ? (tacticalHealth.status === 'DEGRADED' ? 'degraded' : 'online') : 'offline'}`}>
               <div className="pulse-dot"></div>
               {isConnected ? (
-                tacticalHealth.status === 'DEGRADED' 
-                  ? `UPLINK DEGRADED` 
+                tacticalHealth.status === 'DEGRADED'
+                  ? `UPLINK DEGRADED`
                   : `LIVE INTERCEPT: ${tacticalHealth.source}`
               ) : 'RECONNECTING...'}
             </div>
@@ -325,6 +333,7 @@ function App() {
           >
             <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
             <MapController center={mapConfig.center} zoom={mapConfig.zoom} />
+            <MapClickHandler onMapClick={() => { if (window.innerWidth <= 1024) setIsSidebarExpanded(false); }} />
 
             {/* Israel Base Layer Only (Detected origins highlighted dynamically below) */}
             <Polygon
@@ -498,11 +507,30 @@ function App() {
           </MapContainer>
         </div>
 
-        <aside className="sidebar">
-          <div className="mobile-drawer-handle" onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}>
-            <div className="handle-bar"></div>
-          </div>
-          <div className="sidebar-tabs">
+        <motion.aside
+          className="sidebar"
+          drag="y"
+          dragControls={dragControls}
+          dragListener={false}
+          dragConstraints={{ top: 0, bottom: 350 }}
+          dragElastic={0.1}
+          animate={{
+            y: window.innerWidth <= 1024
+              ? (isSidebarExpanded ? 0 : 350)
+              : 0
+          }}
+          onDragEnd={(e, info) => {
+            if (info.offset.y > 50) setIsSidebarExpanded(false);
+            else if (info.offset.y < -50) setIsSidebarExpanded(true);
+          }}
+          transition={{ type: "spring", damping: 30, stiffness: 350 }}
+          style={{ height: window.innerWidth <= 1024 ? "50%" : "100%" }}
+        >
+          <div
+            className="sidebar-tabs"
+            onPointerDown={(e) => dragControls.start(e)}
+            style={{ touchAction: 'none', cursor: 'grab' }}
+          >
             <button className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={() => handleTabChange('live')}>
               <Activity size={18} /> LIVE
             </button>
@@ -571,15 +599,15 @@ function App() {
                   <div className="stats-card sandbox">
                     <div className="card-header"><Shield size={20} /><h2>TACTICAL SANDBOX</h2></div>
                     <p className="text-xs text-sub mb-4 italic">Hypothesize threat vectors by plotting city clusters.</p>
-                    
+
                     {/* Regional Selection Suite */}
                     <div className="regional-picker">
                       <div className="picker-controls">
                         <div className="search-box">
                           <Terminal size={14} />
-                          <input 
-                            type="text" 
-                            placeholder="Filter regions or cities..." 
+                          <input
+                            type="text"
+                            placeholder="Filter regions or cities..."
                             value={citySearch}
                             onChange={(e) => setCitySearch(e.target.value)}
                           />
@@ -592,8 +620,8 @@ function App() {
 
                       <div className="regions-container">
                         {Object.entries(regionalData)
-                          .filter(([name, cities]) => 
-                            name.includes(citySearch) || 
+                          .filter(([name, cities]) =>
+                            name.includes(citySearch) ||
                             Object.keys(cities).some(c => c.includes(citySearch))
                           )
                           .map(([region, cities]) => {
@@ -610,7 +638,7 @@ function App() {
                                     <span className="region-name">{region}</span>
                                     <span className="count-pill">{selectedInRegion.length}/{regionCities.length}</span>
                                   </div>
-                                  <button 
+                                  <button
                                     className={`select-all-btn ${selectedInRegion.length === regionCities.length ? 'all' : ''}`}
                                     onClick={(e) => toggleRegion(region, e)}
                                   >
@@ -622,14 +650,14 @@ function App() {
                                     {regionCities
                                       .filter(c => c.includes(citySearch))
                                       .map(city => (
-                                      <button 
-                                        key={city} 
-                                        className={`city-pill ${currentCities.includes(city) ? 'active' : ''}`}
-                                        onClick={() => toggleCity(city)}
-                                      >
-                                        {city}
-                                      </button>
-                                    ))}
+                                        <button
+                                          key={city}
+                                          className={`city-pill ${currentCities.includes(city) ? 'active' : ''}`}
+                                          onClick={() => toggleCity(city)}
+                                        >
+                                          {city}
+                                        </button>
+                                      ))}
                                   </motion.div>
                                 )}
                               </div>
@@ -638,14 +666,14 @@ function App() {
                       </div>
                     </div>
 
-                    <textarea 
+                    <textarea
                       className="sandbox-textarea"
                       placeholder="Targets (separated by ; or New-Line)..."
                       value={sandboxInput}
                       onChange={(e) => setSandboxInput(e.target.value)}
                     />
-                    <button 
-                      className="analyze-btn" 
+                    <button
+                      className="analyze-btn"
                       onClick={runSandboxAnalysis}
                       disabled={isAnalyzing}
                     >
@@ -667,7 +695,7 @@ function App() {
               )}
             </AnimatePresence>
           </div>
-        </aside>
+        </motion.aside>
       </main>
       <Analytics />
     </div>
