@@ -18,7 +18,7 @@ load_dotenv()
 
 # --- Configuration ---
 POLL_INTERVAL = 10
-IRAN_THRESHOLD = 50
+IRAN_THRESHOLD = 10
 WS_PORT = int(os.environ.get("PORT", 8080)) # Dynamic port for Deployment
 TIMEZONE = ZoneInfo("Asia/Jerusalem")
 LAMAS_DATA_URL = "https://raw.githubusercontent.com/idodov/RedAlert/refs/heads/main/apps/red_alerts_israel/lamas_data.json"
@@ -494,7 +494,7 @@ class TrackingEngine:
             
         return [v_x, v_y]
 
-    def cluster(self, cities, threshold_km=20.0):
+    def cluster(self, cities, threshold_km=25.0):
         deg = threshold_km / 111.0
         clusters = []
         for city in cities:
