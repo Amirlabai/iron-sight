@@ -808,7 +808,7 @@ async def main():
                                 has_new_cities = True
 
                         if alert_id and (is_new_id or has_new_cities or not active_salvo):
-                            logger.info(f"ALERT_DETECTED [Source: {source_used}]: ID={alert_id}, Title='{title}', Cities={len(cities_raw)}")
+                            logger.info(f"ALERT_DETECTED [Source: {source_used}]: ID={alert_id}, Title='{alert_type}', Cities={len(cities_raw)}")
                             
                             # Debug: Log raw payload for verification
                             logger.debug(f"RAW_PAYLOAD: {alert_payload}")
