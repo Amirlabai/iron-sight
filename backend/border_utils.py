@@ -36,7 +36,8 @@ def txt_to_json(txt_path, json_path):
                         coords = [float(x.strip()) for x in line.split()]
                     
                     if len(coords) >= 2:
-                        data[current_region].append(coords[:2])
+                        out_coords = coords[::-1]
+                        data[current_region].append(out_coords)
                 except ValueError:
                     print(f"Warning: Skipping invalid line in {current_region}: {line}")
 

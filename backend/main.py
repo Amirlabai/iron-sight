@@ -36,7 +36,7 @@ MISSION_KEY = os.getenv("MISSION_KEY")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - CODE LINE: %(lineno)d - %(levelname)s - %(message)s')
 logger = logging.getLogger("IronSightBackend")
 
 # Load Version Info
@@ -310,9 +310,9 @@ class TrackingEngine:
         # Strategic metadata
         self.strategic_depths = {
             "Gaza": 0.5,
-            "Lebanon": 1.0,
-            "Iran": 18.0,
-            "North Iran": 16.0,
+            "Lebanon": 0.5,
+            "Iran": 13.0,
+            "North Iran": 13.0,
             "Yemen": 20.0
         }
         self.zoom_levels = {
@@ -793,7 +793,9 @@ async def main():
                                 logger.info(f"THREAT_ENDED_SIGNAL (newsFlash): Resetting dashboard in 5m.")
                                 threat_ended_time = now
                             continue
-
+                        elif not alert_type == "missiles":
+                            logger.info(f"non missle alert detected skipping")
+                            continue
                         alert_id = alert_payload.get('id')
                         # Support both Raw (data) and Wrapper (cities) formats
                         cities_raw = alert_payload.get('data') or alert_payload.get('cities', [])
