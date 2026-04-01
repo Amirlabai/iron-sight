@@ -29,6 +29,7 @@ Transitioned to v0.5.5 (Alpha).
 - **Uplink Consolidation**: Established the Israeli Relay Bridge as the sole tactical uplink.
 - **Protocol Alignment**: Standardized all cross-system communication via the [SCP](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md).
 - **Tactical Filtering**: Implemented `type: newsFlash` and `instructions`-based ignore logic for "End of Threat" status messages.
+- **Active Salvo Persistence**: Extended backend WebSocket manager to buffer and transmit current `active_salvo_data` to synchronize late-joining dashboard clients.
 - **Relay Payload Lexicon**: Saved for future implementation:
     - `missiles`
     - `earthQuake`

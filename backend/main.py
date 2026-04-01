@@ -83,6 +83,7 @@ class WebSocketManager:
         self.add_route("POST", "/api/analyze", self.analyze_handler)
         
         self.runner = None
+        self.active_salvo_data = None
 
     def add_route(self, method, path, handler):
         resource = self.app.router.add_resource(path)
@@ -112,6 +113,13 @@ class WebSocketManager:
             }))
         except Exception as e:
             logger.error(f"Error fetching history for client: {e}")
+
+        # Send current active salvo if one exists
+        if self.active_salvo_data:
+            try:
+                await ws.send_str(json.dumps(self.active_salvo_data, ensure_ascii=False))
+            except Exception as e:
+                logger.error(f"Error sending active salvo to client: {e}")
 
         try:
             async for msg in ws:
@@ -698,6 +706,7 @@ async def main():
                     
                     logger.info(f"SALVO FINALIZED: {active_salvo['id']} - {len(active_salvo['clusters'])} clusters.")
                     active_salvo = None
+                    ws.active_salvo_data = None
 
                 # Timeout logic
                 if last_alert_id:
@@ -706,11 +715,13 @@ async def main():
                         await ws.broadcast({"type": "reset"})
                         last_alert_id = None
                         threat_ended_time = None
+                        ws.active_salvo_data = None
                     elif last_alert_time and (now - last_alert_time > 600):
                         logger.info("10m Idle Timeout. Resetting dashboard.")
                         await ws.broadcast({"type": "reset"})
                         last_alert_id = None
                         last_alert_time = None
+                        ws.active_salvo_data = None
 
                 # --- Tactical Relay Uplink (Single Source of Truth) ---
                 RELAY_URL = os.getenv("RELAY_URL")
@@ -849,7 +860,9 @@ async def main():
                                         active_salvo.update(full_analysis)
                                         active_salvo["id"] = alert_id 
                                         
-                                        await ws.broadcast({"type": "alert", **active_salvo})
+                                        msg_data = {"type": "alert", **active_salvo}
+                                        ws.active_salvo_data = msg_data
+                                        await ws.broadcast(msg_data)
                                         logger.info(f"BROADCAST_SUCCESS: {alert_id} - Unified strategic salvo: {len(active_salvo['all_cities'])} cities.")
                                     else:
                                         logger.warning(f"STRATEGIC_NULL: Analysis returned no trajectories for {len(active_salvo['all_cities'])} cities.")
