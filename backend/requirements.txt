@@ -5,3 +5,5 @@ motor
 dnspython
 python-dotenv
 aiohttp-cors
+numpy
+scipy

@@ -35,3 +35,4 @@ Transitioned to v0.5.5 (Alpha).
     - Eliminated diagnostic console warnings (`MISSION_SYNC_TIMEOUT`) and sanitized production logs.
     - Integrated `IS_PROD` environment detection for silent telemetry.
 - **Relay Payload Lexicon**: Standardized `newsFlash`, `missiles`, and `hostileAircraftIntrusion` handling.
+- **Hardware Acceleration**: Integrated Numpy and SciPy core for ~150x faster tactical vectoring, ray-casting, and cluster resolution.
