@@ -332,11 +332,41 @@ class TrackingEngine:
         }
         
         try:
-            borders_path = os.path.join(os.path.dirname(__file__), 'tactical_borders.json')
-            with open(borders_path, 'r') as f:
-                self.boundaries = json.load(f)
-            logger.info("TACTICAL BOUNDARIES LOADED")
-            
+            # --- MISSION: GeoJSON Migration (Silhouettes) ---
+            geojson_path = os.path.join(os.path.dirname(__file__), 'countries.geojson')
+            if os.path.exists(geojson_path):
+                with open(geojson_path, 'r', encoding='utf-8') as f:
+                    geo_data = json.load(f)
+                
+                for feature in geo_data.get("features", []):
+                    props = feature.get("properties", {})
+                    loc_name = props.get("location", "").replace("Gaza Strip", "Gaza")
+                    
+                    # Flip coordinates [lon, lat] -> [lat, lon] for internal processing
+                    geom = feature.get("geometry", {})
+                    if geom.get("type") == "Polygon":
+                        # Nested arrays: [ [ [lon, lat], ... ] ]
+                        raw_coords = geom.get("coordinates", [[]])[0]
+                        flipped_coords = [[p[1], p[0]] for p in raw_coords]
+                        self.boundaries[loc_name] = flipped_coords
+                        
+                        # Load Strategic Metadata from GeoJSON
+                        if props.get("depth"):
+                            self.strategic_depths[loc_name] = float(props["depth"])
+                        if props.get("zoom level"):
+                            self.zoom_levels[loc_name] = int(props["zoom level"])
+
+                logger.info(f"TACTICAL SILHOUETTES LOADED FROM GEOJSON ({len(self.boundaries)} regions)")
+            else:
+                # Fallback to legacy tactical_borders.json if GeoJSON missing
+                borders_path = os.path.join(os.path.dirname(__file__), 'tactical_borders.json')
+                if os.path.exists(borders_path):
+                    with open(borders_path, 'r') as f:
+                        self.boundaries = json.load(f)
+                    logger.info("LEGACY TACTICAL BOUNDARIES LOADED")
+
+            # --- MISSION: Strategic Calculation Borders (Logic Core) ---
+            # Preserved as requested. These are decoupled from visual silhouettes.
             calc_path = os.path.join(os.path.dirname(__file__), 'calculation_borders.json')
             if os.path.exists(calc_path):
                 with open(calc_path, 'r') as f:
