@@ -38,9 +38,9 @@
 - [x] MISSION: Tactical Relay Filtering (type: newsFlash Logic)
 - [x] MISSION: WebSocket Active Salvo Persistence (Late-Joiner Synchronization)
 
-## PLANNED (DEVELOPMENT SPRINT 5)
-- **Automatic Alert Simulation**: (TBD) Multi-state scenario playback.
+- [x] **MISSION**: Cluster-Based Iran Filtering (`IRAN_THRESHOLD`) - [Implementation plan archived](file:///c:/Users/amirl/.gemini/antigravity/brain/fde75a3d-5e3c-4fb0-aa25-0c1a82d8add5/implementation_plan.md)
 - **Deployment Staging**: Finalizing cloud uplink for backend/frontend persistence testing.
+- **MISSION**: High-Fidelity Pure Vector Map Transition (S5) - [Implementation plan archived](file:///C:/Users/amirl/.gemini/antigravity/brain/6bc9c501-e3de-4258-bef6-a762732005fe/implementation_plan.md)
 
 ---
 **Mission Status**: **OPERATIONAL** | REAL-TIME HEALTH RECOVERY

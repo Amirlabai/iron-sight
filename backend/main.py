@@ -36,7 +36,7 @@ MISSION_KEY = os.getenv("MISSION_KEY")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - CODE LINE: %(lineno)d - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - filename: %(filename)s - line: %(lineno)d - %(levelname)s - %(message)s')
 logger = logging.getLogger("IronSightBackend")
 
 # Load Version Info
@@ -563,7 +563,7 @@ class TrackingEngine:
                     return territory, depth
 
         # 2. Last-Resort Heuristics (Proximity fallbacks for single-point or non-linear clusters)
-        if centroid[0] > 32.8: return "Lebanon", self.strategic_depths["Lebanon"]
+        if centroid[0] > 31.7683: return "Lebanon", self.strategic_depths["Lebanon"]
         if centroid[0] < 31.7 and centroid[1] < 34.6: return "Gaza", self.strategic_depths["Gaza"]
         if centroid[0] < 31.0: return "Yemen", self.strategic_depths["Yemen"]
         
@@ -618,8 +618,19 @@ class TrackingEngine:
         
         # 2. Strategic Origin Consolidation
         origin_groups = {}
+        iran_threshold = 40
         for cl in raw_clusters:
             org_name, depth = self.get_origin(cl['cities'])
+            # Apply Cluster-Level Threshold for Iranian Origins
+            if org_name in ["Iran", "North Iran"] and len(cl['cities']) < iran_threshold:
+                cnt_lat = sum(c['coords'][0] for c in cl['cities']) / len(cl['cities'])
+                if cnt_lat > 31.7683:
+                    org_name = "Lebanon"
+                    depth = self.strategic_depths["Lebanon"]
+                else:
+                    org_name = "Yemen"
+                    depth = self.strategic_depths["Yemen"]
+
             if org_name not in origin_groups:
                 origin_groups[org_name] = {"cities": [], "depth": depth}
             
@@ -746,7 +757,7 @@ async def main():
                         last_alert_id = None
                         threat_ended_time = None
                         ws.active_salvo_data = None
-                    elif last_alert_time and (now - last_alert_time > 600):
+                    elif last_alert_time and (now - last_alert_time > 300):
                         logger.info("10m Idle Timeout. Resetting dashboard.")
                         await ws.broadcast({"type": "reset"})
                         last_alert_id = None
