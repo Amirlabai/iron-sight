@@ -135,21 +135,19 @@ function App() {
           lastAlertSoundTime.current = now;
         }
         const newEvent = {
-          id: data.id,
+          title: data.title,
           clusters: data.clusters,
           trajectories: data.trajectories,
           highlight_origins: data.highlight_origins,
-          title: data.title,
           time: data.time,
+          center: data.center,
           zoom_level: data.zoom_level
         };
         setLiveEvent(newEvent);
         if (viewMode === 'archive') { setViewMode('live'); setActiveTab('live'); }
         if (data.trajectories.length > 0) {
-          const mainTraj = data.trajectories[0];
-          const origin_coords = mainTraj.marker_coords || mainTraj.origin_coords;
           setMapConfig({
-            center: [(origin_coords[0] + ISRAEL_CENTER[0]) / 2, (origin_coords[1] + ISRAEL_CENTER[1]) / 2],
+            center: data.center,
             zoom: data.zoom_level || 8
           });
         }

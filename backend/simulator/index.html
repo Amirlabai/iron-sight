@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IRON SIGHT | Tactical Dispatcher</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg: #0d1117;
+            --accent: #ff4d4d;
+            --panel: rgba(22, 27, 34, 0.9);
+            --text: #e6edf3;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        #map {
+            width: 100vw;
+            height: 100vh;
+            background: #121212;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            background: var(--panel);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 1000;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 2px;
+            color: var(--accent);
+        }
+
+        .city-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .city-tag {
+            display: inline-block;
+            background: rgba(255, 77, 77, 0.2);
+            color: #ff944d;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin: 2px;
+            border: 1px solid rgba(255, 77, 77, 0.3);
+        }
+
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+
+        .btn-fire {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-fire:hover {
+            filter: brightness(1.2);
+            transform: scale(1.02);
+        }
+
+        .btn-end {
+            background: #333;
+            color: #888;
+            margin-top: 10px;
+        }
+
+        .btn-end:hover {
+            background: #444;
+            color: white;
+        }
+
+        .status {
+            font-size: 10px;
+            color: #888;
+            font-family: monospace;
+        }
+
+        .instructions {
+            font-size: 11px;
+            font-style: italic;
+            opacity: 0.7;
+        }
+
+        .leaflet-container {
+            background-color: #0d1117 !important;
+        }
+
+        .leaflet-interactive {
+            stroke-width: 1px !important;
+            stroke: #000 !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+    <div class="control-panel">
+        <h2>TACTICAL DISPATCHER</h2>
+        <p class="instructions">Click points on the map to select targets for the mock relay.</p>
+
+        <div class="city-list" id="selection-list">
+            <span style="opacity:0.5">No targets selected...</span>
+        </div>
+
+        <button class="btn-fire" onclick="dispatchSalvo()">DISPATCH SALVO</button>
+        <button class="btn-end" onclick="signalTermination()">SIGNAL END MISSION</button>
+
+        <div class="status" id="status-log">
+            SYSTEM READY. STANDING BY.
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map', { zoomControl: false }).setView([31.7, 35.2], 8);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+        let cities = [];
+        let selectedCities = new Set();
+        const markers = [];
+
+        // Loading Data
+        async function loadCities() {
+            try {
+                const response = await fetch('http://localhost:8080/api/cities');
+                if (!response.ok) throw new Error("Backend not responding or CORS missing");
+                const areas = await response.json();
+
+                // Flatten structural areas into flat list for the visual tool
+                for (const area in areas) {
+                    for (const name in areas[area]) {
+                        cities.push({
+                            name: name,
+                            lat: parseFloat(areas[area][name].lat),
+                            lon: parseFloat(areas[area][name].long)
+                        });
+                    }
+                }
+                renderCities();
+                log("LOADED " + cities.length + " TACTICAL POINTS.");
+            } catch (e) {
+                log("CITIES_ERROR: Ensure main.py is running on :8080 and CORS allows :8081.");
+            }
+        }
+
+        function renderCities() {
+            cities.forEach(city => {
+                const marker = L.circleMarker([city.lat, city.lon], {
+                    radius: 6,
+                    fillColor: "#4d94ff",
+                    color: "#000",
+                    weight: 1,
+                    opacity: 0.5,
+                    fillOpacity: 0.5
+                }).addTo(map);
+
+                marker.on('click', () => toggleCity(city, marker));
+            });
+        }
+
+        function toggleCity(city, marker) {
+            if (selectedCities.has(city.name)) {
+                selectedCities.delete(city.name);
+                marker.setStyle({ fillColor: "#4d94ff", weight: 1 });
+            } else {
+                selectedCities.add(city.name);
+                marker.setStyle({ fillColor: "#ff4d4d", weight: 2 });
+            }
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            const list = document.getElementById('selection-list');
+            if (selectedCities.size === 0) {
+                list.innerHTML = '<span style="opacity:0.5">No targets selected...</span>';
+                return;
+            }
+            list.innerHTML = Array.from(selectedCities).map(c => `<span class="city-tag">${c}</span>`).join('');
+        }
+
+        async function dispatchSalvo() {
+            if (selectedCities.size === 0) return alert("Select at least one target.");
+
+            try {
+                const resp = await fetch('/dispatch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cities: Array.from(selectedCities) })
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    log("DISPATCHED: Salvo " + data.payload.id);
+                    // Clear selection for next run?
+                    // selectedCities.clear();
+                    // updateSelectionUI();
+                }
+            } catch (e) {
+                log("FETCH_ERROR: Simulator server unreachable.");
+            }
+        }
+
+        async function signalTermination() {
+            try {
+                const resp = await fetch('/end', { method: 'POST' });
+                if (resp.ok) {
+                    log("TERMINATION SIGNAL ISSUED.");
+                    selectedCities.clear();
+                    updateSelectionUI();
+                    // Reset all markers
+                    map.eachLayer(l => { if (l.setStyle) l.setStyle({ fillColor: "#4d94ff" }); });
+                }
+            } catch (e) {
+                log("FETCH_ERROR: Simulator server unreachable.");
+            }
+        }
+
+        function log(msg) {
+            document.getElementById('status-log').innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        }
+
+        loadCities();
+    </script>
+</body>
+
+</html>

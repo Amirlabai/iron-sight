@@ -18,6 +18,7 @@ load_dotenv()
 
 # --- Configuration ---
 POLL_INTERVAL = 10
+IRAN_THRESHOLD = 50
 WS_PORT = int(os.environ.get("PORT", 8080)) # Dynamic port for Deployment
 TIMEZONE = ZoneInfo("Asia/Jerusalem")
 LAMAS_DATA_URL = "https://raw.githubusercontent.com/idodov/RedAlert/refs/heads/main/apps/red_alerts_israel/lamas_data.json"
@@ -539,12 +540,12 @@ class TrackingEngine:
             isr = [31.7, 35.2]
             dist_now = self.get_distance(centroid, isr)
             dist_next = self.get_distance([centroid[0] + v_lat*0.1, centroid[1] + v_lon*0.1], isr)
-            if dist_next < dist_now:
+            if dist_next < dist_now and len(cluster_cities) <= IRAN_THRESHOLD:
                 v_lat, v_lon = -v_lat, -v_lon
-                
+
             # Priority 1: Long-Range (Deep Projections Scan for strategic depth)
             # We scan multiple depths to hit different Iranian/Regional polygons
-            depth = 6
+            depth = 7
             proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
             for territory in ["North Iran", "Iran", "Yemen"]:
                 if self.is_point_in_polygon(proj, territory):
@@ -563,11 +564,14 @@ class TrackingEngine:
                     return territory, depth
 
         # 2. Last-Resort Heuristics (Proximity fallbacks for single-point or non-linear clusters)
-        if centroid[0] > 31.7683: return "Lebanon", self.strategic_depths["Lebanon"]
-        if centroid[0] < 31.7 and centroid[1] < 34.6: return "Gaza", self.strategic_depths["Gaza"]
-        if centroid[0] < 31.0: return "Yemen", self.strategic_depths["Yemen"]
-        
-        return "Iran", self.strategic_depths["Iran"]
+        # MISSION: Iran and Yemen are restricted to VECTOR-ONLY. Fallback logic only maps to the closest regional origin.
+        dist_gaza = self.get_distance(centroid, self.origins["Gaza"])
+        dist_lebanon = self.get_distance(centroid, self.origins["Lebanon"])
+
+        if dist_gaza < dist_lebanon:
+            return "Gaza", self.strategic_depths["Gaza"]
+        else:
+            return "Lebanon", self.strategic_depths["Lebanon"]
 
     def get_projected_origin(self, cluster_cities, origin_name, depth=None):
         """Project the PCA vector back toward the launch territory using tactical depth."""
@@ -586,7 +590,7 @@ class TrackingEngine:
         # Orient away from target
         dist_current = self.get_distance([cnt_lat, cnt_lon], origin_center)
         dist_forward = self.get_distance([cnt_lat + v_lat*0.1, cnt_lon + v_lon*0.1], origin_center)
-        if dist_forward > dist_current:
+        if dist_forward > dist_current and len(cluster_cities) <= IRAN_THRESHOLD:
             v_lat, v_lon = -v_lat, -v_lon
 
         scalar = depth if depth is not None else self.strategic_depths.get(origin_name, 10.0)
@@ -618,18 +622,23 @@ class TrackingEngine:
         
         # 2. Strategic Origin Consolidation
         origin_groups = {}
-        iran_threshold = 40
         for cl in raw_clusters:
             org_name, depth = self.get_origin(cl['cities'])
-            # Apply Cluster-Level Threshold for Iranian Origins
-            if org_name in ["Iran", "North Iran"] and len(cl['cities']) < iran_threshold:
-                cnt_lat = sum(c['coords'][0] for c in cl['cities']) / len(cl['cities'])
-                if cnt_lat > 31.7683:
+            # Apply Cluster-Level Threshold for Iranian Origins (Suppress unless vector-confirmed density is high)
+            if org_name in ["Iran", "North Iran"] and len(cl['cities']) <= IRAN_THRESHOLD:
+                # Force re-attribution to the closest regional territory (Gaza/Lebanon only)
+                cnt_coords = [sum(c['coords'][0] for c in cl['cities']) / len(cl['cities']), 
+                              sum(c['coords'][1] for c in cl['cities']) / len(cl['cities'])]
+                
+                d_gaza = self.get_distance(cnt_coords, self.origins["Gaza"])
+                d_lebanon = self.get_distance(cnt_coords, self.origins["Lebanon"])
+                
+                if d_gaza < d_lebanon:
+                    org_name = "Gaza"
+                    depth = self.strategic_depths["Gaza"]
+                else:
                     org_name = "Lebanon"
                     depth = self.strategic_depths["Lebanon"]
-                else:
-                    org_name = "Yemen"
-                    depth = self.strategic_depths["Yemen"]
 
             if org_name not in origin_groups:
                 origin_groups[org_name] = {"cities": [], "depth": depth}
@@ -751,12 +760,13 @@ async def main():
 
                 # Timeout logic
                 if last_alert_id:
-                    if threat_ended_time and (now - threat_ended_time > 30):
-                        logger.info("30s Timeout after explicit threat end. Resetting dashboard.")
+                    if threat_ended_time and (now - threat_ended_time > 10):
+                        logger.info("10s Tactical Reset after explicit threat end. Clearing Command Center.")
                         await ws.broadcast({"type": "reset"})
                         last_alert_id = None
                         threat_ended_time = None
                         ws.active_salvo_data = None
+                        active_salvo = None # MISSION: Clear tactical memory immediately
                     elif last_alert_time and (now - last_alert_time > 300):
                         logger.info("10m Idle Timeout. Resetting dashboard.")
                         await ws.broadcast({"type": "reset"})
@@ -842,7 +852,7 @@ async def main():
                         
                         if alert_type == "newsFlash" or "האירוע הסתיים" in instructions:
                             if not threat_ended_time and last_alert_id:
-                                logger.info(f"THREAT_ENDED_SIGNAL (newsFlash): Resetting dashboard in 5m.")
+                                logger.info(f"THREAT_ENDED_SIGNAL (newsFlash): Resetting dashboard in 10s.")
                                 threat_ended_time = now
                             continue
                         elif not alert_type == "missiles":
