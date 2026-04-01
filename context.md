@@ -29,7 +29,7 @@ Transitioned to v0.5.5 (Alpha).
 - **Uplink Consolidation**: Established the Israeli Relay Bridge as the sole tactical uplink.
 - **Protocol Alignment**: Standardized all cross-system communication via the [SCP](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md).
 - **Reset Protocol Hardening**: Shortened dashboard reset delay to 10s for explicit "Event Ended" signals, with immediate backend state purging.
-- **Cluster-Based Iran Filtering**: Applied a hard metric threshold (`IRAN_THRESHOLD=40`) to suppress strategic noise.
+- **Cluster-Based Iran Filtering**: Applied a dual-tier threshold system (`MIN_IRAN_THRESHOLD=10`, `MAX_IRAN_THRESHOLD=40`) to map massive salvos explicitly to Iran while demoting sparse clusters to regional origins.
 - **Tactical Console Hardening (v0.5.5)**: 
     - Masked backend infrastructure via Vercel `/api` rewrites, anonymizing REST traffic.
     - Eliminated diagnostic console warnings (`MISSION_SYNC_TIMEOUT`) and sanitized production logs.

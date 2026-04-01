@@ -18,7 +18,8 @@ load_dotenv()
 
 # --- Configuration ---
 POLL_INTERVAL = 10
-IRAN_THRESHOLD = 10
+MIN_IRAN_THRESHOLD = 10
+MAX_IRAN_THRESHOLD = 40
 WS_PORT = int(os.environ.get("PORT", 8080)) # Dynamic port for Deployment
 TIMEZONE = ZoneInfo("Asia/Jerusalem")
 LAMAS_DATA_URL = "https://raw.githubusercontent.com/idodov/RedAlert/refs/heads/main/apps/red_alerts_israel/lamas_data.json"
@@ -540,7 +541,7 @@ class TrackingEngine:
             isr = [31.7, 35.2]
             dist_now = self.get_distance(centroid, isr)
             dist_next = self.get_distance([centroid[0] + v_lat*0.1, centroid[1] + v_lon*0.1], isr)
-            if dist_next < dist_now and len(cluster_cities) <= IRAN_THRESHOLD:
+            if dist_next < dist_now and len(cluster_cities) <= MIN_IRAN_THRESHOLD:
                 v_lat, v_lon = -v_lat, -v_lon
 
             # Priority 1: Long-Range (Deep Projections Scan for strategic depth)
@@ -590,7 +591,7 @@ class TrackingEngine:
         # Orient away from target
         dist_current = self.get_distance([cnt_lat, cnt_lon], origin_center)
         dist_forward = self.get_distance([cnt_lat + v_lat*0.1, cnt_lon + v_lon*0.1], origin_center)
-        if dist_forward > dist_current and len(cluster_cities) <= IRAN_THRESHOLD:
+        if dist_forward > dist_current and len(cluster_cities) <= MIN_IRAN_THRESHOLD:
             v_lat, v_lon = -v_lat, -v_lon
 
         scalar = depth if depth is not None else self.strategic_depths.get(origin_name, 10.0)
@@ -617,6 +618,9 @@ class TrackingEngine:
         if not city_coords:
             return None
 
+        total_unique_cities = len({c['name'] for c in city_coords})
+        force_iran_logic = total_unique_cities > MAX_IRAN_THRESHOLD
+
         # 1. Neighborhood Clustering (Chain-Link)
         raw_clusters = self.cluster(city_coords)
         
@@ -624,8 +628,13 @@ class TrackingEngine:
         origin_groups = {}
         for cl in raw_clusters:
             org_name, depth = self.get_origin(cl['cities'])
-            # Apply Cluster-Level Threshold for Iranian Origins (Suppress unless vector-confirmed density is high)
-            if org_name in ["Iran", "North Iran"] and len(cl['cities']) <= IRAN_THRESHOLD:
+            
+            if force_iran_logic:
+                # GLOBAL IRAN OVERRIDE: Massive salvos force origin to Iran
+                org_name = "Iran"
+                depth = self.strategic_depths["Iran"]
+            elif org_name in ["Iran", "North Iran"] and len(cl['cities']) <= MIN_IRAN_THRESHOLD:
+                # Apply Cluster-Level Threshold for Iranian Origins (Suppress unless vector-confirmed density is high)
                 # Force re-attribution to the closest regional territory (Gaza/Lebanon only)
                 cnt_coords = [sum(c['coords'][0] for c in cl['cities']) / len(cl['cities']), 
                               sum(c['coords'][1] for c in cl['cities']) / len(cl['cities'])]
@@ -762,6 +771,13 @@ async def main():
                 if last_alert_id:
                     if threat_ended_time and (now - threat_ended_time > 10):
                         logger.info("10s Tactical Reset after explicit threat end. Clearing Command Center.")
+                        
+                        # MISSION: Finalize and save to history before purging memory
+                        if active_salvo:
+                            await mm.save_salvo(active_salvo)
+                            history = await mm.get_history(limit=50)
+                            await ws.broadcast({"type": "history_sync", "data": history})
+
                         await ws.broadcast({"type": "reset"})
                         last_alert_id = None
                         threat_ended_time = None
