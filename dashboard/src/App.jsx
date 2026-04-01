@@ -73,6 +73,69 @@ function MapClickHandler({ onMapClick }) {
   return null;
 }
 
+const TrackingDrone = ({ positions, color }) => {
+  const [currentIdx, setCurrentIdx] = React.useState(0);
+  const [progress, setProgress] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!positions || positions.length < 2) return;
+    let animationFrameId;
+    let startTime = Date.now();
+    const duration = 2000; // 2 seconds per segment
+
+    const animate = () => {
+      const now = Date.now();
+      const elapsed = now - startTime;
+      const p = Math.min(elapsed / duration, 1);
+      
+      setProgress(p);
+
+      if (p >= 1) {
+        startTime = Date.now();
+        setCurrentIdx((prev) => (prev + 1) % positions.length);
+      }
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [positions]);
+
+  if (!positions || positions.length === 0) return null;
+  if (positions.length === 1) {
+    return (
+      <Marker position={positions[0]} icon={L.divIcon({
+        className: 'drone-tracker-marker',
+        html: `<div style="width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 14px solid ${color}; filter: drop-shadow(0 0 10px ${color});"></div>`,
+        iconSize: [14, 12],
+        iconAnchor: [7, 6]
+      })} />
+    );
+  }
+  
+  const p1 = positions[currentIdx];
+  const p2 = positions[(currentIdx + 1) % positions.length];
+  
+  const lat = p1[0] + (p2[0] - p1[0]) * progress;
+  const lng = p1[1] + (p2[1] - p1[1]) * progress;
+
+  const dx = p2[1] - p1[1];
+  const dyScreen = -(p2[0] - p1[0]);
+  const angle = Math.atan2(dyScreen, dx) * (180 / Math.PI);
+
+  return (
+    <React.Fragment>
+      <Polyline positions={positions} pathOptions={{ color: color, weight: 2, dashArray: '5, 10', opacity: 0.5, className: 'trajectory-line' }} />
+      <Marker position={[lat, lng]} icon={L.divIcon({
+        className: 'drone-tracker-marker',
+        html: `<div style="transform: rotate(${angle}deg); width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 20px solid ${color}; filter: drop-shadow(0 0 10px ${color});"></div>`,
+        iconSize: [20, 12],
+        iconAnchor: [10, 6]
+      })} />
+    </React.Fragment>
+  );
+};
+
 function SplashScreen({ progress }) {
   return (
     <motion.div
@@ -137,16 +200,19 @@ function App() {
         }
         const newEvent = {
           title: data.title,
+          category: data.category,
           clusters: data.clusters,
           trajectories: data.trajectories,
           highlight_origins: data.highlight_origins,
           time: data.time,
           center: data.center,
-          zoom_level: data.zoom_level
+          zoom_level: data.zoom_level,
+          visual_config: data.visual_config,
+          is_simulation: data.is_simulation
         };
         setLiveEvent(newEvent);
         if (viewMode === 'archive') { setViewMode('live'); setActiveTab('live'); }
-        if (data.trajectories.length > 0) {
+        if (data.center) {
           setMapConfig({
             center: data.center,
             zoom: data.zoom_level || 8
@@ -336,6 +402,7 @@ function App() {
           <div className="map-overlay-info">
             {viewMode === 'archive' && <div className="archive-watermark">HISTORICAL DATA REWIND | {archiveEvent?.time}</div>}
             {viewMode === 'sandbox' && <div className="sandbox-watermark">DRY RUN ANALYSIS | Hypo-Salvo</div>}
+            {currentEvent?.is_simulation && viewMode === 'live' && <div className="sandbox-watermark" style={{color: '#ff9500', borderColor: '#ff9500'}}>SIMULATION EXERCISE ACTIVE</div>}
           </div>
           <MapContainer
             center={ISRAEL_CENTER}
@@ -363,8 +430,8 @@ function App() {
               }}
             />
 
-            {currentEvent?.clusters.map((cluster, idx) => {
-              const clusterColor = STRATEGIC_METADATA[cluster.origin]?.color || tacticalColor;
+            {currentEvent?.clusters && currentEvent.clusters.map((cluster, idx) => {
+              const clusterColor = currentEvent?.visual_config?.color || STRATEGIC_METADATA[cluster.origin]?.color || tacticalColor;
               return (
                 <React.Fragment key={`cluster-group-${idx}`}>
                   {cluster.hull && cluster.hull.length > 2 ? (
@@ -388,7 +455,7 @@ function App() {
                           color: clusterColor,
                           weight: 2,
                           smoothFactor: 2.0,
-                          className: viewMode === 'live' ? 'pulse-animation' : ''
+                          className: viewMode === 'live' ? (currentEvent?.visual_config?.movement || 'pulse-animation') : ''
                         }}
                       >
                         <Tooltip sticky>Threat Area: {cluster.cities.length} Targets</Tooltip>
@@ -415,17 +482,31 @@ function App() {
                           fillOpacity: 0.4,
                           color: clusterColor,
                           weight: 2,
-                          className: viewMode === 'live' ? 'pulse-animation' : ''
+                          className: viewMode === 'live' ? (currentEvent?.visual_config?.movement || 'pulse-animation') : ''
                         }}
                       />
                     </React.Fragment>
                   )}
+                  {viewMode === 'live' && currentEvent?.visual_config && currentEvent.visual_config.movement !== 'linear' && (() => {
+                    const movement = currentEvent.visual_config.movement;
+                    if (movement === 'circular_sweep') {
+                      return <TrackingDrone positions={cluster.cities.map(c => c.coords)} color={clusterColor} />;
+                    }
+                    return (
+                      <Marker position={cluster.centroid} icon={L.divIcon({
+                        className: 'tactical-visual-marker',
+                        html: `<div class="visual-wrapper ${movement}" style="--threat-color: ${clusterColor}"></div>`,
+                        iconSize: [80, 80],
+                        iconAnchor: [40, 40]
+                      })} />
+                    );
+                  })()}
                 </React.Fragment>
               );
             })}
 
-            {currentEvent?.trajectories.map((traj, idx) => {
-              const trajColor = STRATEGIC_METADATA[traj.origin]?.color || tacticalColor;
+            {currentEvent?.trajectories && currentEvent.trajectories.map((traj, idx) => {
+              const trajColor = currentEvent?.visual_config?.color || STRATEGIC_METADATA[traj.origin]?.color || tacticalColor;
               return (
                 <React.Fragment key={`traj-group-${idx}`}>
                   <Polyline
@@ -576,16 +657,19 @@ function App() {
                     <div className="empty-state"><RotateCcw size={48} color="#333" /><p>MONITORING AIRSPACE</p></div>
                   ) : (
                     <div className="alerts-list">
-                      {liveEvent.clusters?.map((c, i) => (
-                        <motion.div key={i} initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="alert-item">
-                          <div className="alert-marker"></div>
-                          <div className="alert-info">
-                            <h3>{c.origin?.toUpperCase().replace('_', ' ') || `CLUSTER ${i + 1}`} | {liveEvent.time}</h3>
-                            <p>{c.cities.map(ct => ct.name).join(', ')}</p>
-                          </div>
-                          <Zap size={16} color="#ff944d" />
-                        </motion.div>
-                      ))}
+                      {liveEvent.clusters?.map((c, i) => {
+                        const alertColor = liveEvent.visual_config?.color || '#ff944d';
+                        return (
+                          <motion.div key={i} initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="alert-item" style={{borderLeftColor: alertColor}}>
+                            <div className="alert-marker" style={{background: alertColor, boxShadow: `0 0 10px ${alertColor}`}}></div>
+                            <div className="alert-info">
+                              <h3 style={{color: alertColor}}>{liveEvent.title?.toUpperCase()} | {liveEvent.time}</h3>
+                              <p>{c.cities.map(ct => ct.name).join(', ')}</p>
+                            </div>
+                            <ShieldAlert size={16} color={alertColor} />
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   )}
                 </motion.div>

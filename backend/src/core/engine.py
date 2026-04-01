@@ -1,0 +1,213 @@
+import json
+import os
+import logging
+import numpy as np
+from scipy.spatial import ConvexHull
+from scipy.spatial.distance import cdist
+from src.utils.config import MIN_IRAN_THRESHOLD, MAX_IRAN_THRESHOLD
+from src.utils.text_utils import standardize_name
+
+logger = logging.getLogger("IronSightBackend")
+
+class TrackingEngine:
+    def __init__(self, data_manager):
+        self.dm = data_manager
+        self.origins = {
+            "Gaza": [31.4167, 34.3333],
+            "Lebanon": [33.8886, 35.8623],
+            "Yemen": [15.3547, 44.2067],
+            "Iran": [32.4279, 53.6880]
+        }
+        self.boundaries = {}
+        self.calc_boundaries = {}
+        self.origins["North Iran"] = self.origins["Iran"]
+        
+        # Strategic metadata
+        self.strategic_depths = {
+            "Gaza": 0.5,
+            "Lebanon": 0.5,
+            "Iran": 13.0,
+            "North Iran": 13.0,
+            "Yemen": 20.0
+        }
+        self.zoom_levels = {
+            "Gaza": 10,
+            "Lebanon": 8,
+            "Iran": 6,
+            "North Iran": 6,
+            "Yemen": 6
+        }
+        
+        self._load_borders()
+
+    def _load_borders(self):
+        """Initialize tactical and calculation boundaries from available geodata."""
+        base_dir = os.path.join(os.path.dirname(__file__), "..", "data")
+        try:
+            geojson_path = os.path.join(base_dir, 'countries.geojson')
+            if os.path.exists(geojson_path):
+                with open(geojson_path, 'r', encoding='utf-8') as f:
+                    geo_data = json.load(f)
+                
+                for feature in geo_data.get("features", []):
+                    props = feature.get("properties", {})
+                    loc_name = props.get("location", "").replace("Gaza Strip", "Gaza")
+                    geom = feature.get("geometry", {})
+                    if geom.get("type") == "Polygon":
+                        raw_coords = geom.get("coordinates", [[]])[0]
+                        flipped_coords = [[p[1], p[0]] for p in raw_coords]
+                        self.boundaries[loc_name] = flipped_coords
+                        if props.get("depth"): self.strategic_depths[loc_name] = float(props["depth"])
+                        if props.get("zoom level"): self.zoom_levels[loc_name] = int(props["zoom level"])
+
+                logger.info(f"TACTICAL_SILHOUETTES_LOADED: {len(self.boundaries)} regions.")
+            else:
+                borders_path = os.path.join(base_dir, 'tactical_borders.json')
+                if os.path.exists(borders_path):
+                    with open(borders_path, 'r') as f:
+                        self.boundaries = json.load(f)
+                    logger.info("LEGACY_TACTICAL_BOUNDARIES_LOADED")
+
+            calc_path = os.path.join(base_dir, 'calculation_borders.json')
+            if os.path.exists(calc_path):
+                with open(calc_path, 'r') as f:
+                    self.calc_boundaries = json.load(f)
+                logger.info("STRATEGIC_CALCULATION_BORDERS_LOADED")
+            else:
+                self.calc_boundaries = self.boundaries.copy()
+                logger.info("STRATEGIC_CALCULATION_FALLBACK: Using tactical boundaries.")
+                
+        except Exception as e:
+            logger.warning(f"TACTICAL_BORDERS_LOAD_FAILURE: {e}. Using hardcoded fallbacks.")
+            self.boundaries = {
+                "Gaza": [[31.2, 34.2], [31.6, 34.6], [31.5, 34.6], [31.2, 34.3]],
+                "Lebanon": [[33.1, 35.1], [33.5, 35.9], [34.7, 36.0], [34.7, 35.8]],
+                "Yemen": [[12.6, 43.5], [16.6, 53.1], [19.0, 52.0], [17.5, 43.4]],
+                "Iran": [[25.0, 61.0], [38.0, 63.0], [40.0, 44.0], [25.0, 55.0]],
+                "North Iran": [[36.8, 53.8], [39.8, 43.8], [33.1, 46.2], [36.8, 53.8]]
+            }
+            self.calc_boundaries = self.boundaries.copy()
+
+    def get_distance(self, c1, c2):
+        return ((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2)**0.5
+
+    def get_convex_hull(self, points):
+        pts = np.array(points)
+        if len(pts) < 3: return points 
+        try:
+            hull = ConvexHull(pts)
+            return pts[hull.vertices].tolist()
+        except Exception:
+            return points 
+
+    def is_point_in_polygon(self, point, poly_name, use_tactical=False):
+        boundaries = self.boundaries if use_tactical else self.calc_boundaries
+        if poly_name not in boundaries: return False
+        poly = np.array(boundaries[poly_name])
+        return bool(self._ray_cast_vectorized(np.array([point]), poly)[0])
+
+    @staticmethod
+    def _ray_cast_vectorized(pts, poly):
+        x, y = pts[:, 0], pts[:, 1]
+        p1 = poly
+        p2 = np.roll(poly, -1, axis=0)
+        p1x, p1y = p1[:, 0], p1[:, 1]
+        p2x, p2y = p2[:, 0], p2[:, 1]
+        y_ = y[:, None]
+        x_ = x[:, None]
+        cond1 = y_ > np.minimum(p1y, p2y)
+        cond2 = y_ <= np.maximum(p1y, p2y)
+        cond3 = x_ <= np.maximum(p1x, p2x)
+        nonzero_dy = p1y != p2y
+        with np.errstate(divide='ignore', invalid='ignore'):
+            xinters = np.where(nonzero_dy, (y_ - p1y) * (p2x - p1x) / np.where(nonzero_dy, p2y - p1y, 1.0) + p1x, np.inf)
+        crossings = cond1 & cond2 & cond3 & ((p1x == p2x) | (x_ <= xinters))
+        return crossings.sum(axis=1) % 2 == 1
+
+    def calculate_regression_vector(self, cities):
+        coords = list({tuple(c['coords']) for c in cities})
+        if len(coords) < 2: return None
+        pts = np.array(coords)
+        cov = np.cov(pts.T)
+        eigenvalues, eigenvectors = np.linalg.eigh(cov)
+        dominant = eigenvectors[:, np.argmax(eigenvalues)]
+        return dominant.tolist()
+
+    def cluster(self, cities, threshold_km=25.0):
+        if not cities: return []
+        deg = threshold_km / 111.0
+        coords = np.array([c['coords'] for c in cities])
+        dist_matrix = cdist(coords, coords)
+        parent = list(range(len(cities)))
+        def find(i):
+            while parent[i] != i:
+                parent[i] = parent[parent[i]]
+                i = parent[i]
+            return i
+        def union(i, j):
+            pi, pj = find(i), find(j)
+            if pi != pj: parent[pi] = pj
+        close = np.argwhere(dist_matrix <= deg)
+        for i, j in close:
+            if i < j: union(int(i), int(j))
+        groups = {}
+        for idx, city in enumerate(cities):
+            root = find(idx)
+            groups.setdefault(root, []).append(city)
+        clusters = []
+        for members in groups.values():
+            c = np.mean([m['coords'] for m in members], axis=0)
+            clusters.append({'centroid': c.tolist(), 'cities': members})
+        return clusters
+
+    def get_origin(self, cluster_cities, manual_origin=None):
+        if manual_origin: return manual_origin
+        centroid = [sum(c['coords'][0] for c in cluster_cities) / len(cluster_cities),
+                    sum(c['coords'][1] for c in cluster_cities) / len(cluster_cities)]
+        vector = self.calculate_regression_vector(cluster_cities)
+        if vector:
+            v_lat, v_lon = vector
+            mag = (v_lat**2 + v_lon**2)**0.5
+            if mag == 0: v_lat, v_lon, mag = 0.5, 1.0, 1.118
+            v_lat, v_lon = v_lat/mag, v_lon/mag
+            # Orient away from target
+            isr = [31.7, 35.2]
+            dist_now = self.get_distance(centroid, isr)
+            dist_next = self.get_distance([centroid[0] + v_lat*0.1, centroid[1] + v_lon*0.1], isr)
+            if dist_next < dist_now and len(cluster_cities) <= MIN_IRAN_THRESHOLD:
+                v_lat, v_lon = -v_lat, -v_lon
+            # Vector Projections Strategy
+            depth = 7
+            proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
+            for territory in ["North Iran", "Iran", "Yemen"]:
+                if self.is_point_in_polygon(proj, territory):
+                    return ("Iran", 16.0) if territory.endswith("Iran") else ("Yemen", depth)
+            depth = 0.5
+            proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
+            for territory in ["Lebanon", "Gaza"]:
+                if self.is_point_in_polygon(proj, territory): return territory, depth
+        # Fallback Heuristics
+        dist_gaza = self.get_distance(centroid, self.origins["Gaza"])
+        dist_lebanon = self.get_distance(centroid, self.origins["Lebanon"])
+        return ("Gaza", 0.5) if dist_gaza < dist_lebanon else ("Lebanon", 0.5)
+
+    def get_projected_origin(self, cluster_cities, origin_name, depth=None):
+        cnt_lat = sum(c['coords'][0] for c in cluster_cities) / len(cluster_cities)
+        cnt_lon = sum(c['coords'][1] for c in cluster_cities) / len(cluster_cities)
+        vector = self.calculate_regression_vector(cluster_cities)
+        origin_center = self.origins.get(origin_name, [0, 0])
+        if not vector: return origin_center
+        v_lat, v_lon = vector
+        mag = (v_lat**2 + v_lon**2)**0.5
+        if mag == 0: return origin_center
+        v_lat, v_lon = v_lat/mag, v_lon/mag
+        # Orient away from target
+        dist_current = self.get_distance([cnt_lat, cnt_lon], origin_center)
+        dist_forward = self.get_distance([cnt_lat + v_lat*0.1, cnt_lon + v_lon*0.1], origin_center)
+        if dist_forward > dist_current and len(cluster_cities) <= MIN_IRAN_THRESHOLD:
+            v_lat, v_lon = -v_lat, -v_lon
+        scalar = depth if depth is not None else self.strategic_depths.get(origin_name, 10.0)
+        proj = [cnt_lat + v_lat * scalar, cnt_lon + v_lon * scalar]
+        if not self.is_point_in_polygon(proj, origin_name, use_tactical=True):
+            return self.origins.get(origin_name, proj)
+        return proj

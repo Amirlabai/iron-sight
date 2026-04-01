@@ -37,16 +37,19 @@
 - [x] **Reversed Tactical Geodata**: Generated reversed-coordinate `.txt` archives for `calculation_borders` and `tactical_borders`.
 - [x] MISSION: Tactical Relay Filtering (type: newsFlash Logic)
 - [x] MISSION: WebSocket Active Salvo Persistence (Late-Joiner Synchronization)
-- [x] MISSION: Tactical Console Hardening (API Masking & Log Sanitization)
-
 - [x] **MISSION**: Cluster-Based Iran Filtering (Dual-Tier Threshold 10/40) - [Implementation plan archived](file:///c:/Users/amirl/.gemini/antigravity/brain/fde75a3d-5e3c-4fb0-aa25-0c1a82d8add5/implementation_plan.md)
 - [x] **MISSION**: Tactical Reset Hardening (Immediate News Flash Response)
 - [x] **MISSION**: Numpy Vectorized Strategy Engine (Backend Hardware Acceleration)
+- [x] **MISSION**: Professional Backend Modular Refactor (`src/` architecture)
+- [x] **MISSION**: Multi-Threat Tactical Expansion (`earthQuake`, `hostileAircraft`, `terroristInfiltration`)
+- [x] **MISSION**: Independent Tactical Persistence (Multi-Collection Storage)
+- [x] **MISSION**: Geographic Multi-Threat Visual Orchestration (React Tracker)
 - **MISSION**: High-Fidelity Pure Vector Map Transition (S5) - [Implementation plan archived](file:///C:/Users/amirl/.gemini/antigravity/brain/6bc9c501-e3de-4258-bef6-a762732005fe/implementation_plan.md)
 
 ---
 **Mission Status**: **HARDENED** | CONSOLE ANONYMIZED
 
-Transitioned to v0.5.5 (Alpha). **Uplink Calibration**: Restored origin country highlighting and tactical title synchronization.
-News Flash reset timeout reduced to 10s.
-**Networking**: Masked backend infrastructure via Vercel `/api` proxy. Sanitized production logs.
+- Transitioned to v0.6.0 (Alpha). **Backend Refactor**: Migrated to modular `src/` architecture for professional maintenance.
+- **Uplink Calibration**: Restored origin country highlighting and tactical title synchronization.
+- **Tactical Expansion**: Integrated support for drones, infiltrations, and seismic alerts with category-aware visuals.
+- **Networking**: Masked backend infrastructure via Vercel `/api` proxy. Sanitized production logs.

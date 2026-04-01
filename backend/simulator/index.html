@@ -140,7 +140,17 @@
             <span style="opacity:0.5">No targets selected...</span>
         </div>
 
-        <button class="btn-fire" onclick="dispatchSalvo()">DISPATCH SALVO</button>
+        <div style="display:flex; flex-direction:column; gap:5px;">
+            <label style="font-size:10px; opacity:0.6; text-transform:uppercase;">Threat Category</label>
+            <select id="threat-type" style="width:100%; padding:10px; background:#222; color:white; border:1px solid #444; border-radius:6px; cursor:pointer;" onchange="updateThreatStyle()">
+                <option value="missiles" selected>Rocket Salvo</option>
+                <option value="hostileAircraftIntrusion">Hostile Aircraft (Drone)</option>
+                <option value="terroristInfiltration">Terrorist Infiltration</option>
+                <option value="earthQuake">Earthquake Alert</option>
+            </select>
+        </div>
+
+        <button class="btn-fire" id="btn-dispatch" onclick="dispatchAlert()">DISPATCH SALVO</button>
         <button class="btn-end" onclick="signalTermination()">SIGNAL END MISSION</button>
 
         <div class="status" id="status-log">
@@ -216,21 +226,39 @@
             list.innerHTML = Array.from(selectedCities).map(c => `<span class="city-tag">${c}</span>`).join('');
         }
 
-        async function dispatchSalvo() {
+        function updateThreatStyle() {
+            const type = document.getElementById('threat-type').value;
+            const btn = document.getElementById('btn-dispatch');
+            
+            const styles = {
+                "missiles": { color: "#ff4d4d", label: "DISPATCH SALVO" },
+                "hostileAircraftIntrusion": { color: "#ff944d", label: "DISPATCH DRONE" },
+                "terroristInfiltration": { color: "#006400", label: "DISPATCH INFILTRATION" },
+                "earthQuake": { color: "#4cd964", label: "DISPATCH SEISMIC" }
+            };
+            
+            const config = styles[type] || styles.missiles;
+            btn.style.background = config.color;
+            btn.innerText = config.label;
+            document.documentElement.style.setProperty('--accent', config.color);
+        }
+
+        async function dispatchAlert() {
             if (selectedCities.size === 0) return alert("Select at least one target.");
+            const type = document.getElementById('threat-type').value;
 
             try {
                 const resp = await fetch('/dispatch', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cities: Array.from(selectedCities) })
+                    body: JSON.stringify({ 
+                        cities: Array.from(selectedCities),
+                        type: type
+                    })
                 });
                 const data = await resp.json();
                 if (resp.ok) {
-                    log("DISPATCHED: Salvo " + data.payload.id);
-                    // Clear selection for next run?
-                    // selectedCities.clear();
-                    // updateSelectionUI();
+                    log("DISPATCHED [" + type + "]: Alert " + data.payload.id);
                 }
             } catch (e) {
                 log("FETCH_ERROR: Simulator server unreachable.");

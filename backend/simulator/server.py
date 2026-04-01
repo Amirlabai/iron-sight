@@ -47,19 +47,22 @@ class TacticalSimulator:
         try:
             data = await request.json()
             cities = data.get("cities", [])
+            alert_type = data.get("type", "missiles")
+            
             if not cities:
                 return web.json_response({"error": "No cities supplied"}, status=400)
 
-            # Construct the missile alert payload
+            # Construct the dynamic alert payload
             self.current_payload = {
                 "id": f"sim_{int(datetime.now().timestamp())}",
-                "type": "missiles",
+                "is_simulation": True,
+                "type": alert_type,
                 "cities": cities,
                 "instructions": "היכנסו למרחב המוגן",
                 "time": datetime.now().strftime("%H:%M:%S")
             }
             
-            logger.info(f"DISPATCHED: {len(cities)} targets queued for relay.")
+            logger.info(f"DISPATCHED [{alert_type}]: {len(cities)} targets queued for relay.")
             return web.json_response({"status": "success", "payload": self.current_payload})
         except Exception as e:
             logger.error(f"DISPATCH_ERROR: {e}")
@@ -69,6 +72,7 @@ class TacticalSimulator:
         """Injects an explicit 'End of Threat' signal."""
         self.current_payload = {
             "id": f"end_{int(datetime.now().timestamp())}",
+            "is_simulation": True,
             "type": "newsFlash",
             "instructions": "האירוע הסתיים",
             "time": datetime.now().strftime("%H:%M:%S")
