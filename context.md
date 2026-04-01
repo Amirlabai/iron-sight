@@ -30,9 +30,8 @@ Transitioned to v0.5.5 (Alpha).
 - **Protocol Alignment**: Standardized all cross-system communication via the [SCP](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md).
 - **Reset Protocol Hardening**: Shortened dashboard reset delay to 10s for explicit "Event Ended" signals, with immediate backend state purging.
 - **Cluster-Based Iran Filtering**: Applied a hard metric threshold (`IRAN_THRESHOLD=40`) to suppress strategic noise.
-- **Relay Payload Lexicon**: Saved for future implementation:
-    - `missiles`
-    - `earthQuake`
-    - `hostileAircraftIntrusion`
-    - `newsFlash` / `"אירוע הסתיים"` (Tactical Threat End)
-    - `terroristInfiltration`
+- **Tactical Console Hardening (v0.5.5)**: 
+    - Masked backend infrastructure via Vercel `/api` rewrites, anonymizing REST traffic.
+    - Eliminated diagnostic console warnings (`MISSION_SYNC_TIMEOUT`) and sanitized production logs.
+    - Integrated `IS_PROD` environment detection for silent telemetry.
+- **Relay Payload Lexicon**: Standardized `newsFlash`, `missiles`, and `hostileAircraftIntrusion` handling.

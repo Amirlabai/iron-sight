@@ -1,6 +1,7 @@
 {
   "framework": "vite",
   "rewrites": [
+    { "source": "/api/:path*", "destination": "https://iron-sight-hjwf.onrender.com/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

@@ -37,13 +37,15 @@
 - [x] **Reversed Tactical Geodata**: Generated reversed-coordinate `.txt` archives for `calculation_borders` and `tactical_borders`.
 - [x] MISSION: Tactical Relay Filtering (type: newsFlash Logic)
 - [x] MISSION: WebSocket Active Salvo Persistence (Late-Joiner Synchronization)
+- [x] MISSION: Tactical Console Hardening (API Masking & Log Sanitization)
 
 - [x] **MISSION**: Cluster-Based Iran Filtering (`IRAN_THRESHOLD`) - [Implementation plan archived](file:///c:/Users/amirl/.gemini/antigravity/brain/fde75a3d-5e3c-4fb0-aa25-0c1a82d8add5/implementation_plan.md)
 - [x] **MISSION**: Tactical Reset Hardening (Immediate News Flash Response)
 - **MISSION**: High-Fidelity Pure Vector Map Transition (S5) - [Implementation plan archived](file:///C:/Users/amirl/.gemini/antigravity/brain/6bc9c501-e3de-4258-bef6-a762732005fe/implementation_plan.md)
 
 ---
-**Mission Status**: **OPERATIONAL** | REAL-TIME RESPONSE HARDENED
+**Mission Status**: **HARDENED** | CONSOLE ANONYMIZED
 
 Transitioned to v0.5.5 (Alpha). **Uplink Calibration**: Restored origin country highlighting and tactical title synchronization.
-News Flash reset timeout reduced to 10s (Immediate UI response verified).
+News Flash reset timeout reduced to 10s.
+**Networking**: Masked backend infrastructure via Vercel `/api` proxy. Sanitized production logs.

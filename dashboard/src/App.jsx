@@ -44,14 +44,15 @@ const STRATEGIC_METADATA = TACTICAL_GEOJSON.features.reduce((acc, feature) => {
 }, {});
 
 // Mission Networking: Sanitize and construct URLs
+const IS_PROD = import.meta.env.PROD;
 const RAW_HOST = import.meta.env.VITE_WS_URL || window.location.host;
 const WS_HOST = RAW_HOST.replace(/^https?:\/\//, '');
 
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const API_PROTOCOL = window.location.protocol === 'https:' ? 'https:' : 'http:';
 
 const WEBSOCKET_URL = `${WS_PROTOCOL}//${WS_HOST}/ws`;
-const TACTICAL_API_URL = `${API_PROTOCOL}//${WS_HOST}`;
+// Masking the backend URL via Vercel /api proxy in production to prevent console exposure
+const TACTICAL_API_URL = IS_PROD ? "" : `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${WS_HOST}`;
 const MISSION_KEY = import.meta.env.VITE_MISSION_KEY;
 
 // Tactical Sound Effect
@@ -165,12 +166,12 @@ function App() {
     connect();
 
     // Fetch regional data for Sandbox
-    fetch(`${TACTICAL_API_URL}/api/cities`).then(res => res.json()).then(data => setRegionalData(data)).catch(err => console.error("CITIES_FETCH_FAILED", err));
+    fetch(`${TACTICAL_API_URL}/api/cities`).then(res => res.json()).then(data => setRegionalData(data)).catch(err => { if (!IS_PROD) console.error("CITIES_FETCH_FAILED", err); });
 
     // Fail-Safe: Don't let the splash screen hang indefinitely on network/sync hiccups
     const missionTimer = setTimeout(() => {
       if (!isReady) {
-        console.warn("MISSION_SYNC_TIMEOUT: Entering UI manually.");
+        if (!IS_PROD) console.warn("TACTICAL_UPLINK: Transitioning to manual UI mode.");
         setIsReady(true);
       }
     }, 6000);
@@ -259,7 +260,7 @@ function App() {
         });
       }
     } catch (err) {
-      console.error("SANDBOX_ANALYSIS_FAILED:", err);
+      if (!IS_PROD) console.error("SANDBOX_ANALYSIS_FAILED:", err);
     } finally {
       setIsAnalyzing(false);
     }
