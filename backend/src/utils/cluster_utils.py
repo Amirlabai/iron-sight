@@ -39,13 +39,26 @@ def recalculate_unified_metadata(cities):
     coords = np.array([c['coords'] for c in cities])
     centroid = np.mean(coords, axis=0).tolist()
     
-    if len(coords) < 3:
-        hull = coords.tolist()
+    if len(coords) == 1:
+        # Create a small tactical diamond for single points
+        p = coords[0]
+        offset = 0.08  # ~8km tactical buffer
+        hull = [
+            [p[0] + offset, p[1]],
+            [p[0], p[1] + offset],
+            [p[0] - offset, p[1]],
+            [p[0], p[1] - offset]
+        ]
+    elif len(coords) == 2:
+        # Inflate 2 points away from each other
+        cnt = np.array(centroid)
+        inflated = cnt + (coords - cnt) * 1.5
+        hull = inflated.tolist()
     else:
         try:
             ch = ConvexHull(coords)
             hull_pts = coords[ch.vertices]
-            # Inflation Phase (v0.8.7): Expand hull by 15% to encapsulate drone paths
+            # Inflation Phase (v0.8.7): Expand hull by 50% to encapsulate drone paths
             cnt = np.array(centroid)
             inflated = cnt + (hull_pts - cnt) * 1.5
             hull = inflated.tolist()

@@ -72,6 +72,13 @@ function MapClickHandler({ onMapClick }) {
 const TrackingDrone = ({ positions, color }) => {
   const [currentIdx, setCurrentIdx] = React.useState(0);
   const [progress, setProgress] = React.useState(0);
+  const [zoom, setZoom] = React.useState(12);
+
+  const map = useMapEvents({
+    zoom() {
+      setZoom(map.getZoom());
+    }
+  });
 
   React.useEffect(() => {
     if (!positions || positions.length < 2) return;
@@ -98,14 +105,21 @@ const TrackingDrone = ({ positions, color }) => {
   }, [positions]);
 
   if (!positions || positions.length === 0) return null;
+
+  // Strategic Scaling (v0.8.8): Lock to map units
+  const baseZoom = 12;
+  const geoScale = Math.pow(2, zoom - baseZoom);
+  const clampedScale = Math.min(Math.max(geoScale, 0.25), 1.2);
+  const pathWeight = Math.max(1, 2 * (zoom / 12));
+
   if (positions.length === 1) {
     return (
       <Marker position={positions[0]} icon={L.divIcon({
         className: 'drone-tracker-marker',
-        html: `<div class="drone-container" style="--threat-color: ${color}; transform: translate(-50%, -50%);">
+        html: `<div class="drone-container" style="--threat-color: ${color}; transform: translate(-50%, -50%) scale(${clampedScale});">
                  <div class="drone-body-premium"></div>
                </div>`,
-        iconSize: [0, 0], // Anchor point only
+        iconSize: [0, 0],
         iconAnchor: [0, 0]
       })} />
     );
@@ -123,10 +137,19 @@ const TrackingDrone = ({ positions, color }) => {
 
   return (
     <React.Fragment>
-      <Polyline positions={positions} pathOptions={{ color: color, weight: 2, dashArray: '5, 10', opacity: 0.5, className: 'trajectory-line' }} />
+      <Polyline
+        positions={positions}
+        pathOptions={{
+          color: color,
+          weight: pathWeight,
+          dashArray: '5, 10',
+          opacity: 0.5,
+          className: 'trajectory-line'
+        }}
+      />
       <Marker position={[lat, lng]} icon={L.divIcon({
         className: 'drone-tracker-marker',
-        html: `<div class="drone-container" style="transform: translate(-50%, -50%) rotate(${angle}deg); --threat-color: ${color};">
+        html: `<div class="drone-container" style="transform: translate(-50%, -50%) rotate(${angle}deg) scale(${clampedScale}); --threat-color: ${color};">
                  <div class="drone-tail"></div>
                  <div class="drone-body-premium"></div>
                </div>`,
