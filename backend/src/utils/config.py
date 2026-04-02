@@ -27,6 +27,7 @@ COLLECTION_SALVO = os.getenv("COLLECTION_NAME", "salvo_history")
 COLLECTION_DRONE = "drone_history"
 COLLECTION_INFILTRATION = "infiltration_history"
 COLLECTION_SEISMIC = "seismic_history"
+COLLECTION_LOGS = "event_logs"
 
 # --- Security ---
 MISSION_KEY = os.getenv("MISSION_KEY")

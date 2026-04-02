@@ -55,3 +55,25 @@ Each document in `event_logs` will represent a unique `event_id` lifecycle:
 
 ### Manual Verification
 - Boss Man can check the MongoDB Atlas dashboard to see the live flow of events and their lifecycle history.
+
+---
+
+## Implementation Record
+
+Completed: 2026-04-02
+
+### Changes Deployed
+
+| File | Change |
+|---|---|
+| `config.py` | Added `COLLECTION_LOGS = "event_logs"` |
+| `mongo_manager.py` | Registered `self.event_logs` collection + new `log_event()` method with upsert/timeline-append logic |
+| `main.py` | Six `db.log_event()` calls at: DETECTED, UPDATED, END_SIGNAL (targeted), END_SIGNAL (broadcast), TIMEOUT, PURGED |
+
+### log_event() Design
+
+Dual-path upsert approach:
+- On `DETECTED`: creates a fresh document with the full schema (event_id, category, timestamps, city data, empty timeline).
+- On all other statuses: pushes a timestamped entry to the `timeline[]` array, updates `city_count`/`city_list`, and sets terminal fields (`end_time`, `termination_reason`) when appropriate.
+
+All calls are fire-and-forget with exception handling — they never block or crash the main loop. The `event_logs` collection in MongoDB Atlas auto-creates on first write.

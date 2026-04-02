@@ -58,6 +58,7 @@ async def main():
                     if ev["end_time"] is None and (now - ev["last_update_time"] > INACTIVITY_TIMEOUT):
                         ev["end_time"] = now
                         logger.info(f"EVENT_TIMEOUT: {eid} - No updates for {INACTIVITY_TIMEOUT}s. Marking for termination.")
+                        await db.log_event(eid, ev["category"], "TIMEOUT", ev["data"])
                     
                     # End-of-threat grace period (10s after end signal)
                     if ev["end_time"] and (now - ev["end_time"] > 10):
@@ -75,9 +76,11 @@ async def main():
                 for eid in expired_ids:
                     category = active_events[eid]["category"]
                     city_count = len(active_events[eid]["data"].get("all_cities", []))
+                    purge_data = active_events[eid]["data"]
                     del active_events[eid]
                     events_changed = True
                     logger.info(f"EVENT_PURGED: {eid} ({category}, {city_count} cities)")
+                    await db.log_event(eid, category, "PURGED", purge_data)
 
                 # If events were purged, broadcast updated state
                 if events_changed:
@@ -106,10 +109,12 @@ async def main():
                                     if alert_id and alert_id in active_events:
                                         active_events[alert_id]["end_time"] = now
                                         logger.info(f"END_SIGNAL_RECEIVED: {alert_id}")
+                                        await db.log_event(alert_id, active_events[alert_id]["category"], "END_SIGNAL", active_events[alert_id]["data"])
                                     elif alert_id is None or alert_id not in active_events:
                                         for eid in active_events:
                                             if active_events[eid]["end_time"] is None:
                                                 active_events[eid]["end_time"] = now
+                                                await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
                                         if active_events:
                                             logger.info(f"END_SIGNAL_BROADCAST: All {len(active_events)} active events marked for termination.")
                                     continue
@@ -152,6 +157,7 @@ async def main():
                                                 
                                                 total_cities = len(full_analysis.get("all_cities", []))
                                                 logger.info(f"ROLLING_UPDATE: {alert_id} ({a_type}) - +{len(new_cities)} new cities. Total: {total_cities}")
+                                                await db.log_event(alert_id, a_type, "UPDATED", full_analysis)
                                     else:
                                         # New event
                                         analysis = processor.process(a_type, cities_raw)
@@ -171,6 +177,7 @@ async def main():
                                         
                                         city_count = len(analysis.get("all_cities", []))
                                         logger.info(f"DETECTION_SIGNAL: {alert_id} ({a_type}) - {city_count} cities detected. Active events: {len(active_events)}")
+                                        await db.log_event(alert_id, a_type, "DETECTED", analysis)
 
                                     # Broadcast updated multi-alert state
                                     ws.active_events = active_events

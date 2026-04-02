@@ -50,3 +50,12 @@ Transitioned to v0.8.0 (Alpha).
     - End signals target specific IDs or broadcast to all active events with 10s grace period.
     - Lifecycle hardening: replaced `start_time` timeout with `last_update_time` inactivity timeout (5 min silence).
     - Mandatory detection logging: DETECTION_SIGNAL, ROLLING_UPDATE, EVENT_TIMEOUT, EVENT_PERSISTED, EVENT_PURGED.
+- **Event Lifecycle Logging (v0.8.1)**:
+    - New `event_logs` MongoDB collection via `COLLECTION_LOGS` config constant.
+    - `MongoManager.log_event()` upserts lifecycle documents keyed by `event_id` with full timeline arrays.
+    - `main.py` instrumented at all five transition points: DETECTED, UPDATED, END_SIGNAL, TIMEOUT, PURGED.
+    - Schema tracks `start_time`, `last_update_time`, `end_time`, `termination_reason`, `city_count`, `city_list`, `updates_count`, and chronological `timeline[]`.
+- **Socket Synchronization (v0.8.2 - Audit)**:
+    - Reviewing Late-Joiner synchronization logic between `ws_manager.py` (Backend) and `App.jsx` (Frontend).
+    - Ensuring immediate state mirroring for users joining during active multi-alert events.
+    - Plan: [.open_work/socket_sync_review.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/socket_sync_review.md)
