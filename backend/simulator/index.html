@@ -29,38 +29,107 @@
             background: #121212;
         }
 
-        .control-panel {
+        /* --- Active Alert Icons (Top-Left Overlay) --- */
+        .active-alerts-layer {
             position: absolute;
             top: 20px;
-            right: 20px;
-            width: 350px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .active-alert-icon {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             background: var(--panel);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 20px;
-            z-index: 1000;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-family: monospace;
+            letter-spacing: 0.5px;
+            animation: slideIn 0.3s ease-out;
+            cursor: default;
+            min-width: 180px;
         }
 
-        h2 {
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .alert-icon-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: iconPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes iconPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        .alert-icon-label {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .alert-icon-close {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0 4px;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .alert-icon-close:hover {
+            color: #ff4d4d;
+        }
+
+        /* --- Bottom Bar Control Panel --- */
+        .control-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--panel);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 20px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .control-bar h2 {
             margin: 0;
-            font-size: 18px;
+            font-size: 14px;
             letter-spacing: 2px;
             color: var(--accent);
+            white-space: nowrap;
         }
 
-        .city-list {
-            max-height: 200px;
+        .control-bar .city-list {
+            flex: 1;
+            max-height: 60px;
             overflow-y: auto;
             border: 1px solid rgba(255, 255, 255, 0.05);
             background: rgba(0, 0, 0, 0.2);
-            padding: 10px;
+            padding: 6px 10px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 11px;
+            min-width: 100px;
         }
 
         .city-tag {
@@ -73,8 +142,18 @@
             border: 1px solid rgba(255, 77, 77, 0.3);
         }
 
+        .control-bar select {
+            padding: 8px 10px;
+            background: #222;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
         button {
-            padding: 12px;
+            padding: 10px 16px;
             border: none;
             border-radius: 6px;
             font-weight: bold;
@@ -82,6 +161,8 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             transition: all 0.2s;
+            font-size: 11px;
+            white-space: nowrap;
         }
 
         .btn-fire {
@@ -97,7 +178,6 @@
         .btn-end {
             background: #333;
             color: #888;
-            margin-top: 10px;
         }
 
         .btn-end:hover {
@@ -109,12 +189,7 @@
             font-size: 10px;
             color: #888;
             font-family: monospace;
-        }
-
-        .instructions {
-            font-size: 11px;
-            font-style: italic;
-            opacity: 0.7;
+            white-space: nowrap;
         }
 
         .leaflet-container {
@@ -132,19 +207,29 @@
 
     <div id="map"></div>
 
-    <div class="control-panel">
-        <h2>TACTICAL DISPATCHER</h2>
-        <p class="instructions">Click points on the map to select targets for the mock relay.</p>
+    <!-- Active Alert Icons (Top-Left) -->
+    <div class="active-alerts-layer" id="active-alerts-layer"></div>
+
+    <!-- Bottom Bar Controls -->
+    <div class="control-bar">
+        <h2>DISPATCHER</h2>
 
         <div class="city-list" id="selection-list">
             <span style="opacity:0.5">No targets selected...</span>
         </div>
 
-        <button class="btn-fire" onclick="dispatchSalvo()">DISPATCH SALVO</button>
-        <button class="btn-end" onclick="signalTermination()">SIGNAL END MISSION</button>
+        <select id="threat-type" onchange="updateThreatStyle()">
+            <option value="missiles" selected>Rocket Salvo</option>
+            <option value="hostileAircraftIntrusion">Hostile Aircraft (Drone)</option>
+            <option value="terroristInfiltration">Terrorist Infiltration</option>
+            <option value="earthQuake">Earthquake Alert</option>
+        </select>
+
+        <button class="btn-fire" id="btn-dispatch" onclick="dispatchAlert()">DISPATCH</button>
+        <button class="btn-end" onclick="signalTerminationAll()">END ALL</button>
 
         <div class="status" id="status-log">
-            SYSTEM READY. STANDING BY.
+            SYSTEM READY.
         </div>
     </div>
 
@@ -155,7 +240,21 @@
 
         let cities = [];
         let selectedCities = new Set();
-        const markers = [];
+        let activeAlerts = {};  // Mirrors server's active_alerts
+
+        const THREAT_COLORS = {
+            "missiles": "#ff4d4d",
+            "hostileAircraftIntrusion": "#ff9500",
+            "terroristInfiltration": "#b518ff",
+            "earthQuake": "#4cd964"
+        };
+
+        const THREAT_LABELS = {
+            "missiles": "ROCKET",
+            "hostileAircraftIntrusion": "DRONE",
+            "terroristInfiltration": "INFILTRATION",
+            "earthQuake": "SEISMIC"
+        };
 
         // Loading Data
         async function loadCities() {
@@ -164,7 +263,6 @@
                 if (!response.ok) throw new Error("Backend not responding or CORS missing");
                 const areas = await response.json();
 
-                // Flatten structural areas into flat list for the visual tool
                 for (const area in areas) {
                     for (const name in areas[area]) {
                         cities.push({
@@ -216,40 +314,113 @@
             list.innerHTML = Array.from(selectedCities).map(c => `<span class="city-tag">${c}</span>`).join('');
         }
 
-        async function dispatchSalvo() {
+        function updateThreatStyle() {
+            const type = document.getElementById('threat-type').value;
+            const btn = document.getElementById('btn-dispatch');
+            
+            const styles = {
+                "missiles": { color: "#ff4d4d", label: "DISPATCH SALVO" },
+                "hostileAircraftIntrusion": { color: "#ff944d", label: "DISPATCH DRONE" },
+                "terroristInfiltration": { color: "#b518ff", label: "DISPATCH INFILTRATION" },
+                "earthQuake": { color: "#4cd964", label: "DISPATCH SEISMIC" }
+            };
+            
+            const config = styles[type] || styles.missiles;
+            btn.style.background = config.color;
+            btn.innerText = config.label;
+            document.documentElement.style.setProperty('--accent', config.color);
+        }
+
+        async function dispatchAlert() {
             if (selectedCities.size === 0) return alert("Select at least one target.");
+            const type = document.getElementById('threat-type').value;
 
             try {
                 const resp = await fetch('/dispatch', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cities: Array.from(selectedCities) })
+                    body: JSON.stringify({ 
+                        cities: Array.from(selectedCities),
+                        type: type
+                    })
                 });
                 const data = await resp.json();
                 if (resp.ok) {
-                    log("DISPATCHED: Salvo " + data.payload.id);
-                    // Clear selection for next run?
-                    // selectedCities.clear();
-                    // updateSelectionUI();
+                    const alertId = data.payload.id;
+                    activeAlerts[alertId] = {
+                        type: type,
+                        cities: Array.from(selectedCities),
+                        time: data.payload.time
+                    };
+                    renderActiveAlerts();
+                    log("DISPATCHED [" + type + "]: " + alertId);
+                    
+                    // Clear selection after dispatch
+                    selectedCities.clear();
+                    updateSelectionUI();
+                    map.eachLayer(l => { if (l.setStyle) l.setStyle({ fillColor: "#4d94ff", weight: 1 }); });
                 }
             } catch (e) {
                 log("FETCH_ERROR: Simulator server unreachable.");
             }
         }
 
-        async function signalTermination() {
+        async function terminateAlert(alertId) {
             try {
-                const resp = await fetch('/end', { method: 'POST' });
+                const resp = await fetch('/end', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: alertId })
+                });
                 if (resp.ok) {
-                    log("TERMINATION SIGNAL ISSUED.");
-                    selectedCities.clear();
-                    updateSelectionUI();
-                    // Reset all markers
-                    map.eachLayer(l => { if (l.setStyle) l.setStyle({ fillColor: "#4d94ff" }); });
+                    delete activeAlerts[alertId];
+                    renderActiveAlerts();
+                    log("TERMINATED: " + alertId);
                 }
             } catch (e) {
                 log("FETCH_ERROR: Simulator server unreachable.");
             }
+        }
+
+        async function signalTerminationAll() {
+            try {
+                const resp = await fetch('/end', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                if (resp.ok) {
+                    activeAlerts = {};
+                    renderActiveAlerts();
+                    log("ALL ALERTS TERMINATED.");
+                    map.eachLayer(l => { if (l.setStyle) l.setStyle({ fillColor: "#4d94ff", weight: 1 }); });
+                }
+            } catch (e) {
+                log("FETCH_ERROR: Simulator server unreachable.");
+            }
+        }
+
+        function renderActiveAlerts() {
+            const layer = document.getElementById('active-alerts-layer');
+            const ids = Object.keys(activeAlerts);
+            
+            if (ids.length === 0) {
+                layer.innerHTML = '';
+                return;
+            }
+
+            layer.innerHTML = ids.map(id => {
+                const info = activeAlerts[id];
+                const color = THREAT_COLORS[info.type] || '#ff4d4d';
+                const label = THREAT_LABELS[info.type] || 'ALERT';
+                return `
+                    <div class="active-alert-icon" style="border-left: 3px solid ${color}">
+                        <div class="alert-icon-dot" style="background: ${color}; box-shadow: 0 0 8px ${color}"></div>
+                        <span class="alert-icon-label">${label} | ${info.cities.length} TGT | ${info.time}</span>
+                        <button class="alert-icon-close" onclick="terminateAlert('${id}')" title="End this alert">&times;</button>
+                    </div>
+                `;
+            }).join('');
         }
 
         function log(msg) {
