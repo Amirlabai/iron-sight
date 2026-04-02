@@ -52,6 +52,9 @@
 - [x] **MISSION**: Event Lifecycle Logging (MongoDB Stabilization) - [.open_work/event_lifecycle_logging.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/event_lifecycle_logging.md)
 - **MISSION**: High-Fidelity Pure Vector Map Transition (S5) - [Implementation plan archived](file:///C:/Users/amirl/.gemini/antigravity/brain/6bc9c501-e3de-4258-bef6-a762732005fe/implementation_plan.md)
 - [x] **MISSION**: Socket Synchronization Review (Late-Joiner Protocol) - [.milestone/socket_sync_review.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/socket_sync_review.md)
+- [x] **MISSION**: Tactical Intelligence & Visual Hardening - [.milestone/tactical_merging_and_visuals.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/tactical_merging_and_visuals.md)
+- [x] **MISSION**: Tactical Merging and Visual Restoration (Hardening) - [.open_work/tactical_visual_restoration.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/tactical_visual_restoration.md)
+- [ ] **MISSION**: Tactical Visual Refinement (v0.8.6) - [.open_work/tactical_visual_refinement.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/tactical_visual_refinement.md)
 
 ---
 **Mission Status**: **HARDENED** | CONSOLE ANONYMIZED

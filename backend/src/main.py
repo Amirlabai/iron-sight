@@ -11,6 +11,7 @@ from src.data.data_manager import LamasDataManager
 from src.core.engine import TrackingEngine
 from src.core.threat_processor import ThreatProcessor
 from src.api.ws_manager import WebSocketManager
+from src.utils.cluster_utils import build_merged_payloads
 
 # Global Logging Setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -85,7 +86,7 @@ async def main():
                 # If events were purged, broadcast updated state
                 if events_changed:
                     ws.active_events = active_events
-                    await _broadcast_multi_alert(ws, active_events)
+                    await _broadcast_multi_alert(ws, active_events, engine)
                     if not active_events:
                         await ws.broadcast({"type": "reset"})
 
@@ -106,17 +107,43 @@ async def main():
                                 
                                 # --- Threat End Signal (ID-Targeted) ---
                                 if a_type == "newsFlash" or "האירוע הסתיים" in instructions:
-                                    if alert_id and alert_id in active_events:
-                                        active_events[alert_id]["end_time"] = now
-                                        logger.info(f"END_SIGNAL_RECEIVED: {alert_id}")
-                                        await db.log_event(alert_id, active_events[alert_id]["category"], "END_SIGNAL", active_events[alert_id]["data"])
-                                    elif alert_id is None or alert_id not in active_events:
-                                        for eid in active_events:
-                                            if active_events[eid]["end_time"] is None:
-                                                active_events[eid]["end_time"] = now
-                                                await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
-                                        if active_events:
-                                            logger.info(f"END_SIGNAL_BROADCAST: All {len(active_events)} active events marked for termination.")
+                                    target_ended_cities = []
+                                    # Parse instructions against geographical nomenclature
+                                    for area, cities_dict in dm.areas.items():
+                                        if area in instructions:
+                                            target_ended_cities.extend(cities_dict.keys())
+                                            
+                                    for city in dm.city_map.keys():
+                                        if city in instructions:
+                                            target_ended_cities.append(city)
+                                            
+                                    ended_ids = []
+                                    if target_ended_cities:
+                                        target_set = set(target_ended_cities)
+                                        target_regions_log = []
+                                        for eid, ev in active_events.items():
+                                            if ev["end_time"] is None:
+                                                ev_cities = {c['name'] for c in ev["data"].get("all_cities", [])}
+                                                if ev_cities and ev_cities.issubset(target_set):
+                                                    ended_ids.append(eid)
+                                        
+                                        for eid in ended_ids:
+                                            active_events[eid]["end_time"] = now
+                                            logger.info(f"GRANULAR_END_SIGNAL: {eid} terminated based on region match in newsFlash.")
+                                            await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
+                                            
+                                    if not ended_ids:
+                                        if alert_id and alert_id in active_events:
+                                            active_events[alert_id]["end_time"] = now
+                                            logger.info(f"END_SIGNAL_RECEIVED: {alert_id}")
+                                            await db.log_event(alert_id, active_events[alert_id]["category"], "END_SIGNAL", active_events[alert_id]["data"])
+                                        elif alert_id is None or alert_id not in active_events:
+                                            for eid in active_events:
+                                                if active_events[eid]["end_time"] is None:
+                                                    active_events[eid]["end_time"] = now
+                                                    await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
+                                            if active_events:
+                                                logger.info(f"END_SIGNAL_BROADCAST: All {len(active_events)} active events marked for termination.")
                                     continue
 
                                 # --- Multi-Threat Processing ---
@@ -181,7 +208,7 @@ async def main():
 
                                     # Broadcast updated multi-alert state
                                     ws.active_events = active_events
-                                    await _broadcast_multi_alert(ws, active_events)
+                                    await _broadcast_multi_alert(ws, active_events, engine)
                             
                         await ws.broadcast({
                             "type": "health_status", "status": "OPERATIONAL" if resp.status == 200 else "DEGRADED",
@@ -198,14 +225,9 @@ async def main():
             await asyncio.sleep(POLL_INTERVAL)
 
 
-async def _broadcast_multi_alert(ws, active_events):
+async def _broadcast_multi_alert(ws, active_events, engine):
     """Push the full active events array to all connected clients."""
-    events_list = []
-    for eid, ev in active_events.items():
-        if ev["end_time"] is None:  # Only broadcast currently active (not ending) events
-            event_data = ev["data"].copy()
-            event_data["id"] = eid
-            events_list.append(event_data)
+    events_list = build_merged_payloads(active_events, engine, threshold_km=15)
     
     await ws.broadcast({
         "type": "multi_alert",

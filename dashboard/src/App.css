@@ -889,7 +889,8 @@ body {
 }
 
 /* Custom Threat Markers container */
-.tactical-visual-marker, .drone-tracker-marker {
+.tactical-visual-marker,
+.drone-tracker-marker {
     background: transparent;
     border: none;
 }
@@ -913,14 +914,28 @@ body {
     box-shadow: inset 0 0 10px var(--threat-color), 0 0 10px var(--threat-color);
     animation: marker-converge 1.5s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+
 .visual-wrapper.converge::after {
     animation-delay: 0.75s;
 }
 
 @keyframes marker-converge {
-    0% { width: 60px; height: 60px; opacity: 0; }
-    20% { opacity: 0.8; }
-    100% { width: 0px; height: 0px; opacity: 1; border-width: 6px; }
+    0% {
+        width: 60px;
+        height: 60px;
+        opacity: 0;
+    }
+
+    20% {
+        opacity: 0.8;
+    }
+
+    100% {
+        width: 0px;
+        height: 0px;
+        opacity: 1;
+        border-width: 6px;
+    }
 }
 
 /* Earthquake Seismic Pulse (Slow outward rings) */
@@ -936,6 +951,7 @@ body {
     border-radius: 50%;
     box-shadow: 0 0 20px var(--threat-color);
 }
+
 .visual-wrapper.static::after {
     content: '';
     position: absolute;
@@ -948,8 +964,19 @@ body {
 }
 
 @keyframes seismic-pulse {
-    0% { width: 6px; height: 6px; opacity: 1; border-width: 4px; }
-    100% { width: 80px; height: 80px; opacity: 0; border-width: 1px; }
+    0% {
+        width: 6px;
+        height: 6px;
+        opacity: 1;
+        border-width: 4px;
+    }
+
+    100% {
+        width: 80px;
+        height: 80px;
+        opacity: 0;
+        border-width: 1px;
+    }
 }
 
 /* Drone Sweep (Stable circular path with conical orbit) */
@@ -986,5 +1013,49 @@ body {
 }
 
 @keyframes spin {
-    100% { transform: rotate(360deg); }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* --- Tracking Drone Premium Visuals --- */
+.drone-container {
+    position: relative;
+    width: 60px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.drone-body-premium {
+    position: absolute;
+    right: 5px;
+    /* Near the leading edge of the container */
+    width: 20px;
+    height: 12px;
+    background: var(--threat-color);
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+    /* Tactical Triangle Wedge */
+    box-shadow: 0 0 15px var(--threat-color);
+    z-index: 2;
+}
+
+.organic-hull {
+    stroke-linejoin: round;
+    filter: url(#organic-round) drop-shadow(0 0 8px var(--threat-color));
+    transition: all 0.5s ease-in-out;
+}
+
+.drone-tail {
+    position: absolute;
+    right: 22px;
+    /* Attached behind the body */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 35px;
+    height: 4px;
+    background: linear-gradient(to right, transparent, var(--threat-color));
+    border-radius: 2px;
+    opacity: 0.8;
+    z-index: 1;
 }

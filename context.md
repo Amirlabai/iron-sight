@@ -59,3 +59,6 @@ Transitioned to v0.8.0 (Alpha).
     - Reviewing Late-Joiner synchronization logic between `ws_manager.py` (Backend) and `App.jsx` (Frontend).
     - Ensuring immediate state mirroring for users joining during active multi-alert events.
     - Plan: [.open_work/socket_sync_review.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/socket_sync_review.md)
+- **Tactical Visual Refinement (v0.8.6 - Refinement)**: 
+    - Unifying vectors for merged groups, transitioning drones to triangle morphology, and implementing organic/rounded hulls.
+    - Plan: [.open_work/tactical_visual_refinement.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/tactical_visual_refinement.md)

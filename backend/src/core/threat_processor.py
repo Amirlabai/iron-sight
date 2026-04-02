@@ -68,6 +68,7 @@ class ThreatProcessor:
             "clusters": processed_clusters,
             "trajectories": trajectories,
             "all_cities": city_coords,
+            "center": cnt,
             "visual_config": {
                 "color": "#ff3b30",  # Rocket Red
                 "pulse": "high",

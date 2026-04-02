@@ -83,7 +83,7 @@ const TrackingDrone = ({ positions, color }) => {
       const now = Date.now();
       const elapsed = now - startTime;
       const p = Math.min(elapsed / duration, 1);
-      
+
       setProgress(p);
 
       if (p >= 1) {
@@ -102,16 +102,18 @@ const TrackingDrone = ({ positions, color }) => {
     return (
       <Marker position={positions[0]} icon={L.divIcon({
         className: 'drone-tracker-marker',
-        html: `<div style="width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 14px solid ${color}; filter: drop-shadow(0 0 10px ${color});"></div>`,
-        iconSize: [14, 12],
-        iconAnchor: [7, 6]
+        html: `<div class="drone-container" style="--threat-color: ${color}; transform: translate(-50%, -50%);">
+                 <div class="drone-body-premium"></div>
+               </div>`,
+        iconSize: [0, 0], // Anchor point only
+        iconAnchor: [0, 0]
       })} />
     );
   }
-  
+
   const p1 = positions[currentIdx];
   const p2 = positions[(currentIdx + 1) % positions.length];
-  
+
   const lat = p1[0] + (p2[0] - p1[0]) * progress;
   const lng = p1[1] + (p2[1] - p1[1]) * progress;
 
@@ -124,9 +126,12 @@ const TrackingDrone = ({ positions, color }) => {
       <Polyline positions={positions} pathOptions={{ color: color, weight: 2, dashArray: '5, 10', opacity: 0.5, className: 'trajectory-line' }} />
       <Marker position={[lat, lng]} icon={L.divIcon({
         className: 'drone-tracker-marker',
-        html: `<div style="transform: rotate(${angle}deg); width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 20px solid ${color}; filter: drop-shadow(0 0 10px ${color});"></div>`,
-        iconSize: [20, 12],
-        iconAnchor: [10, 6]
+        html: `<div class="drone-container" style="transform: translate(-50%, -50%) rotate(${angle}deg); --threat-color: ${color};">
+                 <div class="drone-tail"></div>
+                 <div class="drone-body-premium"></div>
+               </div>`,
+        iconSize: [0, 0],
+        iconAnchor: [0, 0]
       })} />
     </React.Fragment>
   );
@@ -192,7 +197,7 @@ function App() {
       } else if (data.type === 'multi_alert') {
         // --- ID-Driven Multi-Alert Handler ---
         const events = data.events || [];
-        
+
         if (events.length > 0) {
           const now = Date.now();
           if (!isMuted && now - lastAlertSoundTime.current > 20000) {
@@ -427,7 +432,7 @@ function App() {
           <div className="map-overlay-info">
             {viewMode === 'archive' && <div className="archive-watermark">HISTORICAL DATA REWIND | {archiveEvent?.time}</div>}
             {viewMode === 'sandbox' && <div className="sandbox-watermark">DRY RUN ANALYSIS | Hypo-Salvo</div>}
-            {hasSimulation && viewMode === 'live' && <div className="sandbox-watermark" style={{color: '#ff9500', borderColor: '#ff9500'}}>SIMULATION EXERCISE ACTIVE</div>}
+            {hasSimulation && viewMode === 'live' && <div className="sandbox-watermark" style={{ color: '#ff9500', borderColor: '#ff9500' }}>SIMULATION EXERCISE ACTIVE</div>}
           </div>
           <MapContainer
             center={ISRAEL_CENTER}
@@ -473,11 +478,13 @@ function App() {
                               positions={cluster.hull}
                               pathOptions={{
                                 color: clusterColor,
-                                weight: 12,
+                                weight: 15,
                                 opacity: 0.1,
                                 fill: false,
                                 smoothFactor: 2.0,
-                                className: 'origin-threat-halo'
+                                lineJoin: 'round',
+                                lineCap: 'round',
+                                className: 'organic-hull origin-threat-halo'
                               }}
                             />
                             <Polygon
@@ -486,9 +493,11 @@ function App() {
                                 fillColor: clusterColor,
                                 fillOpacity: 0.3,
                                 color: clusterColor,
-                                weight: 2,
+                                weight: 3,
                                 smoothFactor: 2.0,
-                                className: viewMode === 'live' ? (currentEvent?.visual_config?.movement || 'pulse-animation') : ''
+                                lineJoin: 'round',
+                                lineCap: 'round',
+                                className: `organic-hull ${viewMode === 'live' ? (currentEvent?.visual_config?.movement || 'pulse-animation') : ''}`
                               }}
                             >
                               <Tooltip sticky>Threat Area: {cluster.cities.length} Targets</Tooltip>
@@ -698,19 +707,23 @@ function App() {
                     <div className="alerts-list">
                       {liveEvents.map((ev, evIdx) => {
                         const alertColor = ev.visual_config?.color || '#ff944d';
+                        const citiesText = ev.all_cities?.map(c => c.name).join(', ') || 'N/A';
+
                         return (
-                          <React.Fragment key={ev.id || evIdx}>
-                            {ev.clusters?.map((c, i) => (
-                              <motion.div key={`${ev.id}-cluster-${i}`} initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="alert-item" style={{borderLeftColor: alertColor}}>
-                                <div className="alert-marker" style={{background: alertColor, boxShadow: `0 0 10px ${alertColor}`}}></div>
-                                <div className="alert-info">
-                                  <h3 style={{color: alertColor}}>{ev.title?.toUpperCase()} | {ev.time}</h3>
-                                  <p>{c.cities.map(ct => ct.name).join(', ')}</p>
-                                </div>
-                                <ShieldAlert size={16} color={alertColor} />
-                              </motion.div>
-                            ))}
-                          </React.Fragment>
+                          <motion.div
+                            key={ev.id || evIdx}
+                            initial={{ x: 20, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            className="alert-item"
+                            style={{ borderLeftColor: alertColor }}
+                          >
+                            <div className="alert-marker" style={{ background: alertColor, boxShadow: `0 0 10px ${alertColor}` }}></div>
+                            <div className="alert-info">
+                              <h3 style={{ color: alertColor }}>{ev.title?.toUpperCase()} | {ev.time}</h3>
+                              <p>{citiesText}</p>
+                            </div>
+                            <ShieldAlert size={16} color={alertColor} />
+                          </motion.div>
                         );
                       })}
                     </div>
@@ -844,6 +857,17 @@ function App() {
         </motion.aside>
       </main>
       <Analytics />
+
+      {/* Tactical SVG Filters (v0.8.7) */}
+      <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+        <defs>
+          <filter id="organic-round">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="round" />
+            <feComposite in="SourceGraphic" in2="round" operator="atop" />
+          </filter>
+        </defs>
+      </svg>
     </div>
   );
 }
