@@ -9,7 +9,8 @@ class ThreatProcessor:
         self.engine = engine
 
     def process(self, alert_type, cities_raw):
-        """Route threat analysis based on category and inject visual orchestration."""
+        """Route threat analysis based on category and inject visual orchestration.
+        No more DBSCAN clustering. All cities within a single alert ID form one unified cluster."""
         if alert_type == "missiles":
             return self._process_missiles(cities_raw)
         elif alert_type == "hostileAircraftIntrusion":
@@ -20,47 +21,45 @@ class ThreatProcessor:
             return self._process_earthquake(cities_raw)
         return None
 
+    def _build_unified_cluster(self, city_coords):
+        """Treat all cities as a single cluster: one hull, one centroid."""
+        cnt = [sum(c['coords'][0] for c in city_coords) / len(city_coords), 
+               sum(c['coords'][1] for c in city_coords) / len(city_coords)]
+        hull = self.engine.get_convex_hull([c['coords'] for c in city_coords])
+        return cnt, hull
+
     def _process_missiles(self, cities_raw):
-        """Standard ballistic trajectory and clustering analysis."""
+        """Ballistic trajectory analysis. Single unified cluster per ID, no DBSCAN."""
         city_coords = self._map_cities(cities_raw)
         if not city_coords: return None
 
+        cnt, hull = self._build_unified_cluster(city_coords)
+
         total_unique = len({c['name'] for c in city_coords})
         force_iran = total_unique > MAX_IRAN_THRESHOLD
-        raw_clusters = self.engine.cluster(city_coords)
-        
-        origin_groups = {}
-        for cl in raw_clusters:
-            org_name, depth = self.engine.get_origin(cl['cities'])
-            if force_iran: org_name, depth = "Iran", self.engine.strategic_depths["Iran"]
-            
-            if org_name not in origin_groups:
-                origin_groups[org_name] = {"cities": [], "depth": depth}
-            
-            for city in cl['cities']:
-                if city['name'] not in {c['name'] for c in origin_groups[org_name]["cities"]}:
-                    origin_groups[org_name]["cities"].append(city)
 
-        processed_clusters = []
-        trajectories = []
-        for org_name, group in origin_groups.items():
-            cities = group["cities"]
-            cnt = [sum(c['coords'][0] for c in cities) / len(cities), 
-                   sum(c['coords'][1] for c in cities) / len(cities)]
-            border_entry = self.engine.get_projected_origin(cities, org_name, depth=group["depth"])
-            trajectories.append({
-                "origin": org_name,
-                "origin_coords": border_entry,
-                "marker_coords": self.engine.origins[org_name],
-                "target_coords": cnt
-            })
-            processed_clusters.append({
-                "origin": org_name, "centroid": cnt, "cities": cities, 
-                "hull": self.engine.get_convex_hull([c['coords'] for c in cities])
-            })
+        org_name, depth = self.engine.get_origin(city_coords)
+        if force_iran:
+            org_name, depth = "Iran", self.engine.strategic_depths["Iran"]
 
-        display_origins = [("Iran" if o == "North Iran" else o) for o in origin_groups.keys()]
-        title = f"{' & '.join(set(display_origins))} Salvo"
+        border_entry = self.engine.get_projected_origin(city_coords, org_name, depth=depth)
+
+        trajectories = [{
+            "origin": org_name,
+            "origin_coords": border_entry,
+            "marker_coords": self.engine.origins[org_name],
+            "target_coords": cnt
+        }]
+
+        processed_clusters = [{
+            "origin": org_name,
+            "centroid": cnt,
+            "cities": city_coords,
+            "hull": hull
+        }]
+
+        display_origin = "Iran" if org_name == "North Iran" else org_name
+        title = f"{display_origin} Salvo"
 
         return {
             "type": "alert",
@@ -70,32 +69,25 @@ class ThreatProcessor:
             "trajectories": trajectories,
             "all_cities": city_coords,
             "visual_config": {
-                "color": "#ff3b30", # Rocket Red
+                "color": "#ff3b30",  # Rocket Red
                 "pulse": "high",
                 "movement": "linear"
             }
         }
 
     def _process_drone(self, cities_raw):
-        """Hostile Aircraft: Orange arrows circulating target zones."""
+        """Hostile Aircraft: unified cluster for the flight path zone."""
         city_coords = self._map_cities(cities_raw)
         if not city_coords: return None
-        
-        # Drone uses standard clustering to figure out the flight path zone
-        raw_clusters = self.engine.cluster(city_coords)
-        processed_clusters = []
-        for cl in raw_clusters:
-            cities = cl['cities']
-            cnt = [sum(c['coords'][0] for c in cities) / len(cities), 
-                   sum(c['coords'][1] for c in cities) / len(cities)]
-            processed_clusters.append({
-                "origin": "hostileAircraftIntrusion",
-                "centroid": cnt,
-                "cities": cities,
-                "hull": self.engine.get_convex_hull([c['coords'] for c in cities])
-            })
-            
-        center = processed_clusters[0]["centroid"] if processed_clusters else [31.7, 35.2]
+
+        cnt, hull = self._build_unified_cluster(city_coords)
+
+        processed_clusters = [{
+            "origin": "hostileAircraftIntrusion",
+            "centroid": cnt,
+            "cities": city_coords,
+            "hull": hull
+        }]
 
         return {
             "type": "alert",
@@ -104,10 +96,10 @@ class ThreatProcessor:
             "clusters": processed_clusters,
             "trajectories": [],
             "all_cities": city_coords,
-            "center": center,
+            "center": cnt,
             "zoom_level": 10,
             "visual_config": {
-                "color": "#ff9500", # Tactical Orange
+                "color": "#ff9500",  # Tactical Orange
                 "pulse": "medium",
                 "movement": "circular_sweep",
                 "icon": "orange_arrow_tail"
@@ -115,18 +107,18 @@ class ThreatProcessor:
         }
 
     def _process_infiltration(self, cities_raw):
-        """Terrorist Infiltration: Deep green dots closing in on cities."""
+        """Terrorist Infiltration: per-city markers within a unified group."""
         city_coords = self._map_cities(cities_raw)
         if not city_coords: return None
-        
-        # Infiltration is handled per-city (no clustering)
+
+        # Infiltration keeps per-city markers for tactical precision
         processed_clusters = []
         for city in city_coords:
             processed_clusters.append({
                  "origin": "terroristInfiltration",
                  "centroid": city['coords'],
                  "cities": [city],
-                 "hull": [city['coords']] # Single point hull
+                 "hull": [city['coords']]
             })
 
         center = city_coords[0]['coords'] if city_coords else [31.7, 35.2]
@@ -141,7 +133,7 @@ class ThreatProcessor:
             "center": center,
             "zoom_level": 11,
             "visual_config": {
-                "color": "#b518ff", # Tactical Purple
+                "color": "#b518ff",  # Tactical Purple
                 "pulse": "ripple",
                 "movement": "converge",
                 "icon": "purple_dots"
@@ -149,7 +141,7 @@ class ThreatProcessor:
         }
 
     def _process_earthquake(self, cities_raw):
-        """Seismic Event: Static green pulsing alerts."""
+        """Seismic Event: per-city static pulsing alerts."""
         city_coords = self._map_cities(cities_raw)
         if not city_coords: return None
         
@@ -160,7 +152,7 @@ class ThreatProcessor:
                  "origin": "earthQuake",
                  "centroid": city['coords'],
                  "cities": [city],
-                 "hull": [city['coords']] # Single point hull
+                 "hull": [city['coords']]
             })
             
         center = city_coords[0]['coords'] if city_coords else [31.7, 35.2]
@@ -175,7 +167,7 @@ class ThreatProcessor:
             "center": center,
             "zoom_level": 9,
             "visual_config": {
-                "color": "#4cd964", # Safety Green
+                "color": "#4cd964",  # Safety Green
                 "pulse": "slow_steady",
                 "movement": "static"
             }

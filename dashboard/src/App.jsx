@@ -24,16 +24,13 @@ const ISRAEL_CENTER = [31.7683, 35.2137];
 const DEFAULT_ZOOM = 8;
 
 // --- MISSION: Tactical Geodata Decoupling ---
-// Generate the legacy coordinate mapping from the new GeoJSON for component compatibility
 const TACTICAL_BOUNDARIES = TACTICAL_GEOJSON.features.reduce((acc, feature) => {
   const name = feature.properties.location;
-  // Flip [lon, lat] -> [lat, lon] for Leaflet Polygon component (legacy support)
   const coords = feature.geometry.coordinates[0].map(p => [p[1], p[0]]);
   acc[name] = coords;
   return acc;
 }, {});
 
-// Generate the Metadata Map (Depth/Zoom)
 const STRATEGIC_METADATA = TACTICAL_GEOJSON.features.reduce((acc, feature) => {
   acc[feature.properties.location] = {
     depth: feature.properties.depth,
@@ -43,7 +40,7 @@ const STRATEGIC_METADATA = TACTICAL_GEOJSON.features.reduce((acc, feature) => {
   return acc;
 }, {});
 
-// Mission Networking: Sanitize and construct URLs
+// Mission Networking
 const IS_PROD = import.meta.env.PROD;
 const RAW_HOST = import.meta.env.VITE_WS_URL || window.location.host;
 const WS_HOST = RAW_HOST.replace(/^https?:\/\//, '');
@@ -51,7 +48,6 @@ const WS_HOST = RAW_HOST.replace(/^https?:\/\//, '');
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
 const WEBSOCKET_URL = `${WS_PROTOCOL}//${WS_HOST}/ws`;
-// Masking the backend URL via Vercel /api proxy in production to prevent console exposure
 const TACTICAL_API_URL = IS_PROD ? "" : `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${WS_HOST}`;
 const MISSION_KEY = import.meta.env.VITE_MISSION_KEY;
 
@@ -81,7 +77,7 @@ const TrackingDrone = ({ positions, color }) => {
     if (!positions || positions.length < 2) return;
     let animationFrameId;
     let startTime = Date.now();
-    const duration = 2000; // 2 seconds per segment
+    const duration = 2000;
 
     const animate = () => {
       const now = Date.now();
@@ -162,7 +158,8 @@ function SplashScreen({ progress }) {
 }
 
 function App() {
-  const [liveEvent, setLiveEvent] = useState(null);
+  // --- ID-Driven Multi-Threat State ---
+  const [liveEvents, setLiveEvents] = useState([]);
   const [history, setHistory] = useState([]);
   const [viewMode, setViewMode] = useState('live');
   const [archiveEvent, setArchiveEvent] = useState(null);
@@ -192,34 +189,43 @@ function App() {
         setHistory(data.data);
         setLoadingProgress(100);
         setTimeout(() => setIsReady(true), 1500);
-      } else if (data.type === 'alert') {
-        const now = Date.now();
-        if (!isMuted && now - lastAlertSoundTime.current > 20000) {
-          PING_SOUND.play().catch(() => { });
-          lastAlertSoundTime.current = now;
+      } else if (data.type === 'multi_alert') {
+        // --- ID-Driven Multi-Alert Handler ---
+        const events = data.events || [];
+        
+        if (events.length > 0) {
+          const now = Date.now();
+          if (!isMuted && now - lastAlertSoundTime.current > 20000) {
+            PING_SOUND.play().catch(() => { });
+            lastAlertSoundTime.current = now;
+          }
         }
-        const newEvent = {
-          title: data.title,
-          category: data.category,
-          clusters: data.clusters,
-          trajectories: data.trajectories,
-          highlight_origins: data.highlight_origins,
-          time: data.time,
-          center: data.center,
-          zoom_level: data.zoom_level,
-          visual_config: data.visual_config,
-          is_simulation: data.is_simulation
-        };
-        setLiveEvent(newEvent);
-        if (viewMode === 'archive') { setViewMode('live'); setActiveTab('live'); }
-        if (data.center) {
+
+        setLiveEvents(events);
+
+        if (viewMode === 'archive' && events.length > 0) {
+          setViewMode('live');
+          setActiveTab('live');
+        }
+
+        // Auto-zoom to the latest event with trajectory data
+        const withTrajectory = events.find(e => e.trajectories && e.trajectories.length > 0);
+        const withCenter = events.find(e => e.center);
+        if (withTrajectory) {
+          const traj = withTrajectory.trajectories[0];
+          const meta = STRATEGIC_METADATA[traj.origin] || {};
           setMapConfig({
-            center: data.center,
-            zoom: data.zoom_level || 8
+            center: [(traj.origin_coords[0] + traj.target_coords[0]) / 2, (traj.origin_coords[1] + traj.target_coords[1]) / 2],
+            zoom: meta.zoom || 8
+          });
+        } else if (withCenter) {
+          setMapConfig({
+            center: withCenter.center,
+            zoom: withCenter.zoom_level || 8
           });
         }
       } else if (data.type === 'reset') {
-        setLiveEvent(null);
+        setLiveEvents([]);
         if (viewMode === 'live') { setMapConfig({ center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM }); }
       } else if (data.type === 'health_status') {
         setTacticalHealth({ status: data.status, source: data.upstream_source });
@@ -234,7 +240,7 @@ function App() {
     // Fetch regional data for Sandbox
     fetch(`${TACTICAL_API_URL}/api/cities`).then(res => res.json()).then(data => setRegionalData(data)).catch(err => { if (!IS_PROD) console.error("CITIES_FETCH_FAILED", err); });
 
-    // Fail-Safe: Don't let the splash screen hang indefinitely on network/sync hiccups
+    // Fail-Safe: Don't let the splash screen hang indefinitely
     const missionTimer = setTimeout(() => {
       if (!isReady) {
         if (!IS_PROD) console.warn("TACTICAL_UPLINK: Transitioning to manual UI mode.");
@@ -295,14 +301,18 @@ function App() {
 
   const returnToLive = () => {
     setViewMode('live');
-    if (!liveEvent) setMapConfig({ center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM });
-    else {
-      const mainTraj = liveEvent.trajectories[0];
-      const meta = STRATEGIC_METADATA[mainTraj.origin] || {};
-      setMapConfig({
-        center: [(mainTraj.origin_coords[0] + mainTraj.target_coords[0]) / 2, (mainTraj.origin_coords[1] + mainTraj.target_coords[1]) / 2],
-        zoom: meta.zoom || 8
-      });
+    if (liveEvents.length === 0) {
+      setMapConfig({ center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM });
+    } else {
+      const first = liveEvents[0];
+      if (first.trajectories && first.trajectories.length > 0) {
+        const mainTraj = first.trajectories[0];
+        const meta = STRATEGIC_METADATA[mainTraj.origin] || {};
+        setMapConfig({
+          center: [(mainTraj.origin_coords[0] + mainTraj.target_coords[0]) / 2, (mainTraj.origin_coords[1] + mainTraj.target_coords[1]) / 2],
+          zoom: meta.zoom || 8
+        });
+      }
     }
   };
 
@@ -331,9 +341,20 @@ function App() {
       setIsAnalyzing(false);
     }
   };
-  const currentEvent = viewMode === 'sandbox' ? sandboxEvent : (viewMode === 'live' ? liveEvent : archiveEvent);
 
-  // Tactical Color Tokens (Mirrored in CSS variables)
+  // --- Determine what events to render on the map ---
+  // For live mode: render ALL liveEvents simultaneously
+  // For archive/sandbox: render a single event
+  const renderableEvents = viewMode === 'sandbox'
+    ? (sandboxEvent ? [sandboxEvent] : [])
+    : viewMode === 'archive'
+      ? (archiveEvent ? [archiveEvent] : [])
+      : liveEvents;
+
+  // Check if any simulation is active
+  const hasSimulation = liveEvents.some(e => e.is_simulation);
+
+  // Tactical Color Tokens
   const TACTICAL_RED = '#ff4d4d';
   const TACTICAL_BLUE = '#4d94ff';
   const HIGHLIGHT_RED = '#ff0000';
@@ -350,6 +371,10 @@ function App() {
     }
   };
 
+  // Aggregate stats across all live events
+  const totalClusters = liveEvents.reduce((acc, ev) => acc + (ev.clusters?.length || 0), 0);
+  const totalTargets = liveEvents.reduce((acc, ev) => acc + (ev.clusters?.reduce((a, c) => a + (c.cities?.length || 0), 0) || 0), 0);
+
   return (
     <div className={`dashboard-container ${viewMode} ${isSidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
       <AnimatePresence>
@@ -358,7 +383,7 @@ function App() {
 
       <header className="premium-header">
         <div className="logo-section">
-          <img src="/favicon.png" className={`logo-img ${liveEvent ? 'alert-pulse' : ''}`} alt="IRON SIGHT" />
+          <img src="/favicon.png" className={`logo-img ${liveEvents.length > 0 ? 'alert-pulse' : ''}`} alt="IRON SIGHT" />
           <h1>IRON SIGHT <span>{viewMode === 'archive' ? 'ARCHIVE' : __APP_VERSION__}</span></h1>
         </div>
         <div className="status-section">
@@ -402,7 +427,7 @@ function App() {
           <div className="map-overlay-info">
             {viewMode === 'archive' && <div className="archive-watermark">HISTORICAL DATA REWIND | {archiveEvent?.time}</div>}
             {viewMode === 'sandbox' && <div className="sandbox-watermark">DRY RUN ANALYSIS | Hypo-Salvo</div>}
-            {currentEvent?.is_simulation && viewMode === 'live' && <div className="sandbox-watermark" style={{color: '#ff9500', borderColor: '#ff9500'}}>SIMULATION EXERCISE ACTIVE</div>}
+            {hasSimulation && viewMode === 'live' && <div className="sandbox-watermark" style={{color: '#ff9500', borderColor: '#ff9500'}}>SIMULATION EXERCISE ACTIVE</div>}
           </div>
           <MapContainer
             center={ISRAEL_CENTER}
@@ -415,7 +440,7 @@ function App() {
             <MapController center={mapConfig.center} zoom={mapConfig.zoom} />
             <MapClickHandler onMapClick={() => { if (window.innerWidth <= 1024) setIsSidebarExpanded(false); }} />
 
-            {/* Israel Base Layer Only (Detected origins highlighted dynamically below) */}
+            {/* Israel Base Layer */}
             <Polygon
               key="israel-base-layer"
               positions={TACTICAL_BOUNDARIES['Israel']}
@@ -430,180 +455,193 @@ function App() {
               }}
             />
 
-            {currentEvent?.clusters && currentEvent.clusters.map((cluster, idx) => {
-              const clusterColor = currentEvent?.visual_config?.color || STRATEGIC_METADATA[cluster.origin]?.color || tacticalColor;
+            {/* --- Render ALL active events simultaneously --- */}
+            {renderableEvents.map((currentEvent, eventIdx) => {
+              const eventColor = currentEvent?.visual_config?.color || tacticalColor;
+              const eventKey = currentEvent?.id || `event-${eventIdx}`;
+
               return (
-                <React.Fragment key={`cluster-group-${idx}`}>
-                  {cluster.hull && cluster.hull.length > 2 ? (
-                    <React.Fragment>
-                      <Polygon
-                        positions={cluster.hull}
-                        pathOptions={{
-                          color: clusterColor,
-                          weight: 12,
-                          opacity: 0.1,
-                          fill: false,
-                          smoothFactor: 2.0,
-                          className: 'origin-threat-halo'
-                        }}
-                      />
-                      <Polygon
-                        positions={cluster.hull}
-                        pathOptions={{
-                          fillColor: clusterColor,
-                          fillOpacity: 0.3,
-                          color: clusterColor,
-                          weight: 2,
-                          smoothFactor: 2.0,
-                          className: viewMode === 'live' ? (currentEvent?.visual_config?.movement || 'pulse-animation') : ''
-                        }}
-                      >
-                        <Tooltip sticky>Threat Area: {cluster.cities.length} Targets</Tooltip>
-                      </Polygon>
-                    </React.Fragment>
-                  ) : (
-                    <React.Fragment>
-                      <Circle
-                        center={cluster.centroid}
-                        radius={2000}
-                        pathOptions={{
-                          color: clusterColor,
-                          weight: 12,
-                          opacity: 0.1,
-                          fill: false,
-                          className: 'origin-threat-halo'
-                        }}
-                      />
-                      <Circle
-                        center={cluster.centroid}
-                        radius={2000}
-                        pathOptions={{
-                          fillColor: clusterColor,
-                          fillOpacity: 0.4,
-                          color: clusterColor,
-                          weight: 2,
-                          className: viewMode === 'live' ? (currentEvent?.visual_config?.movement || 'pulse-animation') : ''
-                        }}
-                      />
-                    </React.Fragment>
-                  )}
-                  {viewMode === 'live' && currentEvent?.visual_config && currentEvent.visual_config.movement !== 'linear' && (() => {
-                    const movement = currentEvent.visual_config.movement;
-                    if (movement === 'circular_sweep') {
-                      return <TrackingDrone positions={cluster.cities.map(c => c.coords)} color={clusterColor} />;
-                    }
+                <React.Fragment key={eventKey}>
+                  {/* Clusters */}
+                  {currentEvent?.clusters?.map((cluster, idx) => {
+                    const clusterColor = currentEvent?.visual_config?.color || STRATEGIC_METADATA[cluster.origin]?.color || tacticalColor;
                     return (
-                      <Marker position={cluster.centroid} icon={L.divIcon({
-                        className: 'tactical-visual-marker',
-                        html: `<div class="visual-wrapper ${movement}" style="--threat-color: ${clusterColor}"></div>`,
-                        iconSize: [80, 80],
-                        iconAnchor: [40, 40]
-                      })} />
+                      <React.Fragment key={`${eventKey}-cluster-${idx}`}>
+                        {cluster.hull && cluster.hull.length > 2 ? (
+                          <React.Fragment>
+                            <Polygon
+                              positions={cluster.hull}
+                              pathOptions={{
+                                color: clusterColor,
+                                weight: 12,
+                                opacity: 0.1,
+                                fill: false,
+                                smoothFactor: 2.0,
+                                className: 'origin-threat-halo'
+                              }}
+                            />
+                            <Polygon
+                              positions={cluster.hull}
+                              pathOptions={{
+                                fillColor: clusterColor,
+                                fillOpacity: 0.3,
+                                color: clusterColor,
+                                weight: 2,
+                                smoothFactor: 2.0,
+                                className: viewMode === 'live' ? (currentEvent?.visual_config?.movement || 'pulse-animation') : ''
+                              }}
+                            >
+                              <Tooltip sticky>Threat Area: {cluster.cities.length} Targets</Tooltip>
+                            </Polygon>
+                          </React.Fragment>
+                        ) : (
+                          <React.Fragment>
+                            <Circle
+                              center={cluster.centroid}
+                              radius={2000}
+                              pathOptions={{
+                                color: clusterColor,
+                                weight: 12,
+                                opacity: 0.1,
+                                fill: false,
+                                className: 'origin-threat-halo'
+                              }}
+                            />
+                            <Circle
+                              center={cluster.centroid}
+                              radius={2000}
+                              pathOptions={{
+                                fillColor: clusterColor,
+                                fillOpacity: 0.4,
+                                color: clusterColor,
+                                weight: 2,
+                                className: viewMode === 'live' ? (currentEvent?.visual_config?.movement || 'pulse-animation') : ''
+                              }}
+                            />
+                          </React.Fragment>
+                        )}
+                        {viewMode === 'live' && currentEvent?.visual_config && currentEvent.visual_config.movement !== 'linear' && (() => {
+                          const movement = currentEvent.visual_config.movement;
+                          if (movement === 'circular_sweep') {
+                            return <TrackingDrone positions={cluster.cities.map(c => c.coords)} color={clusterColor} />;
+                          }
+                          return (
+                            <Marker position={cluster.centroid} icon={L.divIcon({
+                              className: 'tactical-visual-marker',
+                              html: `<div class="visual-wrapper ${movement}" style="--threat-color: ${clusterColor}"></div>`,
+                              iconSize: [80, 80],
+                              iconAnchor: [40, 40]
+                            })} />
+                          );
+                        })()}
+                      </React.Fragment>
                     );
-                  })()}
+                  })}
+
+                  {/* Trajectories */}
+                  {currentEvent?.trajectories?.map((traj, idx) => {
+                    const trajColor = currentEvent?.visual_config?.color || STRATEGIC_METADATA[traj.origin]?.color || tacticalColor;
+                    return (
+                      <React.Fragment key={`${eventKey}-traj-${idx}`}>
+                        <Polyline
+                          positions={[traj.origin_coords, traj.target_coords]}
+                          pathOptions={{
+                            color: trajColor,
+                            weight: 10,
+                            opacity: 0.1,
+                            smoothFactor: 2.0,
+                            className: 'trajectory-halo'
+                          }}
+                        />
+                        <Polyline
+                          positions={[traj.origin_coords, traj.target_coords]}
+                          pathOptions={{
+                            color: trajColor,
+                            weight: 2,
+                            dashArray: '10, 10',
+                            smoothFactor: 2.0,
+                            className: 'trajectory-line'
+                          }}
+                        />
+                        <Marker
+                          position={traj.marker_coords || traj.origin_coords}
+                          icon={L.divIcon({
+                            className: 'custom-origin-marker',
+                            html: `
+                              <div class="origin-wrapper">
+                                <div class="origin-label" style="background: ${trajColor}">ORIGIN: ${traj.origin.toUpperCase()}</div>
+                                <div class="origin-pin" style="background: ${trajColor}4D; box-shadow: 0 0 10px ${trajColor}"></div>
+                              </div>
+                            `,
+                            iconSize: [100, 50],
+                            iconAnchor: [50, 25]
+                          })}
+                        >
+                          <Popup>Launch Origin: {traj.origin}</Popup>
+                        </Marker>
+                      </React.Fragment>
+                    );
+                  })}
+
+                  {/* Origin Highlights */}
+                  {currentEvent?.highlight_origins?.map((org, idx) => (
+                    <React.Fragment key={`${eventKey}-highlight-${idx}`}>
+                      {TACTICAL_BOUNDARIES[org.name] ? (
+                        <React.Fragment>
+                          <Polygon
+                            positions={TACTICAL_BOUNDARIES[org.name]}
+                            pathOptions={{
+                              color: STRATEGIC_METADATA[org.name]?.color || highlightColor,
+                              weight: 15,
+                              opacity: 0.05,
+                              fill: false,
+                              smoothFactor: 2.0,
+                              className: 'origin-threat-halo'
+                            }}
+                          />
+                          <Polygon
+                            positions={TACTICAL_BOUNDARIES[org.name]}
+                            pathOptions={{
+                              fillColor: STRATEGIC_METADATA[org.name]?.color || highlightColor,
+                              fillOpacity: 0.1,
+                              color: STRATEGIC_METADATA[org.name]?.color || highlightColor,
+                              weight: 1,
+                              smoothFactor: 2.0,
+                              className: 'origin-threat-glow'
+                            }}
+                          />
+                        </React.Fragment>
+                      ) : (
+                        <React.Fragment>
+                          <Circle
+                            center={org.coords}
+                            radius={40000}
+                            pathOptions={{
+                              color: highlightColor,
+                              weight: 20,
+                              opacity: 0.05,
+                              fill: false,
+                              className: 'origin-threat-halo'
+                            }}
+                          />
+                          <Circle
+                            center={org.coords}
+                            radius={40000}
+                            pathOptions={{
+                              fillColor: highlightColor,
+                              fillOpacity: 0.1,
+                              color: highlightColor,
+                              weight: 1,
+                              className: 'origin-threat-glow'
+                            }}
+                          />
+                        </React.Fragment>
+                      )}
+                    </React.Fragment>
+                  ))}
                 </React.Fragment>
               );
             })}
-
-            {currentEvent?.trajectories && currentEvent.trajectories.map((traj, idx) => {
-              const trajColor = currentEvent?.visual_config?.color || STRATEGIC_METADATA[traj.origin]?.color || tacticalColor;
-              return (
-                <React.Fragment key={`traj-group-${idx}`}>
-                  <Polyline
-                    positions={[traj.origin_coords, traj.target_coords]}
-                    pathOptions={{
-                      color: trajColor,
-                      weight: 10,
-                      opacity: 0.1,
-                      smoothFactor: 2.0,
-                      className: 'trajectory-halo'
-                    }}
-                  />
-                  <Polyline
-                    positions={[traj.origin_coords, traj.target_coords]}
-                    pathOptions={{
-                      color: trajColor,
-                      weight: 2,
-                      dashArray: '10, 10',
-                      smoothFactor: 2.0,
-                      className: 'trajectory-line'
-                    }}
-                  />
-                  <Marker
-                    position={traj.marker_coords || traj.origin_coords}
-                    icon={L.divIcon({
-                      className: 'custom-origin-marker',
-                      html: `
-                        <div class="origin-wrapper">
-                          <div class="origin-label" style="background: ${trajColor}">ORIGIN: ${traj.origin.toUpperCase()}</div>
-                          <div class="origin-pin" style="background: ${trajColor}4D; box-shadow: 0 0 10px ${trajColor}"></div>
-                        </div>
-                      `,
-                      iconSize: [100, 50],
-                      iconAnchor: [50, 25]
-                    })}
-                  >
-                    <Popup>Launch Origin: {traj.origin}</Popup>
-                  </Marker>
-                </React.Fragment>
-              );
-            })}
-
-            {currentEvent?.highlight_origins?.map((org, idx) => (
-              <React.Fragment key={`highlight-origin-${idx}`}>
-                {TACTICAL_BOUNDARIES[org.name] ? (
-                  <React.Fragment>
-                    <Polygon
-                      positions={TACTICAL_BOUNDARIES[org.name]}
-                      pathOptions={{
-                        color: STRATEGIC_METADATA[org.name]?.color || highlightColor,
-                        weight: 15,
-                        opacity: 0.05,
-                        fill: false,
-                        smoothFactor: 2.0,
-                        className: 'origin-threat-halo'
-                      }}
-                    />
-                    <Polygon
-                      positions={TACTICAL_BOUNDARIES[org.name]}
-                      pathOptions={{
-                        fillColor: STRATEGIC_METADATA[org.name]?.color || highlightColor,
-                        fillOpacity: 0.1,
-                        color: STRATEGIC_METADATA[org.name]?.color || highlightColor,
-                        weight: 1,
-                        smoothFactor: 2.0,
-                        className: 'origin-threat-glow'
-                      }}
-                    />
-                  </React.Fragment>
-                ) : (
-                  <React.Fragment>
-                    <Circle
-                      center={org.coords}
-                      radius={40000}
-                      pathOptions={{
-                        color: highlightColor,
-                        weight: 20,
-                        opacity: 0.05,
-                        fill: false,
-                        className: 'origin-threat-halo'
-                      }}
-                    />
-                    <Circle
-                      center={org.coords}
-                      radius={40000}
-                      pathOptions={{
-                        fillColor: highlightColor,
-                        fillOpacity: 0.1,
-                        color: highlightColor,
-                        weight: 1,
-                        className: 'origin-threat-glow'
-                      }}
-                    />
-                  </React.Fragment>
-                )}
-              </React.Fragment>
-            ))}
           </MapContainer>
         </div>
 
@@ -649,25 +687,30 @@ function App() {
                   <div className="stats-card">
                     <div className="card-header"><Navigation2 size={20} /><h2>ACTIVE THREATS</h2></div>
                     <div className="stats-grid">
-                      <div className="stat-item"><span className="label">CLUSTERS</span><span className="value">{liveEvent?.clusters?.length || 0}</span></div>
-                      <div className="stat-item"><span className="label">TARGETS</span><span className="value">{liveEvent?.clusters?.reduce((acc, c) => acc + (c.cities?.length || 0), 0) || 0}</span></div>
+                      <div className="stat-item"><span className="label">EVENTS</span><span className="value">{liveEvents.length}</span></div>
+                      <div className="stat-item"><span className="label">CLUSTERS</span><span className="value">{totalClusters}</span></div>
+                      <div className="stat-item"><span className="label">TARGETS</span><span className="value">{totalTargets}</span></div>
                     </div>
                   </div>
-                  {!liveEvent ? (
+                  {liveEvents.length === 0 ? (
                     <div className="empty-state"><RotateCcw size={48} color="#333" /><p>MONITORING AIRSPACE</p></div>
                   ) : (
                     <div className="alerts-list">
-                      {liveEvent.clusters?.map((c, i) => {
-                        const alertColor = liveEvent.visual_config?.color || '#ff944d';
+                      {liveEvents.map((ev, evIdx) => {
+                        const alertColor = ev.visual_config?.color || '#ff944d';
                         return (
-                          <motion.div key={i} initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="alert-item" style={{borderLeftColor: alertColor}}>
-                            <div className="alert-marker" style={{background: alertColor, boxShadow: `0 0 10px ${alertColor}`}}></div>
-                            <div className="alert-info">
-                              <h3 style={{color: alertColor}}>{liveEvent.title?.toUpperCase()} | {liveEvent.time}</h3>
-                              <p>{c.cities.map(ct => ct.name).join(', ')}</p>
-                            </div>
-                            <ShieldAlert size={16} color={alertColor} />
-                          </motion.div>
+                          <React.Fragment key={ev.id || evIdx}>
+                            {ev.clusters?.map((c, i) => (
+                              <motion.div key={`${ev.id}-cluster-${i}`} initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="alert-item" style={{borderLeftColor: alertColor}}>
+                                <div className="alert-marker" style={{background: alertColor, boxShadow: `0 0 10px ${alertColor}`}}></div>
+                                <div className="alert-info">
+                                  <h3 style={{color: alertColor}}>{ev.title?.toUpperCase()} | {ev.time}</h3>
+                                  <p>{c.cities.map(ct => ct.name).join(', ')}</p>
+                                </div>
+                                <ShieldAlert size={16} color={alertColor} />
+                              </motion.div>
+                            ))}
+                          </React.Fragment>
                         );
                       })}
                     </div>

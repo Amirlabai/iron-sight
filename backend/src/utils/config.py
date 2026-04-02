@@ -6,12 +6,12 @@ load_dotenv()
 
 # --- Network Configuration ---
 WS_PORT = int(os.environ.get("PORT", 8080))
-POLL_INTERVAL = 10
+POLL_INTERVAL = 3
 TIMEZONE = ZoneInfo("Asia/Jerusalem")
 
 # --- Tactical Logic Constants ---
 MIN_IRAN_THRESHOLD = 10
-MAX_IRAN_THRESHOLD = 40
+MAX_IRAN_THRESHOLD = 50
 
 # --- Resource URLs ---
 LAMAS_DATA_URL = "https://raw.githubusercontent.com/idodov/RedAlert/refs/heads/main/apps/red_alerts_israel/lamas_data.json"

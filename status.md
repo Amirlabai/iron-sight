@@ -1,3 +1,6 @@
+#include <.open_work/>
+#include <.milestone/>
+
 # IRON SIGHT MISSION STATUS (CENTRALIZED VERSIONING)
 
 - [x] MISSION: Israel-Based Alert Relay (Node.js)
@@ -44,12 +47,16 @@
 - [x] **MISSION**: Multi-Threat Tactical Expansion (`earthQuake`, `hostileAircraft`, `terroristInfiltration`)
 - [x] **MISSION**: Independent Tactical Persistence (Multi-Collection Storage)
 - [x] **MISSION**: Geographic Multi-Threat Visual Orchestration (React Tracker)
+- [x] **MISSION**: ID-Driven Multi-Threat Architecture (Simultaneous Alert Lifecycle)
+- [x] **MISSION**: Lifecycle Hardening (Inactivity Timeout + Mandatory Detection Logging)
+- [ ] **MISSION**: Event Lifecycle Logging (MongoDB Stabilization) - [.open_work/event_lifecycle_logging.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/event_lifecycle_logging.md)
 - **MISSION**: High-Fidelity Pure Vector Map Transition (S5) - [Implementation plan archived](file:///C:/Users/amirl/.gemini/antigravity/brain/6bc9c501-e3de-4258-bef6-a762732005fe/implementation_plan.md)
 
 ---
 **Mission Status**: **HARDENED** | CONSOLE ANONYMIZED
 
-- Transitioned to v0.6.0 (Alpha). **Backend Refactor**: Migrated to modular `src/` architecture for professional maintenance.
-- **Uplink Calibration**: Restored origin country highlighting and tactical title synchronization.
-- **Tactical Expansion**: Integrated support for drones, infiltrations, and seismic alerts with category-aware visuals.
+- Transitioned to v0.8.0 (Alpha). **ID-Driven Architecture**: `active_events{}` dictionary with `last_update_time`-based inactivity timeout (5 min silence).
+- **Lifecycle Hardening**: Fixed premature event purging (was `start_time` based, now `last_update_time`). Added mandatory DETECTION_SIGNAL, ROLLING_UPDATE, EVENT_TIMEOUT, EVENT_PERSISTED, EVENT_PURGED logging.
+- **No More Clustering**: Stripped DBSCAN from `threat_processor.py`. All cities per alert ID form one unified cluster.
+- **Multi-Alert Broadcast**: Backend pushes `multi_alert` payloads; dashboard renders all threats simultaneously on the map.
 - **Networking**: Masked backend infrastructure via Vercel `/api` proxy. Sanitized production logs.

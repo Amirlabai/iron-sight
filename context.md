@@ -1,4 +1,7 @@
-# IRON SIGHT: TACTICAL CONTEXT (v0.6.0)
+#include <.context/COMMUNICATION_PROTOCOL.md>
+#include <.context/UI_DESIGN_SPEC.md>
+
+# IRON SIGHT: TACTICAL CONTEXT (v0.8.0)
 
 > [!IMPORTANT]
 > **SOURCE OF TRUTH DIRECTIVE**: Before modifying ANY communication logic (Headers, Endpoints, JSON payloads), you MUST read the [STRATEGIC COMMUNICATION PROTOCOL (SCP)](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md) immediately. For UI changes, color palettes, or component architecture, you MUST read the [UI DESIGN SPECIFICATION (TDS)](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/UI_DESIGN_SPEC.md) first. Failure to adhere to these protocols will result in Strategic De-sync or UI Degradation.
@@ -9,7 +12,7 @@ It converts raw Pikud HaOref API feeds into actionable intelligence through real
 
 ## KEY MISSION COMPONENTS
 - **`backend/` (Command Center)**: Modular Python 3.12 tactical engine (`src/` architecture).
-    - **`src/core/`**: Cluster resolution, PCA vectoring, and multi-threat analysis (`missiles`, `hostileAircraftIntrusion`, `terroristInfiltration`, `earthQuake`).
+    - **`src/core/`**: Unified-cluster analysis (no DBSCAN), PCA vectoring, and multi-threat processing (`missiles`, `hostileAircraftIntrusion`, `terroristInfiltration`, `earthQuake`).
     - **`src/api/`**: WebSocket synchronization and REST handlers for history/cities.
     - **`src/db/`**: Multi-collection persistence for isolated threat archives.
     - **Geodata Store**: Dual-tier boundary system (`tactical_borders.json` for visuals, `calculation_borders.json` for logic). 
@@ -22,8 +25,8 @@ It converts raw Pikud HaOref API feeds into actionable intelligence through real
     - **Mission Archive**: Historical rewind and playback telemetry synchronized with backend logs. Streamlined observer-only interface.
     - **Aesthetics**: Military-grade Glassmorphic UI with responsive glows and **calibrated radar scans**.
 
-## ALPHA DEVELOPMENT FOCUS (S4)
-Transitioned to v0.5.5 (Alpha).
+## ALPHA DEVELOPMENT FOCUS (S5)
+Transitioned to v0.8.0 (Alpha).
 
 ### RECENT OPERATIONS
 - **Uplink Consolidation**: Established the Israeli Relay Bridge as the sole tactical uplink.
@@ -39,3 +42,11 @@ Transitioned to v0.5.5 (Alpha).
     - Integrated multi-threat logic for drones, infiltrations, and seismic alerts.
     - Implemented category-aware visual orchestration (`TrackingDrone` JS Interpolation).
     - Established independent MongoDB collection archives for threat separation.
+- **ID-Driven Architecture (v0.8.0)**:
+    - Replaced scalar `last_alert_id`/`active_salvo` with `active_events{}` dictionary keyed by alert ID.
+    - Simulator refactored to message queue with per-ID dispatch/cancellation and top-left hovering icons.
+    - Stripped DBSCAN clustering from `threat_processor.py`. All cities per ID form one unified cluster.
+    - Backend broadcasts `multi_alert` payloads; dashboard renders simultaneous threats via `liveEvents[]` array.
+    - End signals target specific IDs or broadcast to all active events with 10s grace period.
+    - Lifecycle hardening: replaced `start_time` timeout with `last_update_time` inactivity timeout (5 min silence).
+    - Mandatory detection logging: DETECTION_SIGNAL, ROLLING_UPDATE, EVENT_TIMEOUT, EVENT_PERSISTED, EVENT_PURGED.

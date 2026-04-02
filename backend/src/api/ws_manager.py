@@ -15,7 +15,7 @@ class WebSocketManager:
         self.version = version
         self.clients = set()
         self.app = web.Application()
-        self.active_salvo_data = None
+        self.active_events = {}  # Mirrors main.py's active_events for late-joiner sync
         
         self.cors = aiohttp_cors.setup(self.app, defaults={
             origin: aiohttp_cors.ResourceOptions(
@@ -51,12 +51,25 @@ class WebSocketManager:
         await ws.prepare(request)
         self.clients.add(ws)
         
-        # Initial sync
+        # Initial sync: send history + full active_events snapshot
         try:
             history = await self.db.get_history(limit=50)
             await ws.send_str(json.dumps({"type": "history_sync", "data": history, "version": self.version}))
-            if self.active_salvo_data:
-                await ws.send_str(json.dumps(self.active_salvo_data, ensure_ascii=False))
+            
+            # Send current active events snapshot for late-joiner sync
+            if self.active_events:
+                events_list = []
+                for eid, ev in self.active_events.items():
+                    if ev["end_time"] is None:
+                        event_data = ev["data"].copy()
+                        event_data["id"] = eid
+                        events_list.append(event_data)
+                
+                if events_list:
+                    await ws.send_str(json.dumps({
+                        "type": "multi_alert",
+                        "events": events_list
+                    }, ensure_ascii=False))
         except Exception as e:
             logger.error(f"WS_SYNC_ERROR: {e}")
 
@@ -75,11 +88,9 @@ class WebSocketManager:
         return web.json_response(self.engine.dm.areas)
 
     async def calibrate_handler(self, request):
-        # Implementation preserved for manual missile calibration
         try:
             if MISSION_KEY and request.headers.get("X-Mission-Key") != MISSION_KEY:
                 return web.json_response({"error": "Unauthorized"}, status=401)
-            # Calibration logic omitted for brevity, to be added if needed
             return web.json_response({"status": "SUCCESS"})
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)

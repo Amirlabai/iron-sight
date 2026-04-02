@@ -17,13 +17,16 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger("IronSightTerminal")
 
 # Load Version Info
-VERSION = "0.7.0"
+VERSION = "0.8.0"
 try:
     with open(os.path.join(os.path.dirname(__file__), '..', '..', 'version.json'), 'r') as f:
         vdata = json.load(f)
-        VERSION = vdata.get("version", "0.7.0")
+        VERSION = vdata.get("version", "0.8.0")
 except Exception as e:
     logger.warning(f"VERSION_INIT_FAILURE: {e}")
+
+# Inactivity timeout: events expire after this many seconds of NO updates
+INACTIVITY_TIMEOUT = 600  # 5 minutes of silence
 
 async def main():
     logger.info(f"IRON SIGHT TACTICAL OPERATING SYSTEM (v{VERSION}) - INITIALIZING")
@@ -38,112 +41,170 @@ async def main():
     await ws.start()
     await dm.load()
 
-    last_alert_id = None
-    last_alert_time = None
-    threat_ended_time = None
-    active_salvo = None
-    salvo_start_time = 0
+    # ID-Driven Active Events Dictionary
+    # Structure: { alert_id: { "data": <analysis_payload>, "last_update_time": <float>, "end_time": <float|None>, "category": <str> } }
+    active_events = {}
 
-    async with aiohttp.ClientSession(headers={'User-Agent': 'IronSight/0.6.0'}) as session:
+    async with aiohttp.ClientSession(headers={'User-Agent': 'IronSight/0.8.0'}) as session:
         while True:
             try:
                 now = time.time()
-                
-                # Persistence Sync Timing
-                if active_salvo and (now - salvo_start_time > 300):
-                    if not active_salvo.get("is_simulation"):
-                        await db.save_alert("missiles", active_salvo)
-                        history = await db.get_history("missiles", limit=50)
-                        await ws.broadcast({"type": "history_sync", "data": history})
-                    active_salvo = None
-                    ws.active_salvo_data = None
+                events_changed = False
 
-                # Tactical Reset Logics
-                if last_alert_id:
-                    if threat_ended_time and (now - threat_ended_time > 10):
-                        if active_salvo and not active_salvo.get("is_simulation"):
-                            await db.save_alert("missiles", active_salvo)
-                            history = await db.get_history("missiles", limit=50)
-                            await ws.broadcast({"type": "history_sync", "data": history})
-                        await ws.broadcast({"type": "reset"})
-                        last_alert_id, threat_ended_time, active_salvo, ws.active_salvo_data = None, None, None, None
-                    elif last_alert_time and (now - last_alert_time > 300):
-                        await ws.broadcast({"type": "reset"})
-                        last_alert_id, last_alert_time, ws.active_salvo_data = None, None, None
+                # --- Lifecycle Maintenance ---
+                expired_ids = []
+                for eid, ev in list(active_events.items()):
+                    # Inactivity timeout: only trigger after 5 min of NO updates (last_update_time based)
+                    if ev["end_time"] is None and (now - ev["last_update_time"] > INACTIVITY_TIMEOUT):
+                        ev["end_time"] = now
+                        logger.info(f"EVENT_TIMEOUT: {eid} - No updates for {INACTIVITY_TIMEOUT}s. Marking for termination.")
+                    
+                    # End-of-threat grace period (10s after end signal)
+                    if ev["end_time"] and (now - ev["end_time"] > 10):
+                        # Persist to DB before purging
+                        if not ev["data"].get("is_simulation"):
+                            try:
+                                await db.save_alert(ev["category"], ev["data"])
+                                logger.info(f"EVENT_PERSISTED: {eid} ({ev['category']}) - {len(ev['data'].get('all_cities', []))} cities saved to MongoDB.")
+                                history = await db.get_history(ev["category"], limit=50)
+                                await ws.broadcast({"type": "history_sync", "data": history})
+                            except Exception as db_err:
+                                logger.error(f"EVENT_PERSIST_FAILURE: {eid} - {db_err}")
+                        expired_ids.append(eid)
 
-                # Fetch Tactical Feeds
+                for eid in expired_ids:
+                    category = active_events[eid]["category"]
+                    city_count = len(active_events[eid]["data"].get("all_cities", []))
+                    del active_events[eid]
+                    events_changed = True
+                    logger.info(f"EVENT_PURGED: {eid} ({category}, {city_count} cities)")
+
+                # If events were purged, broadcast updated state
+                if events_changed:
+                    ws.active_events = active_events
+                    await _broadcast_multi_alert(ws, active_events)
+                    if not active_events:
+                        await ws.broadcast({"type": "reset"})
+
+                # --- Fetch Tactical Feeds ---
                 if not RELAY_URL: 
                     await asyncio.sleep(POLL_INTERVAL); continue
                 
-                async with session.get(RELAY_URL, headers={"x-relay-auth": RELAY_AUTH_KEY}, timeout=5) as resp:
-                    if resp.status == 200:
-                        data = json.loads(await resp.text())
-                        alerts = data if isinstance(data, list) else [data] if data else []
-                        
-                        for alert_payload in alerts:
-                            a_type = str(alert_payload.get('type', ''))
-                            instructions = str(alert_payload.get('instructions', ''))
+                try:
+                    async with session.get(RELAY_URL, headers={"x-relay-auth": RELAY_AUTH_KEY}, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                        if resp.status == 200:
+                            data = json.loads(await resp.text())
+                            alerts = data if isinstance(data, list) else [data] if data else []
                             
-                            # Threat End Signal
-                            if a_type == "newsFlash" or "האירוע הסתיים" in instructions:
-                                if not threat_ended_time and last_alert_id:
-                                    threat_ended_time = now
-                                continue
-
-                            # Multi-Threat Processing
-                            if a_type in ["missiles", "hostileAircraftIntrusion", "terroristInfiltration", "earthQuake"]:
+                            for alert_payload in alerts:
+                                a_type = str(alert_payload.get('type', ''))
+                                instructions = str(alert_payload.get('instructions', ''))
                                 alert_id = alert_payload.get('id')
-                                cities_raw = alert_payload.get('data') or alert_payload.get('cities', [])
                                 
-                                if not alert_id or (alert_id == last_alert_id and a_type != "missiles"):
+                                # --- Threat End Signal (ID-Targeted) ---
+                                if a_type == "newsFlash" or "האירוע הסתיים" in instructions:
+                                    if alert_id and alert_id in active_events:
+                                        active_events[alert_id]["end_time"] = now
+                                        logger.info(f"END_SIGNAL_RECEIVED: {alert_id}")
+                                    elif alert_id is None or alert_id not in active_events:
+                                        for eid in active_events:
+                                            if active_events[eid]["end_time"] is None:
+                                                active_events[eid]["end_time"] = now
+                                        if active_events:
+                                            logger.info(f"END_SIGNAL_BROADCAST: All {len(active_events)} active events marked for termination.")
                                     continue
-                                
-                                analysis = processor.process(a_type, cities_raw)
-                                if analysis:
-                                    last_alert_id, last_alert_time, threat_ended_time = alert_id, now, None
-                                    is_simulation = alert_payload.get("is_simulation", False)
-                                    analysis["is_simulation"] = is_simulation
+
+                                # --- Multi-Threat Processing ---
+                                if a_type in ["missiles", "hostileAircraftIntrusion", "terroristInfiltration", "earthQuake"]:
+                                    if not alert_id:
+                                        continue
                                     
-                                    if a_type == "missiles":
-                                        # Rolling Salvo Support
-                                        if not active_salvo or (now - salvo_start_time > 60):
-                                            active_salvo = {
-                                                "id": alert_id, 
-                                                "all_cities": [], 
-                                                "time": datetime.now(TIMEZONE).strftime("%H:%M:%S"),
-                                                "is_simulation": is_simulation
-                                            }
-                                            salvo_start_time = now
+                                    # Protocol Guard: handle both relay data formats
+                                    cities_raw = alert_payload.get('data') or alert_payload.get('cities', [])
+                                    if isinstance(cities_raw, str):
+                                        cities_raw = [cities_raw]
+                                    if not cities_raw:
+                                        logger.warning(f"EMPTY_PAYLOAD: {alert_id} ({a_type}) - No city data in payload.")
+                                        continue
+                                    
+                                    is_simulation = alert_payload.get("is_simulation", False)
+
+                                    if alert_id in active_events:
+                                        # Rolling update: merge new cities into existing event
+                                        existing = active_events[alert_id]
+                                        existing_names = {c['name'] for c in existing["data"]["all_cities"]}
                                         
-                                        existing_names = {c['name'] for c in active_salvo["all_cities"]}
-                                        for c in analysis["all_cities"]:
-                                            if c['name'] not in existing_names: active_salvo["all_cities"].append(c)
-                                        
-                                        # Recalculate
-                                        full_analysis = processor.process("missiles", [c['name'] for c in active_salvo["all_cities"]])
-                                        if full_analysis:
-                                            active_salvo.update(full_analysis)
-                                            active_salvo["is_simulation"] = is_simulation
-                                            ws.active_salvo_data = active_salvo
-                                            await ws.broadcast(active_salvo)
+                                        analysis = processor.process(a_type, cities_raw)
+                                        if analysis:
+                                            new_cities = [c for c in analysis["all_cities"] if c['name'] not in existing_names]
+                                            for c in new_cities:
+                                                existing["data"]["all_cities"].append(c)
+                                            
+                                            # Recalculate with full city set
+                                            full_analysis = processor.process(a_type, [c['name'] for c in existing["data"]["all_cities"]])
+                                            if full_analysis:
+                                                full_analysis["id"] = alert_id
+                                                full_analysis["is_simulation"] = is_simulation
+                                                full_analysis["time"] = existing["data"].get("time", datetime.now(TIMEZONE).strftime("%H:%M:%S"))
+                                                existing["data"] = full_analysis
+                                                existing["end_time"] = None  # Reset any pending end
+                                                existing["last_update_time"] = now  # Reset inactivity timer
+                                                
+                                                total_cities = len(full_analysis.get("all_cities", []))
+                                                logger.info(f"ROLLING_UPDATE: {alert_id} ({a_type}) - +{len(new_cities)} new cities. Total: {total_cities}")
                                     else:
-                                        # Singular High-Priority Events
+                                        # New event
+                                        analysis = processor.process(a_type, cities_raw)
+                                        if not analysis:
+                                            continue
+                                        
                                         analysis["id"] = alert_id
-                                        ws.active_salvo_data = analysis
-                                        await ws.broadcast(analysis)
+                                        analysis["is_simulation"] = is_simulation
+                                        analysis["time"] = datetime.now(TIMEZONE).strftime("%H:%M:%S")
                                         
-                                        if not is_simulation:
-                                            await db.save_alert(a_type, analysis)
+                                        active_events[alert_id] = {
+                                            "data": analysis,
+                                            "last_update_time": now,
+                                            "end_time": None,
+                                            "category": a_type
+                                        }
                                         
-                    await ws.broadcast({
-                        "type": "health_status", "status": "OPERATIONAL" if resp.status == 200 else "DEGRADED",
-                        "timestamp": datetime.now(TIMEZONE).isoformat(), "version": VERSION
-                    })
+                                        city_count = len(analysis.get("all_cities", []))
+                                        logger.info(f"DETECTION_SIGNAL: {alert_id} ({a_type}) - {city_count} cities detected. Active events: {len(active_events)}")
+
+                                    # Broadcast updated multi-alert state
+                                    ws.active_events = active_events
+                                    await _broadcast_multi_alert(ws, active_events)
+                            
+                        await ws.broadcast({
+                            "type": "health_status", "status": "OPERATIONAL" if resp.status == 200 else "DEGRADED",
+                            "timestamp": datetime.now(TIMEZONE).isoformat(), "version": VERSION
+                        })
+                except asyncio.TimeoutError:
+                    logger.warning("RELAY_TIMEOUT: Upstream relay did not respond within 5s.")
+                except aiohttp.ClientError as net_err:
+                    logger.error(f"RELAY_CONNECTION_FAILURE: {net_err}")
 
             except Exception as e:
-                logger.error(f"RUNTIME_ERROR: {e}")
+                logger.error(f"RUNTIME_ERROR: {e}", exc_info=True)
             
             await asyncio.sleep(POLL_INTERVAL)
+
+
+async def _broadcast_multi_alert(ws, active_events):
+    """Push the full active events array to all connected clients."""
+    events_list = []
+    for eid, ev in active_events.items():
+        if ev["end_time"] is None:  # Only broadcast currently active (not ending) events
+            event_data = ev["data"].copy()
+            event_data["id"] = eid
+            events_list.append(event_data)
+    
+    await ws.broadcast({
+        "type": "multi_alert",
+        "events": events_list
+    })
+
 
 if __name__ == "__main__":
     try: asyncio.run(main())
