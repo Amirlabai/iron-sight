@@ -12,6 +12,9 @@ import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
+import missileSound from './assets/sounds/missile_alert.mp3';
+import droneSound from './assets/sounds/hostileAircraftIntrusion_alert.mp3';
+
 let DefaultIcon = L.icon({
   iconUrl: icon,
   shadowUrl: iconShadow,
@@ -22,6 +25,10 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 const ISRAEL_CENTER = [31.7683, 35.2137];
 const DEFAULT_ZOOM = 8;
+
+// --- MISSION: Tactical Audio Singleton (v0.9.3) ---
+const SEEN_ALERTS = new Set();
+let GLOBAL_LAST_PLAY_TIME = 0;
 
 // --- MISSION: Tactical Geodata Decoupling ---
 const TACTICAL_BOUNDARIES = TACTICAL_GEOJSON.features.reduce((acc, feature) => {
@@ -52,7 +59,7 @@ const TACTICAL_API_URL = IS_PROD ? "" : `${window.location.protocol === 'https:'
 const MISSION_KEY = import.meta.env.VITE_MISSION_KEY;
 
 // Tactical Sound Effect
-const PING_SOUND = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+// (Legacy PING_SOUND decommissioned in v0.9.3)
 
 function MapController({ center, zoom }) {
   const map = useMap();
@@ -160,6 +167,60 @@ const TrackingDrone = ({ positions, color }) => {
   );
 };
 
+
+
+const useAudioEngine = (liveEvents, isMuted) => {
+  const activeAudioRef = useRef(null);
+
+  // Kill-Switch: If Mute is toggled to true, immediately stop active audio
+  useEffect(() => {
+    if (isMuted && activeAudioRef.current) {
+      activeAudioRef.current.pause();
+      activeAudioRef.current = null;
+    }
+  }, [isMuted]);
+
+  useEffect(() => {
+    if (isMuted || !liveEvents || liveEvents.length === 0) return;
+
+    liveEvents.forEach(event => {
+      // Identity Check: Uses Global Singleton SEEN_ALERTS
+      if (!SEEN_ALERTS.has(event.id)) {
+        SEEN_ALERTS.add(event.id);
+
+        const category = (event.category === 'missiles') ? 'missiles' : 'drones';
+        const now = Date.now();
+
+        // Global Mutex Check: 4s Absolute Suppression Window
+        if (now - GLOBAL_LAST_PLAY_TIME > 4000) {
+          GLOBAL_LAST_PLAY_TIME = now;
+
+          const soundFile = (category === 'missiles') ? missileSound : droneSound;
+          const audio = new Audio(soundFile);
+          activeAudioRef.current = audio;
+          
+          if (category === 'missiles') {
+            audio.play().catch(e => console.warn('Audio playback blocked:', e));
+          } else {
+            let playCount = 0;
+            audio.addEventListener('ended', () => {
+              playCount++;
+              // Loop Guard: Only play 2x if NOT muted in between
+              if (playCount < 2 && !isMuted) {
+                audio.play().catch(e => console.warn('Audio loop blocked:', e));
+              } else {
+                activeAudioRef.current = null;
+              }
+            });
+            audio.play().catch(e => console.warn('Audio playback blocked:', e));
+          }
+        }
+      }
+    });
+
+  }, [liveEvents, isMuted]);
+};
+
 function SplashScreen({ progress }) {
   return (
     <motion.div
@@ -188,6 +249,8 @@ function SplashScreen({ progress }) {
 function App() {
   // --- ID-Driven Multi-Threat State ---
   const [liveEvents, setLiveEvents] = useState([]);
+
+
   const [history, setHistory] = useState([]);
   const [viewMode, setViewMode] = useState('live');
   const [archiveEvent, setArchiveEvent] = useState(null);
@@ -205,8 +268,10 @@ function App() {
   const [sandboxInput, setSandboxInput] = useState('');
   const [tacticalHealth, setTacticalHealth] = useState({ status: 'OPERATIONAL', source: 'SYNCING...' });
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+
+  // Initialize Tactical Audio Engine
+  useAudioEngine(liveEvents, isMuted);
   const ws = useRef(null);
-  const lastAlertSoundTime = useRef(0);
 
   const connect = useCallback(() => {
     ws.current = new WebSocket(WEBSOCKET_URL);
@@ -218,17 +283,7 @@ function App() {
         setLoadingProgress(100);
         setTimeout(() => setIsReady(true), 1500);
       } else if (data.type === 'multi_alert') {
-        // --- ID-Driven Multi-Alert Handler ---
         const events = data.events || [];
-
-        if (events.length > 0) {
-          const now = Date.now();
-          if (!isMuted && now - lastAlertSoundTime.current > 20000) {
-            PING_SOUND.play().catch(() => { });
-            lastAlertSoundTime.current = now;
-          }
-        }
-
         setLiveEvents(events);
 
         if (viewMode === 'archive' && events.length > 0) {

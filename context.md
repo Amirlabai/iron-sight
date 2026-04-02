@@ -61,4 +61,7 @@ Transitioned to v0.8.0 (Alpha).
     - Plan: [.open_work/socket_sync_review.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/socket_sync_review.md)
 - **Tactical Visual Refinement (v0.8.6 - Refinement)**: 
     - Unifying vectors for merged groups, transitioning drones to triangle morphology, and implementing organic/rounded hulls.
-    - Plan: [.open_work/tactical_visual_refinement.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/tactical_visual_refinement.md)
+    - Plan: [.milestone/tactical_visual_refinement.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/tactical_visual_refinement.md)
+- **Tactical Audio Engine (v0.9.0 - Implementation)**:
+    - Dedicated audio driver for deduplicated missile alerts (1x) and drone loops (2x).
+    - Plan: [.open_work/tactical_audio_engine.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/tactical_audio_engine.md)

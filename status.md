@@ -55,6 +55,7 @@
 - [x] **MISSION**: Tactical Intelligence & Visual Hardening - [.milestone/tactical_merging_and_visuals.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/tactical_merging_and_visuals.md)
 - [x] **MISSION**: Tactical Merging and Visual Restoration (Hardening) - [.milestone/tactical_visual_restoration.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/tactical_visual_restoration.md)
 - [x] **MISSION**: Tactical Visual Refinement (v0.8.9) - [.milestone/tactical_visual_refinement.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/tactical_visual_refinement.md)
+- [ ] **MISSION**: Tactical Audio Engine (v0.9.0) - [.open_work/tactical_audio_engine.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/tactical_audio_engine.md)
 
 ---
 **Mission Status**: **HARDENED** | CONSOLE ANONYMIZED
