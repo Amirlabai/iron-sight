@@ -245,7 +245,7 @@ async def main():
                         await ws.broadcast({
                             "type": "health_status", 
                             "status": "OPERATIONAL" if resp.status == 200 else "DEGRADED",
-                            "upstream_source": "ISRAEL_RELAY",
+                            "upstream_source": "LIVE",
                             "timestamp": datetime.now(TIMEZONE).isoformat(), 
                             "version": VERSION
                         })
