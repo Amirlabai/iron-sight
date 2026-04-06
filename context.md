@@ -102,6 +102,10 @@ Transitioned to Development Alpha.
     - Restored origin high-fidelity boundary polygons in `ThreatOverlay.jsx` for all trajectories.
     - Hardened history regional grouping in `Sidebar.jsx` and data fetching in `TacticalContext.jsx` to prevent blackout crashes.
     - Calibrated `DEFAULT_ZOOM` for mobile responsiveness.
+- [x] **Smart Tactical Zoom (Priority Zooming)**:
+    - Implemented `calculateBestMapConfig` in `TacticalProvider.jsx` to prioritize furthest origins.
+    - Enabled automatic "snap-back" to tighter zoom levels when strategic threats terminate.
+    - Synchronized "Return to Live" functionality with multi-threat awareness.
 
     - `context/TacticalContext.jsx`: Global state provider with WebSocket lifecycle, audio engine.
     - `utils/constants.js`: Centralized env detection, WS URLs, geodata derivations, color tokens, Leaflet icon fix.

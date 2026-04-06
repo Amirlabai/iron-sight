@@ -54,6 +54,45 @@ const useAudioEngine = (liveEvents, isMuted) => {
   }, [liveEvents, isMuted]);
 };
 
+// --- Tactical Map Logic ---
+const calculateBestMapConfig = (events) => {
+  if (!events || events.length === 0) return { center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM };
+
+  // Collect all trajectories across all events
+  const allTrajectories = events.flatMap(e => e.trajectories || []);
+  
+  if (allTrajectories.length > 0) {
+    // Find the trajectory with the LOWEST zoom level (most "strategic"/wide)
+    let bestTraj = allTrajectories[0];
+    let minZoom = STRATEGIC_METADATA[bestTraj.origin]?.zoom || 8;
+
+    for (const traj of allTrajectories) {
+      const z = STRATEGIC_METADATA[traj.origin]?.zoom || 8;
+      // Lower zoom numeric value = wider view (higher priority)
+      if (z < minZoom) {
+        minZoom = z;
+        bestTraj = traj;
+      }
+    }
+
+    return {
+      center: [
+        (bestTraj.origin_coords[0] + bestTraj.target_coords[0]) / 2, 
+        (bestTraj.origin_coords[1] + bestTraj.target_coords[1]) / 2
+      ],
+      zoom: minZoom
+    };
+  }
+
+  // Fallback to center of first event if no trajectories but has centers (e.g. earthquakes)
+  const withCenter = events.find(e => e.center);
+  if (withCenter) {
+    return { center: withCenter.center, zoom: withCenter.zoom_level || 8 };
+  }
+
+  return { center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM };
+};
+
 export function TacticalProvider({ children }) {
   const [liveEvents, setLiveEvents] = useState([]);
   const [history, setHistory] = useState([]);
@@ -96,18 +135,8 @@ export function TacticalProvider({ children }) {
           setActiveTab('live');
         }
 
-        const withTrajectory = events.find(e => e.trajectories && e.trajectories.length > 0);
-        const withCenter = events.find(e => e.center);
-        if (withTrajectory) {
-          const traj = withTrajectory.trajectories[0];
-          const meta = STRATEGIC_METADATA[traj.origin] || {};
-          setMapConfig({
-            center: [(traj.origin_coords[0] + traj.target_coords[0]) / 2, (traj.origin_coords[1] + traj.target_coords[1]) / 2],
-            zoom: meta.zoom || 8
-          });
-        } else if (withCenter) {
-          setMapConfig({ center: withCenter.center, zoom: withCenter.zoom_level || 8 });
-        }
+        const newConfig = calculateBestMapConfig(events);
+        setMapConfig(newConfig);
       } else if (data.type === 'reset') {
         setLiveEvents([]);
         if (viewMode === 'live') { setMapConfig({ center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM }); }
@@ -203,19 +232,8 @@ export function TacticalProvider({ children }) {
 
   const returnToLive = () => {
     setViewMode('live');
-    if (liveEvents.length === 0) {
-      setMapConfig({ center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM });
-    } else {
-      const first = liveEvents[0];
-      if (first.trajectories && first.trajectories.length > 0) {
-        const mainTraj = first.trajectories[0];
-        const meta = STRATEGIC_METADATA[mainTraj.origin] || {};
-        setMapConfig({
-          center: [(mainTraj.origin_coords[0] + mainTraj.target_coords[0]) / 2, (mainTraj.origin_coords[1] + mainTraj.target_coords[1]) / 2],
-          zoom: meta.zoom || 8
-        });
-      }
-    }
+    const newConfig = calculateBestMapConfig(liveEvents);
+    setMapConfig(newConfig);
   };
 
   const runSandboxAnalysis = async () => {

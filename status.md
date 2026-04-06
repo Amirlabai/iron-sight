@@ -22,8 +22,14 @@
 - [x] **Tactical Origin Validation**: Automatic fallback to fixed coordinates for unreliable projections.
 - [x] **Asynchronous DB Engine**: Integrated `motor` for non-blocking history synchronization.
 - [x] **Historical Data Patch**: Successfully re-evaluated legacy salvos via `fix_history.py`.
-- [x] **Radar Scan Calibration**: Fixed sweep direction and tail positioning for tactical accuracy.
-- [x] **Strategic Origin Consolidation**: Refactored depth-aware trajectory mapping to eliminate redundant lookups.
+- [x] **Dashboard Visual & Mobile Restoration**:
+    - Restored origin high-fidelity boundary polygons in `ThreatOverlay.jsx` for all trajectories.
+    - Hardened history regional grouping in `Sidebar.jsx` and data fetching in `TacticalContext.jsx` to prevent blackout crashes.
+    - Calibrated `DEFAULT_ZOOM` for mobile responsiveness.
+- [x] **Smart Tactical Zoom (Priority Zooming)**:
+    - Implemented `calculateBestMapConfig` in `TacticalProvider.jsx` to prioritize furthest origins.
+    - Enabled automatic "snap-back" to tighter zoom levels when strategic threats terminate.
+    - Synchronized "Return to Live" functionality with multi-threat awareness.
 - [x] **Tactical Sandbox Suite**: Automated dry-run engine for cluster analysis and trajectory previews.
 - [x] **Strategic Analysis CLI**: Independent utility for command-line theater discrimination testing.
 - [x] **Networking Stabilization**: Absolute `TACTICAL_API_URL` logic for Vercel-to-Render communication.
@@ -67,6 +73,7 @@
 - [x] **MISSION**: Dashboard Visual & Mobile Hardening (Restoration) - [.milestone/dashboard_restoration.md](file:///c:/Users/amirl/.milestone/dashboard_restoration.md)
 - [x] **MISSION**: History Aircraft Card Crash Fix (Hardening) - [.milestone/history_aircraft_hardening.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
 - [x] **MISSION**: History Tactical Recalculation (Data Integrity) - [.milestone/history_recalculation.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
+- [x] **MISSION**: Smart Tactical Zoom (Multi-Threat Priority Zooming) - [.milestone/smart_tactical_zoom.md](file:///C:/Users/amirl/.gemini/antigravity/brain/5f9d0dc1-309e-4ef0-bf2c-9fb7f2f1c824/walkthrough.md)
 - [x] **MISSION**: History Tactical Recalculation (Data Integrity) - [.milestone/history_recalculation.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
 
 
