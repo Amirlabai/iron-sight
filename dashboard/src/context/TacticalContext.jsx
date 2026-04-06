@@ -163,12 +163,12 @@ export function TacticalProvider({ children }) {
   const selectArchive = (event) => {
     setArchiveEvent(event);
     setViewMode('archive');
-    if (event.trajectories.length > 0) {
+    if (event.trajectories?.length > 0) {
       const mainTraj = event.trajectories[0];
       const origin_coords = mainTraj.marker_coords || mainTraj.origin_coords;
       const meta = STRATEGIC_METADATA[mainTraj.origin] || {};
       setMapConfig({
-        center: [(origin_coords[0] + ISRAEL_CENTER[0]) / 2, (origin_coords[1] + ISRAEL_CENTER[1]) / 2],
+        center: [(origin_coords?.[0] + ISRAEL_CENTER[0]) / 2, (origin_coords?.[1] + ISRAEL_CENTER[1]) / 2],
         zoom: meta.zoom || 8
       });
     }

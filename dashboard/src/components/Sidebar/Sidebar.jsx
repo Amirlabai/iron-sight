@@ -129,9 +129,11 @@ export default function Sidebar() {
                     const catIcon = {
                       'missiles': <Rocket size={16} />,
                       'hostileAircraftIntrusion': <Plane size={16} />,
+                      'hostileAircraft': <Plane size={16} />,
+                      'aircraft': <Plane size={16} />,
                       'terroristInfiltration': <Users size={16} />,
                       'earthQuake': <Waves size={16} />
-                    }[event.category] || <ShieldAlert size={16} />;
+                    }[event.category || 'missiles'] || <ShieldAlert size={16} />;
                     
                     const groupCitiesByArea = (cities) => {
                       if (!cities || !Array.isArray(cities) || !regionalData) return {};
@@ -142,7 +144,7 @@ export default function Sidebar() {
                         
                         let foundArea = "Other";
                         for (const [area, areaCities] of Object.entries(regionalData)) {
-                          if (areaCities && areaCities[cityName]) { 
+                          if (areaCities && typeof areaCities === 'object' && areaCities[cityName]) { 
                             foundArea = area; 
                             break; 
                           }

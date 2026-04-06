@@ -117,10 +117,10 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                     className: `organic-hull ${viewMode === 'live' ? (event.visual_config?.movement || 'pulse-animation') : ''}`
                   }}
                 >
-                  <Tooltip sticky>Threat Area: {cluster.cities.length} Targets</Tooltip>
+                  <Tooltip sticky>Threat Area: {cluster.cities?.length || 0} Targets</Tooltip>
                 </Polygon>
               </React.Fragment>
-            ) : (
+            ) : cluster.centroid ? (
               <React.Fragment>
                 <Circle center={cluster.centroid} radius={2000}
                   pathOptions={{ color: clusterColor, weight: 12, opacity: 0.1, fill: false, className: 'origin-threat-halo' }}
@@ -132,19 +132,22 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                   }}
                 />
               </React.Fragment>
-            )}
+            ) : null}
             {viewMode === 'live' && event.visual_config && event.visual_config.movement !== 'linear' && (() => {
               const movement = event.visual_config.movement;
-              if (movement === 'circular_sweep') {
-                return <TrackingDrone positions={cluster.cities.map(c => c.coords)} color={clusterColor} />;
+              if (movement === 'circular_sweep' && cluster.cities) {
+                return <TrackingDrone positions={cluster.cities.map(c => c.coords).filter(c => c)} color={clusterColor} />;
               }
-              return (
-                <Marker position={cluster.centroid} icon={L.divIcon({
-                  className: 'tactical-visual-marker',
-                  html: `<div class="visual-wrapper ${movement}" style="--threat-color: ${clusterColor}"></div>`,
-                  iconSize: [80, 80], iconAnchor: [40, 40]
-                })} />
-              );
+              if (cluster.centroid) {
+                return (
+                  <Marker position={cluster.centroid} icon={L.divIcon({
+                    className: 'tactical-visual-marker',
+                    html: `<div class="visual-wrapper ${movement}" style="--threat-color: ${clusterColor}"></div>`,
+                    iconSize: [80, 80], iconAnchor: [40, 40]
+                  })} />
+                );
+              }
+              return null;
             })()}
           </React.Fragment>
         );
@@ -176,14 +179,18 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
               </React.Fragment>
             )}
 
-            <Polyline positions={[traj.origin_coords, traj.target_coords]}
-              pathOptions={{ color: trajColor, weight: 10, opacity: 0.1, smoothFactor: 2.0, className: 'trajectory-halo' }}
-            />
-            <Polyline positions={[traj.origin_coords, traj.target_coords]}
-              pathOptions={{ color: trajColor, weight: 2, dashArray: '10, 10', smoothFactor: 2.0, className: 'trajectory-line' }}
-            />
+            {traj.origin_coords && traj.target_coords && (
+              <React.Fragment>
+                <Polyline positions={[traj.origin_coords, traj.target_coords]}
+                  pathOptions={{ color: trajColor, weight: 10, opacity: 0.1, smoothFactor: 2.0, className: 'trajectory-halo' }}
+                />
+                <Polyline positions={[traj.origin_coords, traj.target_coords]}
+                  pathOptions={{ color: trajColor, weight: 2, dashArray: '10, 10', smoothFactor: 2.0, className: 'trajectory-line' }}
+                />
+              </React.Fragment>
+            )}
             <Marker
-              position={traj.marker_coords || traj.origin_coords}
+              position={traj.marker_coords || traj.origin_coords || traj.target_coords || ISRAEL_CENTER}
               icon={L.divIcon({
                 className: 'custom-origin-marker',
                 html: `
