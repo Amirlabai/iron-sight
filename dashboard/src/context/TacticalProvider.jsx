@@ -60,7 +60,7 @@ const calculateBestMapConfig = (events) => {
 
   // Collect all trajectories across all events
   const allTrajectories = events.flatMap(e => e.trajectories || []);
-  
+
   if (allTrajectories.length > 0) {
     // Find the trajectory with the LOWEST zoom level (most "strategic"/wide)
     let bestTraj = allTrajectories[0];
@@ -77,7 +77,7 @@ const calculateBestMapConfig = (events) => {
 
     return {
       center: [
-        (bestTraj.origin_coords[0] + bestTraj.target_coords[0]) / 2, 
+        (bestTraj.origin_coords[0] + bestTraj.target_coords[0]) / 2,
         (bestTraj.origin_coords[1] + bestTraj.target_coords[1]) / 2
       ],
       zoom: minZoom
@@ -166,8 +166,8 @@ export function TacticalProvider({ children }) {
 
   const fetchHistory = useCallback(async (category = 'all') => {
     try {
-      const url = category === 'all' 
-        ? `${TACTICAL_API_URL}/api/history` 
+      const url = category === 'all'
+        ? `${TACTICAL_API_URL}/api/history`
         : `${TACTICAL_API_URL}/api/history?category=${category}`;
       const res = await fetch(url);
       if (res.ok) {
@@ -191,11 +191,11 @@ export function TacticalProvider({ children }) {
   const selectArchive = (event) => {
     setArchiveEvent(event);
     setViewMode('archive');
-    
+
     // Zoom/Center Synchronization
     const dbZoom = event.zoom_level || event.trajectories?.[0]?.zoom;
     const meta = event.trajectories?.[0] ? (STRATEGIC_METADATA[event.trajectories[0].origin] || {}) : {};
-    
+
     setMapConfig({
       center: event.center || ISRAEL_CENTER,
       zoom: dbZoom || meta.zoom || 8
