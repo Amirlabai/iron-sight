@@ -75,6 +75,11 @@ Transitioned to v0.8.0 (Alpha).
     - Resolving the "Refresh Gap" by unifying Late-Joiner Sync with the live merger.
     - Implementing Cluster-Aware Timeouts to synchronize expiration for unified groups.
     - Plan: [.open_work/sync_merge_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/sync_merge_hardening.md)
+- **Backend Vectorization Completion (NUMPY-HPOWER-S2 - Implementation)**:
+    - Fully vectorizing clustering via `scipy.sparse.csgraph.connected_components`.
+    - Implementing integer-based bitmasking for O(1) subset detection.
+    - Eliminating remaining Python loops in `engine.py` and `cluster_utils.py`.
+    - Plan: [.open_work/backend_vectorization_completion.md](file:///c:/Users/amirl/.gemini/antigravity/brain/79a8286c-22a6-44e5-b721-4024971c6106/implementation_plan.md)
     - `context/TacticalContext.jsx`: Global state provider with WebSocket lifecycle, audio engine, all actions/derived state.
     - `utils/constants.js`: Centralized env detection, WS URLs, geodata derivations, color tokens, Leaflet icon fix.
     - `components/Map/MapViewer.jsx`: Isolated Leaflet container with base layer and coordinate sync.

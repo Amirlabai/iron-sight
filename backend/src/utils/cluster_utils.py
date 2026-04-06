@@ -5,20 +5,28 @@ from scipy.spatial import ConvexHull
 
 logger = logging.getLogger("IronSightClustering")
 
+_R_EARTH = 6371.0  # Radius of earth in kilometers
+
 def haversine_distance(coord1, coord2):
     """Calculate the great circle distance in kilometers between two points on the earth."""
     if not coord1 or not coord2:
         return float('inf')
-    lat1, lon1 = coord1
-    lat2, lon2 = coord2
-    R = 6371.0 # Radius of earth in kilometers
-    
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    
-    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c
+    lat1, lon1 = np.radians(coord1[0]), np.radians(coord1[1])
+    lat2, lon2 = np.radians(coord2[0]), np.radians(coord2[1])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
+    return _R_EARTH * 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+
+def haversine_distance_matrix(coords):
+    """Compute NxN pairwise haversine distance matrix from an Nx2 array of [lat,lon] in degrees."""
+    rad = np.radians(coords)
+    lat = rad[:, 0]
+    lon = rad[:, 1]
+    dlat = lat[:, None] - lat[None, :]
+    dlon = lon[:, None] - lon[None, :]
+    a = np.sin(dlat / 2)**2 + np.cos(lat[:, None]) * np.cos(lat[None, :]) * np.sin(dlon / 2)**2
+    return _R_EARTH * 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
 
 def is_subset(cities_a, cities_b):
     """Check if one list of cities is a subset of another, by name."""
@@ -67,6 +75,85 @@ def recalculate_unified_metadata(cities):
             
     return centroid, hull
 
+def _build_adjacency_components(active_items, threshold_km):
+    """
+    Fully vectorized adjacency builder. Returns connected components as lists of indices.
+    Uses Haversine matrix for proximity and binary matrix operations for subset detection.
+    """
+    n = len(active_items)
+    if n <= 1:
+        return [[0]] if n == 1 else []
+
+    # 1. Pre-calculate indices for subset detection
+    all_city_names = set()
+    for item in active_items:
+        for c in item["ev"]["data"].get("all_cities", []):
+            if c.get('name'): all_city_names.add(c['name'])
+    
+    city_to_idx = {name: i for i, name in enumerate(sorted(all_city_names))}
+    num_cities = len(city_to_idx)
+    
+    # 2. Build presence matrix (N x K) and presence counts
+    presence = np.zeros((n, num_cities), dtype=bool)
+    for i, item in enumerate(active_items):
+        for c in item["ev"]["data"].get("all_cities", []):
+            name = c.get('name')
+            if name in city_to_idx:
+                presence[i, city_to_idx[name]] = True
+    
+    city_counts = presence.sum(axis=1) # (N,)
+    
+    # 3. Vectorized Proximity (Haversine)
+    centers = np.array([item["ev"]["data"].get("center") or [0.0, 0.0] for item in active_items], dtype=np.float64)
+    has_center = np.array([item["ev"]["data"].get("center") is not None for item in active_items])
+    dist_mat = haversine_distance_matrix(centers)
+    valid_pair = has_center[:, None] & has_center[None, :]
+    proximate = valid_pair & (dist_mat <= threshold_km)
+
+    # 4. Vectorized Subset Check (Linear Algebra: I = M @ M.T)
+    # i is subset of j if (M_i . M_j) == sum(M_i)
+    # Using bitwise_and on boolean arrays for better memory if n is small
+    # For O(N^2) but with boolean acceleration:
+    intersection = (presence[:, None, :] & presence[None, :, :]).sum(axis=2)
+    is_subset = (intersection == city_counts[:, None]) & (city_counts[:, None] > 0)
+    is_superset = (intersection == city_counts[None, :]) & (city_counts[None, :] > 0)
+    subset_match = is_subset | is_superset
+
+    # 5. Combine rules (Category + (Proximity | Subset))
+    categories = np.array([item["ev"].get("category", "") for item in active_items])
+    cat_match = (categories[:, None] == categories[None, :])
+    
+    adj_matrix = cat_match & (proximate | subset_match)
+
+    # 6. Extract components using scipy.sparse (if available) or BFS
+    try:
+        from scipy.sparse import csr_matrix
+        from scipy.sparse.csgraph import connected_components
+        _, labels = connected_components(csr_matrix(adj_matrix))
+        components = {}
+        for i, label in enumerate(labels):
+            components.setdefault(label, []).append(i)
+        return list(components.values())
+    except ImportError:
+        # Fallback to BFS
+        visited = np.zeros(n, dtype=bool)
+        components = []
+        for i in range(n):
+            if not visited[i]:
+                comp = []
+                stack = [i]
+                visited[i] = True
+                while stack:
+                    u = stack.pop()
+                    comp.append(u)
+                    for v in np.where(adj_matrix[u])[0]:
+                        if not visited[v]:
+                            visited[v] = True
+                            stack.append(v)
+                components.append(comp)
+        return components
+
+
 def build_merged_payloads(active_events, engine=None, threshold_km=15):
     """
     Implements intelligent payload broadcast parsing.
@@ -85,49 +172,8 @@ def build_merged_payloads(active_events, engine=None, threshold_km=15):
     if not active_items:
         return []
 
-    # Step 1: Build an adjacency list of mergable items
-    adj = {i: set() for i in range(len(active_items))}
-    for i in range(len(active_items)):
-        for j in range(i + 1, len(active_items)):
-            item_a = active_items[i]
-            item_b = active_items[j]
-            
-            # Same category check
-            if item_a["ev"].get("category") != item_b["ev"].get("category"):
-                continue
-                
-            cities_a = item_a["ev"]["data"].get("all_cities", [])
-            cities_b = item_b["ev"]["data"].get("all_cities", [])
-            
-            # Subset Rule
-            subset_match = is_subset(cities_a, cities_b) or is_subset(cities_b, cities_a)
-            
-            # Proximity Rule
-            center_a = item_a["ev"]["data"].get("center")
-            center_b = item_b["ev"]["data"].get("center")
-            proximate_match = False
-            if center_a and center_b:
-                if haversine_distance(center_a, center_b) <= threshold_km:
-                    proximate_match = True
-            
-            if subset_match or proximate_match:
-                adj[i].add(j)
-                adj[j].add(i)
-                
-    # Step 2: Find connected components (groups)
-    visited = set()
-    components = []
-    for i in range(len(active_items)):
-        if i not in visited:
-            stack = [i]
-            component = []
-            while stack:
-                node = stack.pop()
-                if node not in visited:
-                    visited.add(node)
-                    component.append(node)
-                    stack.extend(adj[node] - visited)
-            components.append(component)
+    # Vectorized adjacency + connected components
+    components = _build_adjacency_components(active_items, threshold_km)
             
     # Step 3: Merge each component into a single payload
     merged_payloads = []
@@ -196,3 +242,24 @@ def build_merged_payloads(active_events, engine=None, threshold_km=15):
         merged_payloads.append(base_data)
         
     return merged_payloads
+
+
+def get_cluster_groups(active_events, threshold_km=15):
+    """
+    Returns a list of clusters, where each cluster is a list of event IDs
+    that are merged together by the subset/proximity rules.
+    
+    Lightweight version of build_merged_payloads — no payload transformation,
+    just adjacency grouping. Used for cluster-aware timeout synchronization.
+    """
+    active_items = []
+    for eid, ev in active_events.items():
+        if ev.get("end_time") is None:
+            active_items.append({"eid": eid, "ev": ev})
+    
+    if not active_items:
+        return []
+
+    # Reuse the shared vectorized adjacency builder
+    components = _build_adjacency_components(active_items, threshold_km)
+    return [[active_items[idx]["eid"] for idx in comp] for comp in components]

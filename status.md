@@ -59,6 +59,7 @@
 - [x] **MISSION**: Automated Log Export to CSV - [scripts/export_logs.py](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/scripts/export_logs.py)
 - [x] **MISSION**: Frontend Modularization (Alpha) - [.milestone/frontend_modularization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/frontend_modularization.md)
 - [ ] **MISSION**: Sync and Merge Hardening (Alpha) - [.open_work/sync_merge_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/sync_merge_hardening.md)
+- [x] **MISSION**: Backend Vectorization (Numpy/SciPy Optimization) - [.milestone/backend_vectorization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/backend_vectorization.md)
 
 ---
 **Mission Status**: **HARDENED** | CONSOLE ANONYMIZED

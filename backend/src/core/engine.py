@@ -134,36 +134,64 @@ class TrackingEngine:
         return dominant.tolist()
 
     def cluster(self, cities, threshold_km=25.0):
+        """Vectorized clustering using pre-computed distance matrix and connected components."""
         if not cities: return []
-        deg = threshold_km / 111.0
+        
+        # 1. Coordinate Matrix (N x 2)
         coords = np.array([c['coords'] for c in cities])
+        
+        # 2. Adjacency via Distance Matrix
+        # Note: cdist uses Euclidean in deg. For tactical accuracy, we use threshold_km/111
+        deg = threshold_km / 111.0
         dist_matrix = cdist(coords, coords)
-        parent = list(range(len(cities)))
-        def find(i):
-            while parent[i] != i:
-                parent[i] = parent[parent[i]]
-                i = parent[i]
-            return i
-        def union(i, j):
-            pi, pj = find(i), find(j)
-            if pi != pj: parent[pi] = pj
-        close = np.argwhere(dist_matrix <= deg)
-        for i, j in close:
-            if i < j: union(int(i), int(j))
-        groups = {}
-        for idx, city in enumerate(cities):
-            root = find(idx)
-            groups.setdefault(root, []).append(city)
-        clusters = []
-        for members in groups.values():
-            c = np.mean([m['coords'] for m in members], axis=0)
-            clusters.append({'centroid': c.tolist(), 'cities': members})
-        return clusters
+        adj_matrix = dist_matrix <= deg
+        
+        # 3. Extract Components
+        try:
+            from scipy.sparse import csr_matrix
+            from scipy.sparse.csgraph import connected_components
+            n_components, labels = connected_components(csr_matrix(adj_matrix))
+            
+            # 4. Vectorized Grouping & Centroids
+            clusters = []
+            for i in range(n_components):
+                mask = (labels == i)
+                members = [cities[j] for j, m in enumerate(mask) if m]
+                # Vectorized mean of members
+                member_coords = coords[mask]
+                centroid = np.mean(member_coords, axis=0).tolist()
+                clusters.append({'centroid': centroid, 'cities': members})
+            return clusters
+            
+        except ImportError:
+            # Maintain legacy fallback if scipy.sparse is missing (unlikely in this env)
+            parent = list(range(len(cities)))
+            def find(i):
+                while parent[i] != i:
+                    parent[i] = parent[parent[i]]
+                    i = parent[i]
+                return i
+            def union(i, j):
+                pi, pj = find(i), find(j)
+                if pi != pj: parent[pi] = pj
+            
+            close = np.argwhere(dist_matrix <= deg)
+            for i, j in close:
+                if i < j: union(int(i), int(j))
+            
+            groups = {}
+            for idx, city in enumerate(cities):
+                root = find(idx)
+                groups.setdefault(root, []).append(city)
+            
+            return [{'centroid': np.mean([m['coords'] for m in mem], axis=0).tolist(), 'cities': mem} for mem in groups.values()]
 
     def get_origin(self, cluster_cities, manual_origin=None):
         if manual_origin: return manual_origin
-        centroid = [sum(c['coords'][0] for c in cluster_cities) / len(cluster_cities),
-                    sum(c['coords'][1] for c in cluster_cities) / len(cluster_cities)]
+        
+        # Vectorized coordinate extraction
+        coords = np.array([c['coords'] for c in cluster_cities])
+        centroid = np.mean(coords, axis=0).tolist()
         vector = self.calculate_regression_vector(cluster_cities)
         if vector:
             v_lat, v_lon = vector
@@ -192,8 +220,9 @@ class TrackingEngine:
         return ("Gaza", 0.5) if dist_gaza < dist_lebanon else ("Lebanon", 0.5)
 
     def get_projected_origin(self, cluster_cities, origin_name, depth=None):
-        cnt_lat = sum(c['coords'][0] for c in cluster_cities) / len(cluster_cities)
-        cnt_lon = sum(c['coords'][1] for c in cluster_cities) / len(cluster_cities)
+        coords = np.array([c['coords'] for c in cluster_cities])
+        _cnt = np.mean(coords, axis=0)
+        cnt_lat, cnt_lon = float(_cnt[0]), float(_cnt[1])
         vector = self.calculate_regression_vector(cluster_cities)
         origin_center = self.origins.get(origin_name, [0, 0])
         if not vector: return origin_center

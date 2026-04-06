@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import time
+import numpy as np
 from datetime import datetime
 from src.utils.config import POLL_INTERVAL, RELAY_URL, RELAY_AUTH_KEY, TIMEZONE
 from src.db.mongo_manager import MongoManager
@@ -11,7 +12,7 @@ from src.data.data_manager import LamasDataManager
 from src.core.engine import TrackingEngine
 from src.core.threat_processor import ThreatProcessor
 from src.api.ws_manager import WebSocketManager
-from src.utils.cluster_utils import build_merged_payloads
+from src.utils.cluster_utils import build_merged_payloads, get_cluster_groups
 
 # Global Logging Setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s')
@@ -164,13 +165,14 @@ async def main():
                                     if alert_id in active_events:
                                         # Rolling update: merge new cities into existing event
                                         existing = active_events[alert_id]
-                                        existing_names = {c['name'] for c in existing["data"]["all_cities"]}
+                                        existing_names_arr = np.array([c['name'] for c in existing["data"]["all_cities"]])
                                         
                                         analysis = processor.process(a_type, cities_raw)
                                         if analysis:
-                                            new_cities = [c for c in analysis["all_cities"] if c['name'] not in existing_names]
-                                            for c in new_cities:
-                                                existing["data"]["all_cities"].append(c)
+                                            incoming_names = np.array([c['name'] for c in analysis["all_cities"]])
+                                            is_new = ~np.isin(incoming_names, existing_names_arr)
+                                            new_cities = [c for c, flag in zip(analysis["all_cities"], is_new) if flag]
+                                            existing["data"]["all_cities"].extend(new_cities)
                                             
                                             # Recalculate with full city set
                                             full_analysis = processor.process(a_type, [c['name'] for c in existing["data"]["all_cities"]])
@@ -181,6 +183,17 @@ async def main():
                                                 existing["data"] = full_analysis
                                                 existing["end_time"] = None  # Reset any pending end
                                                 existing["last_update_time"] = now  # Reset inactivity timer
+                                                
+                                                # Cluster-Aware Timeout Extension:
+                                                # Synchronize last_update_time for all cluster siblings
+                                                cluster_groups = get_cluster_groups(active_events, threshold_km=15)
+                                                for group in cluster_groups:
+                                                    if alert_id in group and len(group) > 1:
+                                                        for sibling_id in group:
+                                                            if sibling_id != alert_id and sibling_id in active_events:
+                                                                active_events[sibling_id]["last_update_time"] = now
+                                                        logger.info(f"CLUSTER_TIMEOUT_SYNC: {len(group)} events synchronized (trigger: {alert_id})")
+                                                        break
                                                 
                                                 total_cities = len(full_analysis.get("all_cities", []))
                                                 logger.info(f"ROLLING_UPDATE: {alert_id} ({a_type}) - +{len(new_cities)} new cities. Total: {total_cities}")

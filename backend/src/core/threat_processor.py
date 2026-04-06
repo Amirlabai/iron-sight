@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 from src.utils.config import MAX_IRAN_THRESHOLD
 from src.utils.text_utils import standardize_name
 
@@ -23,9 +24,10 @@ class ThreatProcessor:
 
     def _build_unified_cluster(self, city_coords):
         """Treat all cities as a single cluster: one hull, one centroid."""
-        cnt = [sum(c['coords'][0] for c in city_coords) / len(city_coords), 
-               sum(c['coords'][1] for c in city_coords) / len(city_coords)]
-        hull = self.engine.get_convex_hull([c['coords'] for c in city_coords])
+        if not city_coords: return [0, 0], []
+        coords = np.array([c['coords'] for c in city_coords])
+        cnt = np.mean(coords, axis=0).tolist()
+        hull = self.engine.get_convex_hull(coords)
         return cnt, hull
 
     def _process_missiles(self, cities_raw):

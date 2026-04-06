@@ -4,6 +4,7 @@ from datetime import datetime
 from aiohttp import web
 import aiohttp_cors
 from src.utils.config import ALLOWED_ORIGINS, WS_PORT, MISSION_KEY, TIMEZONE
+from src.utils.cluster_utils import build_merged_payloads
 
 logger = logging.getLogger("IronSightBackend")
 
@@ -51,21 +52,17 @@ class WebSocketManager:
         await ws.prepare(request)
         self.clients.add(ws)
         
-        # Initial sync: send history + full active_events snapshot
+        # Initial sync: send history + merged active_events snapshot
         try:
             history = await self.db.get_history(limit=50)
             await ws.send_str(json.dumps({"type": "history_sync", "data": history, "version": self.version}))
             
-            # Send current active events snapshot for late-joiner sync
+            # Late-Joiner Sync: run the SAME merge pipeline as the live broadcast
             if self.active_events:
-                events_list = []
-                for eid, ev in self.active_events.items():
-                    if ev["end_time"] is None:
-                        event_data = ev["data"].copy()
-                        event_data["id"] = eid
-                        events_list.append(event_data)
+                events_list = build_merged_payloads(self.active_events, self.engine, threshold_km=15)
                 
                 if events_list:
+                    logger.info(f"LATE_JOINER_SYNC: Sending {len(events_list)} merged event(s) to new client.")
                     await ws.send_str(json.dumps({
                         "type": "multi_alert",
                         "events": events_list
