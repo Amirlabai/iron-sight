@@ -1,6 +1,6 @@
 {
-  "version": "0.12.1",
+  "version": "0.13.0",
   "sprint": 5,
   "status": "Alpha",
-  "last_commit_type": "fix"
+  "last_commit_type": "feat"
 }
