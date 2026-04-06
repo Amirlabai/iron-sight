@@ -1,0 +1,92 @@
+/* --- IRON SIGHT: Animation Engine (FE-MODULAR-S1) --- */
+
+/* Radar Sweep */
+@keyframes sweep {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Logo Alert Glow (5 cycles) */
+@keyframes alert-glow {
+    from { transform: scale(1); opacity: 0.8; }
+    to { transform: scale(1.1); opacity: 1; }
+}
+
+/* Status Pill Pulse */
+@keyframes simple-pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Threat Pulse (Disciplined: 5 cycles then terminate) */
+@keyframes pulse {
+    0% { fill-opacity: 0.1; stroke-opacity: 0.2; }
+    50% { fill-opacity: 0.3; stroke-opacity: 0.6; }
+    100% { fill-opacity: 0; stroke-opacity: 0.1; }
+}
+
+/* Trajectory Dash */
+@keyframes dash {
+    from { stroke-dashoffset: 64; }
+    to { stroke-dashoffset: 0; }
+}
+
+/* Terrorist Convergence */
+@keyframes marker-converge {
+    0% { width: 60px; height: 60px; opacity: 0; }
+    20% { opacity: 0.8; }
+    100% { width: 0px; height: 0px; opacity: 1; border-width: 6px; }
+}
+
+/* Earthquake Seismic Pulse */
+@keyframes seismic-pulse {
+    0% { width: 6px; height: 6px; opacity: 1; border-width: 4px; }
+    100% { width: 80px; height: 80px; opacity: 0; border-width: 1px; }
+}
+
+/* Drone Orbital Spin */
+@keyframes spin {
+    100% { transform: rotate(360deg); }
+}
+
+/* --- Animation-Applying Classes --- */
+.pulse-animation {
+    animation: pulse 1s 5 forwards ease-in-out;
+}
+
+.trajectory-line {
+    stroke-dasharray: 8;
+    animation: dash 2.5s 2 forwards linear;
+    will-change: stroke-dashoffset;
+}
+
+.trajectory-halo {
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+.origin-threat-glow {
+    animation: pulse 1s 5 forwards ease-in-out;
+    pointer-events: none;
+    will-change: fill-opacity, stroke-opacity;
+}
+
+.origin-threat-halo {
+    animation: pulse 1s 5 forwards ease-in-out;
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.logo-img.alert-pulse {
+    animation: alert-glow 1s 5 alternate ease-out;
+}
+
+.pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-sub);
+    animation: simple-pulse 2s infinite;
+    flex-shrink: 0;
+}

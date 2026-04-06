@@ -64,4 +64,22 @@ Transitioned to v0.8.0 (Alpha).
     - Plan: [.milestone/tactical_visual_refinement.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/tactical_visual_refinement.md)
 - **Tactical Audio Engine (v0.9.0 - Implementation)**:
     - Dedicated audio driver for deduplicated missile alerts (1x) and drone loops (2x).
-    - Plan: [.open_work/tactical_audio_engine.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/tactical_audio_engine.md)
+    - Plan: [.open_work/tactical_audio_engine.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/status.md)
+- **Log Export Utility (v0.8.3)**:
+    - Implemented `scripts/export_logs.py` for automated extraction of `event_logs` from MongoDB to CSV.
+    - Flattens nested `city_list` and serializes `timeline` JSON for high-fidelity data analysis.
+- **Frontend Modularization (FE-MODULAR-S1 - Complete)**:
+    - Decomposed monolithic `App.jsx` (954 -> 115 lines) and `App.css` (1061 -> 520 lines) into modular architecture.
+    - Plan: [.milestone/frontend_modularization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/frontend_modularization.md)
+- **Sync and Merge Hardening (SYNC-HARDEN-S1 - Phase A)**:
+    - Resolving the "Refresh Gap" by unifying Late-Joiner Sync with the live merger.
+    - Implementing Cluster-Aware Timeouts to synchronize expiration for unified groups.
+    - Plan: [.open_work/sync_merge_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/sync_merge_hardening.md)
+    - `context/TacticalContext.jsx`: Global state provider with WebSocket lifecycle, audio engine, all actions/derived state.
+    - `utils/constants.js`: Centralized env detection, WS URLs, geodata derivations, color tokens, Leaflet icon fix.
+    - `components/Map/MapViewer.jsx`: Isolated Leaflet container with base layer and coordinate sync.
+    - `components/Map/ThreatOverlay.jsx`: Per-event rendering of clusters, trajectories, origin highlights, TrackingDrone.
+    - `components/Sidebar/Sidebar.jsx`: Modular drawer with Live/History/Sandbox panels and mobile drag behavior.
+    - `styles/layout.css`: Structural layout rules (grid, flex, mobile breakpoints).
+    - `styles/animations.css`: All @keyframes and animation-applying utility classes.
+    - Plan: [.open_work/frontend_modularization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/frontend_modularization.md)

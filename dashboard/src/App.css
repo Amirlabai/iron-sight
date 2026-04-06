@@ -1,43 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=JetBrains+Mono:wght@400&display=swap');
-
-/* 
-   --- IRON SIGHT TACTICAL DESIGN SYSTEM ---
-   Principles:
-   1. High Contrast: Use dark backgrounds with vibrant tactical overlays.
-   2. Status-Driven: Red for Live/Threat, Blue for Sandbox/Archive.
-   3. Glassmorphism: Use blur and transparency for premium depth.
-   4. Motion: 5s disciplined animations to minimize GPU overhead.
+/* --- IRON SIGHT: Component Styles (FE-MODULAR-S1) ---
+   Layout foundation -> styles/layout.css
+   Animation engine  -> styles/animations.css
+   This file: component-specific visual styles only.
 */
-
-:root {
-    --bg-primary: #0a0a0c;
-    --bg-secondary: rgba(20, 20, 22, 0.85);
-    /* Glassmorphism base */
-    --tactical-red: #ff4d4d;
-    --tactical-blue: #4d94ff;
-    --highlight-red: #ff0000;
-    --highlight-blue: #0066ff;
-    --accent: var(--tactical-red);
-    --text-main: #e0e0e0;
-    --text-sub: #888;
-    --border: rgba(255, 255, 255, 0.08);
-    --success: #3ef0a2;
-    --archive: var(--tactical-blue);
-    --sidebar-width: 400px;
-}
-
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: 'Outfit', sans-serif;
-}
-
-body {
-    background: var(--bg-primary);
-    color: var(--text-main);
-    overflow: hidden;
-}
 
 /* --- Splash Screen --- */
 .splash-screen {
@@ -83,7 +48,6 @@ body {
     width: 100px;
     height: 100px;
     object-fit: contain;
-    /* Static glow alternative */
     box-shadow: 0 0 30px rgba(255, 77, 77, 0.2);
     border-radius: 50%;
 }
@@ -93,23 +57,6 @@ body {
     height: 38px;
     object-fit: contain;
     transition: all 0.3s ease;
-}
-
-.logo-img.alert-pulse {
-    /* Throttled to 5 cycles (~10s) to save GPU */
-    animation: alert-glow 1s 5 alternate ease-out;
-}
-
-@keyframes alert-glow {
-    from {
-        transform: scale(1);
-        opacity: 0.8;
-    }
-
-    to {
-        transform: scale(1.1);
-        opacity: 1;
-    }
 }
 
 .boot-sequence {
@@ -155,59 +102,7 @@ body {
     opacity: 0.5;
 }
 
-@keyframes sweep {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* --- Dashboard UI --- */
-.dashboard-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    width: 100vw;
-}
-
-.premium-header {
-    height: 80px;
-    background: rgba(10, 10, 12, 0.8);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 40px;
-    border-bottom: 1px solid var(--border);
-    backdrop-filter: blur(20px);
-    z-index: 1000;
-}
-
-.logo-section {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.logo-section h1 {
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: 2px;
-}
-
-.logo-section h1 span {
-    font-weight: 300;
-    color: var(--text-sub);
-}
-
-.status-section {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
+/* --- Header Controls --- */
 .icon-btn {
     background: none;
     border: none;
@@ -263,32 +158,12 @@ body {
     opacity: 0.5;
 }
 
-.pulse-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--text-sub);
-    animation: simple-pulse 2s infinite;
-    flex-shrink: 0;
+.status-pill.sandbox {
+    background: rgba(77, 148, 255, 0.1);
+    color: var(--tactical-blue);
+    border: 1px solid rgba(77, 148, 255, 0.2);
+    box-shadow: 0 0 15px rgba(77, 148, 255, 0.1);
 }
-
-@keyframes simple-pulse {
-    0% {
-        transform: scale(1);
-        opacity: 1;
-    }
-
-    50% {
-        transform: scale(1.5);
-        opacity: 0.5;
-    }
-
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
-
 
 .return-live-btn {
     display: flex;
@@ -312,29 +187,7 @@ body {
     box-shadow: 0 0 25px rgba(255, 77, 77, 0.5);
 }
 
-.main-content {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-}
-
-.map-wrapper {
-    flex: 1;
-    position: relative;
-    background: var(--bg-primary);
-}
-
-.map-overlay-info {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    z-index: 1000;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
+/* --- Map Overlays --- */
 .archive-watermark,
 .sandbox-watermark {
     padding: 8px 15px;
@@ -344,13 +197,6 @@ body {
     font-size: 11px;
     letter-spacing: 1px;
     backdrop-filter: blur(5px);
-}
-
-.status-pill.sandbox {
-    background: rgba(77, 148, 255, 0.1);
-    color: var(--tactical-blue);
-    border: 1px solid rgba(77, 148, 255, 0.2);
-    box-shadow: 0 0 15px rgba(77, 148, 255, 0.1);
 }
 
 .archive-watermark {
@@ -364,151 +210,6 @@ body {
     background: rgba(10, 30, 60, 0.6);
 }
 
-.leaflet-container {
-    height: 100% !important;
-    width: 100% !important;
-    background: var(--bg-primary) !important;
-}
-
-.sidebar {
-    width: var(--sidebar-width);
-    background: var(--bg-secondary);
-    border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    backdrop-filter: blur(15px);
-}
-
-.sidebar-tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    border-bottom: 1px solid var(--border);
-}
-
-.tab-btn {
-    padding: 20px;
-    background: none;
-    border: none;
-    color: var(--text-sub);
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    letter-spacing: 2px;
-    font-size: 13px;
-    transition: all 0.3s;
-}
-
-.tab-btn.active {
-    color: var(--accent);
-    background: rgba(255, 77, 77, 0.05);
-    /* Fallback for transparency */
-    box-shadow: inset 0 -2px 0 var(--accent);
-}
-
-.tab-btn:hover:not(.active) {
-    color: white;
-    background: rgba(255, 255, 255, 0.02);
-}
-
-.tab-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 25px;
-}
-
-/* --- Tactical Items --- */
-.history-item {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 15px;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-bottom: 15px;
-}
-
-.history-item:hover {
-    border-color: rgba(77, 148, 255, 0.4);
-    transform: translateX(5px);
-    background: rgba(255, 255, 255, 0.05);
-}
-
-.history-item.selected {
-    border-color: var(--archive);
-    background: rgba(77, 148, 255, 0.08);
-    box-shadow: 0 0 20px rgba(77, 148, 255, 0.1);
-}
-
-.alert-item {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    padding: 18px;
-    background: rgba(255, 255, 255, 0.02);
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    margin-bottom: 12px;
-}
-
-.alert-marker {
-    width: 4px;
-    height: 35px;
-    background: var(--accent);
-    border-radius: 2px;
-    box-shadow: 0 0 10px var(--accent);
-}
-
-/* --- Tactical UI Elements --- */
-.stats-card {
-    padding: 25px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--border);
-    margin-bottom: 25px;
-}
-
-.stats-card.sandbox {
-    border-color: rgba(77, 148, 255, 0.2);
-    background: rgba(77, 148, 255, 0.03);
-}
-
-.card-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 20px;
-    color: var(--text-sub);
-}
-
-.card-header h2 {
-    font-size: 14px;
-    letter-spacing: 2px;
-    font-weight: 700;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-}
-
-.stat-item .label {
-    font-size: 11px;
-    color: var(--text-sub);
-    letter-spacing: 1px;
-    margin-bottom: 5px;
-    display: block;
-}
-
-.stat-item .value {
-    font-size: 28px;
-    font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
-}
-
 .israel-border-static {
     pointer-events: none;
     stroke-opacity: 0.8;
@@ -517,10 +218,9 @@ body {
 .standby-border {
     pointer-events: none;
     stroke-dasharray: 4, 4;
-    /* Tactical dashed look for standby */
 }
 
-/* Custom Tactical Marker */
+/* --- Tactical Markers --- */
 .custom-origin-marker {
     background: none !important;
     border: none !important;
@@ -568,111 +268,131 @@ body {
     border-radius: 50%;
 }
 
-.origin-threat-glow {
-    /* Throttled to 5 seconds to minimize GPU overhead and map clutter */
-    animation: pulse 1s 5 forwards ease-in-out;
-    pointer-events: none;
-    will-change: fill-opacity, stroke-opacity;
+/* --- Sidebar Tabs --- */
+.tab-btn {
+    padding: 20px;
+    background: none;
+    border: none;
+    color: var(--text-sub);
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    letter-spacing: 2px;
+    font-size: 13px;
+    transition: all 0.3s;
 }
 
-.origin-threat-halo {
-    animation: pulse 1s 5 forwards ease-in-out;
-    opacity: 0.3;
-    pointer-events: none;
+.tab-btn.active {
+    color: var(--accent);
+    background: rgba(255, 77, 77, 0.05);
+    box-shadow: inset 0 -2px 0 var(--accent);
 }
 
-/* Mobile Adaptability */
-@media (max-width: 1024px) {
-    .sidebar {
-        width: 100%;
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        z-index: 2000;
-        border-left: none;
-        border-top: 1px solid var(--border);
-        overflow: hidden;
-        background: var(--bg-secondary);
-        backdrop-filter: blur(20px);
-    }
-
-    .premium-header h1 {
-        font-size: 10px;
-        letter-spacing: 1px;
-    }
-
-    .premium-header {
-        height: 60px;
-        padding: 0 15px;
-    }
-
-    .status-pill {
-        padding: 6px 6px;
-        font-size: 4px;
-        gap: 4px;
-    }
-
-    .sidebar-tabs {
-        /* Keep original 2-column grid from base styles */
-        display: flex;
-        flex-direction: row;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .tab-btn {
-        /* Keep original sizing */
-        padding: 12px;
-        font-size: 10px;
-    }
-
-    /* Transition managed by Framer Motion */
+.tab-btn:hover:not(.active) {
+    color: white;
+    background: rgba(255, 255, 255, 0.02);
 }
 
-@keyframes pulse {
-    0% {
-        fill-opacity: 0.1;
-        stroke-opacity: 0.2;
-    }
-
-    50% {
-        fill-opacity: 0.3;
-        stroke-opacity: 0.6;
-    }
-
-    100% {
-        fill-opacity: 0;
-        stroke-opacity: 0.1;
-    }
-
-    /* Terminate fill visibility */
+/* --- Live Panel --- */
+.stats-card {
+    padding: 25px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    margin-bottom: 25px;
 }
 
-.pulse-animation {
-    /* Disciplined Pulse: 5s duration followed by fill termination */
-    animation: pulse 1s 5 forwards ease-in-out;
+.stats-card.sandbox {
+    border-color: rgba(77, 148, 255, 0.2);
+    background: rgba(77, 148, 255, 0.03);
 }
 
-.trajectory-line {
-    stroke-dasharray: 8;
-    /* Halt animation after 5s to save GPU and maps clutter */
-    animation: dash 2.5s 2 forwards linear;
-    will-change: stroke-dashoffset;
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    color: var(--text-sub);
 }
 
-.trajectory-halo {
-    opacity: 0.2;
-    pointer-events: none;
+.card-header h2 {
+    font-size: 14px;
+    letter-spacing: 2px;
+    font-weight: 700;
 }
 
-@keyframes dash {
-    from {
-        stroke-dashoffset: 64;
-    }
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
 
-    to {
-        stroke-dashoffset: 0;
-    }
+.stat-item .label {
+    font-size: 11px;
+    color: var(--text-sub);
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.stat-item .value {
+    font-size: 28px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* --- Alert / History Items --- */
+.alert-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 18px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    margin-bottom: 12px;
+}
+
+.alert-marker {
+    width: 4px;
+    height: 35px;
+    background: var(--accent);
+    border-radius: 2px;
+    box-shadow: 0 0 10px var(--accent);
+}
+
+.alert-item.sandbox {
+    border-color: rgba(77, 148, 255, 0.3);
+}
+
+.alert-marker.sandbox {
+    background: var(--archive);
+    box-shadow: 0 0 10px var(--archive);
+}
+
+.history-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 15px;
+}
+
+.history-item:hover {
+    border-color: rgba(77, 148, 255, 0.4);
+    transform: translateX(5px);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.history-item.selected {
+    border-color: var(--archive);
+    background: rgba(77, 148, 255, 0.08);
+    box-shadow: 0 0 20px rgba(77, 148, 255, 0.1);
 }
 
 /* --- Sandbox Components --- */
@@ -720,16 +440,7 @@ body {
     cursor: wait;
 }
 
-.alert-item.sandbox {
-    border-color: rgba(77, 148, 255, 0.3);
-}
-
-.alert-marker.sandbox {
-    background: var(--archive);
-    box-shadow: 0 0 10px var(--archive);
-}
-
-/* --- Sandbox Regional Picker --- */
+/* --- Regional Picker --- */
 .regional-picker {
     display: flex;
     flex-direction: column;
@@ -888,7 +599,7 @@ body {
     box-shadow: 0 0 10px rgba(77, 148, 255, 0.2);
 }
 
-/* Custom Threat Markers container */
+/* --- Tactical Visual Markers --- */
 .tactical-visual-marker,
 .drone-tracker-marker {
     background: transparent;
@@ -901,7 +612,7 @@ body {
     height: 100%;
 }
 
-/* Terrorist Convergence Marker (Ripples closing in) */
+/* Terrorist Convergence Marker */
 .visual-wrapper.converge::before,
 .visual-wrapper.converge::after {
     content: '';
@@ -919,26 +630,7 @@ body {
     animation-delay: 0.75s;
 }
 
-@keyframes marker-converge {
-    0% {
-        width: 60px;
-        height: 60px;
-        opacity: 0;
-    }
-
-    20% {
-        opacity: 0.8;
-    }
-
-    100% {
-        width: 0px;
-        height: 0px;
-        opacity: 1;
-        border-width: 6px;
-    }
-}
-
-/* Earthquake Seismic Pulse (Slow outward rings) */
+/* Earthquake Seismic Pulse */
 .visual-wrapper.static::before {
     content: '';
     position: absolute;
@@ -963,23 +655,7 @@ body {
     animation: seismic-pulse 3s infinite ease-out;
 }
 
-@keyframes seismic-pulse {
-    0% {
-        width: 6px;
-        height: 6px;
-        opacity: 1;
-        border-width: 4px;
-    }
-
-    100% {
-        width: 80px;
-        height: 80px;
-        opacity: 0;
-        border-width: 1px;
-    }
-}
-
-/* Drone Sweep (Stable circular path with conical orbit) */
+/* Drone Sweep */
 .visual-wrapper.circular_sweep {
     border-radius: 50%;
     animation: spin 3s linear infinite;
@@ -988,7 +664,6 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    /* The tail follows the perimeter counter-clockwise from the top head */
     background: conic-gradient(from 180deg, transparent 0%, var(--threat-color) 45%, transparent 50%);
     -webkit-mask: radial-gradient(transparent 65%, black 70%);
     mask: radial-gradient(transparent 65%, black 70%);
@@ -996,7 +671,6 @@ body {
 }
 
 .visual-wrapper.circular_sweep::before {
-    /* Drone Triangle (Pointing Forward/Right) perfectly at 12 oclock */
     content: '';
     position: absolute;
     top: -4px;
@@ -1012,12 +686,6 @@ body {
     filter: drop-shadow(0 0 8px var(--threat-color));
 }
 
-@keyframes spin {
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
 /* --- Tracking Drone Premium Visuals --- */
 .drone-container {
     position: relative;
@@ -1030,12 +698,10 @@ body {
 .drone-body-premium {
     position: absolute;
     right: 5px;
-    /* Near the leading edge of the container */
     width: 20px;
     height: 12px;
     background: var(--threat-color);
     clip-path: polygon(0 0, 100% 50%, 0 100%);
-    /* Tactical Triangle Wedge */
     box-shadow: 0 0 15px var(--threat-color);
     z-index: 2;
 }
@@ -1049,7 +715,6 @@ body {
 .drone-tail {
     position: absolute;
     right: 22px;
-    /* Attached behind the body */
     top: 50%;
     transform: translateY(-50%);
     width: 35px;

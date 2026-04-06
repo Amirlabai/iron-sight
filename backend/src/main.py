@@ -14,7 +14,7 @@ from src.api.ws_manager import WebSocketManager
 from src.utils.cluster_utils import build_merged_payloads
 
 # Global Logging Setup
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s')
 logger = logging.getLogger("IronSightTerminal")
 
 # Load Version Info
@@ -27,7 +27,7 @@ except Exception as e:
     logger.warning(f"VERSION_INIT_FAILURE: {e}")
 
 # Inactivity timeout: events expire after this many seconds of NO updates
-INACTIVITY_TIMEOUT = 600  # 5 minutes of silence
+INACTIVITY_TIMEOUT = 1200  # 20 minutes of silence
 
 async def main():
     logger.info(f"IRON SIGHT TACTICAL OPERATING SYSTEM (v{VERSION}) - INITIALIZING")
