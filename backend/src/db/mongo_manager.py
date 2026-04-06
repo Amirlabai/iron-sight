@@ -117,5 +117,27 @@ class MongoManager:
                 item.pop("_id", None)
             return history
         except Exception as e:
-            logger.error(f"DB_FETCH_FAILURE: {e}")
+            logger.error(f"DB_FETCH_FAILURE for {alert_type}: {e}")
+            return []
+
+    async def get_consolidated_history(self, limit=50):
+        """Retrieve archive across all tactical categories, unified and sorted."""
+        import asyncio
+        try:
+            # Parallel fetch from all collections
+            tasks = [self.get_history(alert_type, limit=limit) for alert_type in self.collections]
+            results = await asyncio.gather(*tasks)
+            
+            # Combine all results
+            unified = []
+            for res in results:
+                unified.extend(res)
+            
+            # Sort by ID descending (Pikud HaOref IDs are chronological strings)
+            # Ensure consistent sorting across all categories
+            unified.sort(key=lambda x: str(x.get("id", "")), reverse=True)
+            
+            return unified[:limit]
+        except Exception as e:
+            logger.error(f"DB_CONSOLIDATED_FETCH_FAILURE: {e}")
             return []

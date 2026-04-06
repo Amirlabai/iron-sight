@@ -47,7 +47,7 @@ async def main():
     # Structure: { alert_id: { "data": <analysis_payload>, "last_update_time": <float>, "end_time": <float|None>, "category": <str> } }
     active_events = {}
 
-    async with aiohttp.ClientSession(headers={'User-Agent': 'IronSight/0.8.0'}) as session:
+    async with aiohttp.ClientSession(headers={'User-Agent': 'IronSight/0.0.0'}) as session:
         while True:
             try:
                 now = time.time()
@@ -69,7 +69,7 @@ async def main():
                             try:
                                 await db.save_alert(ev["category"], ev["data"])
                                 logger.info(f"EVENT_PERSISTED: {eid} ({ev['category']}) - {len(ev['data'].get('all_cities', []))} cities saved to MongoDB.")
-                                history = await db.get_history(ev["category"], limit=50)
+                                history = await db.get_consolidated_history(limit=50)
                                 await ws.broadcast({"type": "history_sync", "data": history})
                             except Exception as db_err:
                                 logger.error(f"EVENT_PERSIST_FAILURE: {eid} - {db_err}")

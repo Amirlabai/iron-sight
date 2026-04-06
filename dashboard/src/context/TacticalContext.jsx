@@ -74,6 +74,7 @@ export function TacticalProvider({ children }) {
   const [sandboxInput, setSandboxInput] = useState('');
   const [tacticalHealth, setTacticalHealth] = useState({ status: 'OPERATIONAL', source: 'SYNCING...' });
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState('all');
 
   useAudioEngine(liveEvents, isMuted);
   const ws = useRef(null);
@@ -134,6 +135,27 @@ export function TacticalProvider({ children }) {
       clearTimeout(missionTimer);
     };
   }, [connect, isReady]);
+
+  const fetchHistory = useCallback(async (category = 'all') => {
+    try {
+      const url = category === 'all' 
+        ? `${TACTICAL_API_URL}/api/history` 
+        : `${TACTICAL_API_URL}/api/history?category=${category}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data);
+      }
+    } catch (err) {
+      if (!IS_PROD) console.error("HISTORY_FETCH_FAILED", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isReady && historyFilter) {
+      fetchHistory(historyFilter);
+    }
+  }, [historyFilter, isReady, fetchHistory]);
 
   const selectArchive = (event) => {
     setArchiveEvent(event);
@@ -239,11 +261,11 @@ export function TacticalProvider({ children }) {
     liveEvents, history, viewMode, archiveEvent, mapConfig,
     isConnected, activeTab, isReady, isMuted, loadingProgress,
     sandboxEvent, isAnalyzing, regionalData, expandedRegions,
-    citySearch, sandboxInput, tacticalHealth, isSidebarExpanded,
+    citySearch, sandboxInput, tacticalHealth, isSidebarExpanded, historyFilter,
     setViewMode, setActiveTab, setIsMuted, setSandboxEvent,
     setSandboxInput, setCitySearch, setIsSidebarExpanded, setExpandedRegions,
-    selectArchive, toggleCity, toggleRegion, toggleExpand,
-    returnToLive, runSandboxAnalysis, handleTabChange,
+    setHistoryFilter, selectArchive, toggleCity, toggleRegion, toggleExpand,
+    returnToLive, runSandboxAnalysis, handleTabChange, fetchHistory,
     renderableEvents, hasSimulation, totalClusters, totalTargets,
     tacticalColor, highlightColor,
   };

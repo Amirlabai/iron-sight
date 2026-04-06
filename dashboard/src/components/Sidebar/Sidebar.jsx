@@ -2,7 +2,8 @@ import React from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
   Activity, ShieldAlert, Navigation2, RotateCcw, History,
-  Clock, Shield, ChevronDown, ChevronRight, Terminal
+  Clock, Shield, ChevronDown, ChevronRight, Terminal,
+  Rocket, Plane, Zap, Wind, Users, Waves
 } from 'lucide-react';
 import { useTactical } from '../../context/TacticalContext';
 
@@ -15,8 +16,11 @@ export default function Sidebar() {
     expandedRegions, isAnalyzing, isSidebarExpanded,
     setIsSidebarExpanded, toggleCity, toggleRegion,
     toggleExpand, runSandboxAnalysis,
-    totalClusters, totalTargets, setExpandedRegions
+    totalClusters, totalTargets, setExpandedRegions,
+    historyFilter, setHistoryFilter, fetchHistory
   } = useTactical();
+  
+  const [expandedId, setExpandedId] = React.useState(null);
 
   const dragControls = useDragControls();
 
@@ -97,25 +101,104 @@ export default function Sidebar() {
             </motion.div>
           ) : activeTab === 'archive' ? (
             <motion.div key="history-tab" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="archive-panel">
+              <div className="history-filters">
+                {[
+                  { id: 'all', label: 'ALL', Icon: History },
+                  { id: 'missiles', label: 'MISSILES', Icon: Rocket },
+                  { id: 'hostileAircraftIntrusion', label: 'DRONES', Icon: Plane },
+                  { id: 'terroristInfiltration', label: 'INFILTRATION', Icon: Users },
+                  { id: 'earthQuake', label: 'QUAKE', Icon: Waves },
+                ].map(({ id, label, Icon }) => (
+                  <button 
+                    key={id} 
+                    className={`filter-tab ${historyFilter === id ? 'active' : ''}`}
+                    onClick={() => setHistoryFilter(id)}
+                  >
+                    <Icon size={14} />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+
               {history.length === 0 ? (
                 <div className="empty-state"><Clock size={48} color="#333" /><p>NO HISTORY RECORDED</p></div>
               ) : (
                 <div className="history-list">
-                  {history.map((event, i) => (
-                    <div key={i} className={`history-item ${archiveEvent?.id === event.id && viewMode === 'archive' ? 'selected' : ''}`} onClick={() => selectArchive(event)}>
-                      <div className="history-meta">
-                        <span className="time">{event.time}</span>
-                        <span className="date">{event.date}</span>
-                      </div>
-                      <div className="history-title text-red-500 font-bold">{event.title || 'Unknown Salvo'}</div>
-                      <div className="history-preview mb-2">{event.clusters?.[0]?.cities?.slice(0, 3).map(c => c.name).join(', ') || 'Processing targets...'}...</div>
-                      {archiveEvent?.id === event.id && viewMode === 'archive' && (
-                        <div className="text-[10px] text-secondary-500 font-mono italic opacity-50 border-t border-red-500/20 pt-2">
-                          MISSION_ID: {archiveEvent.id}
+                  {history.map((event, i) => {
+                    const isExpanded = expandedId === event.id;
+                    const catIcon = {
+                      'missiles': <Rocket size={16} />,
+                      'hostileAircraftIntrusion': <Plane size={16} />,
+                      'terroristInfiltration': <Users size={16} />,
+                      'earthQuake': <Waves size={16} />
+                    }[event.category] || <ShieldAlert size={16} />;
+                    
+                    const groupCitiesByArea = (cities) => {
+                      if (!cities || !regionalData) return {};
+                      const groups = {};
+                      cities.forEach(c => {
+                        let foundArea = "Other";
+                        for (const [area, areaCities] of Object.entries(regionalData)) {
+                          if (areaCities[c.name]) { foundArea = area; break; }
+                        }
+                        if (!groups[foundArea]) groups[foundArea] = [];
+                        groups[foundArea].push(c.name);
+                      });
+                      return groups;
+                    };
+
+                    const grouped = groupCitiesByArea(event.all_cities);
+
+                    return (
+                      <motion.div 
+                        key={event.id || i} 
+                        className={`history-card ${archiveEvent?.id === event.id && viewMode === 'archive' ? 'selected' : ''} ${isExpanded ? 'active' : ''}`} 
+                        onClick={() => {
+                          selectArchive(event);
+                          setExpandedId(isExpanded ? null : event.id);
+                        }}
+                        layout
+                      >
+                        <div className="card-main">
+                          <div className="history-marker" style={{ background: event.visual_config?.color || 'var(--accent)' }}></div>
+                          <div className="card-content">
+                            <div className="history-meta">
+                              <span className="time">{event.time}</span>
+                              <span className="category-tag">{catIcon} {event.category?.toUpperCase()}</span>
+                            </div>
+                            <div className="history-title">{event.title || 'Unknown Salvo'}</div>
+                          </div>
+                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                         </div>
-                      )}
-                    </div>
-                  ))}
+
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div 
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="card-details"
+                            >
+                              <div className="regional-breakdown">
+                                {Object.entries(grouped).map(([area, cities]) => (
+                                  <div key={area} className="area-group">
+                                    <div className="area-header">
+                                      <span>{area}</span>
+                                      <span className="count-mini">{cities.length}</span>
+                                    </div>
+                                    <div className="area-cities-mini">
+                                      {cities.map(c => <span key={c} className="city-pill-mini">{c}</span>)}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mission-id">MISSION_ID: {event.id}</div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </motion.div>

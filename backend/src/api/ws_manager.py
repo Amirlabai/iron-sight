@@ -54,7 +54,7 @@ class WebSocketManager:
         
         # Initial sync: send history + merged active_events snapshot
         try:
-            history = await self.db.get_history(limit=50)
+            history = await self.db.get_consolidated_history(limit=50)
             await ws.send_str(json.dumps({"type": "history_sync", "data": history, "version": self.version}))
             
             # Late-Joiner Sync: run the SAME merge pipeline as the live broadcast
@@ -77,8 +77,12 @@ class WebSocketManager:
         return ws
 
     async def history_handler(self, request):
-        type_req = request.query.get("type", "missiles")
-        history = await self.db.get_history(alert_type=type_req, limit=50)
+        # Support both 'category' (new protocol) and 'type' (legacy)
+        category = request.query.get("category") or request.query.get("type")
+        if category:
+            history = await self.db.get_history(alert_type=category, limit=50)
+        else:
+            history = await self.db.get_consolidated_history(limit=50)
         return web.json_response(history)
 
     async def cities_handler(self, request):

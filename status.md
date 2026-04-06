@@ -58,8 +58,10 @@
 - [x] **MISSION**: Tactical Audio Engine (v0.9.0) - [.milestone/tactical_audio_engine.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/tactical_audio_engine.md)
 - [x] **MISSION**: Automated Log Export to CSV - [scripts/export_logs.py](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/scripts/export_logs.py)
 - [x] **MISSION**: Frontend Modularization (Alpha) - [.milestone/frontend_modularization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/frontend_modularization.md)
-- [ ] **MISSION**: Sync and Merge Hardening (Alpha) - [.open_work/sync_merge_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/sync_merge_hardening.md)
-- [x] **MISSION**: Backend Vectorization (Numpy/SciPy Optimization) - [.milestone/backend_vectorization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/backend_vectorization.md)
+- [x] **MISSION**: Sync and Merge Hardening (Alpha) - [.milestone/sync_merge_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/sync_merge_hardening.md)
+- [x] **MISSION**: Backend Vectorization (Numpy/SciPy Optimization) - [.milestone/backend_vectorization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/backend_vectorization.md)
+- [x] **MISSION**: Advanced History: Backend Aggregation (HISTORY-ADV-BACKEND) - [.milestone/advanced_history_backend.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/advanced_history_backend.md)
+- [x] **MISSION**: Advanced History: Frontend Visualization (HISTORY-ADV-FRONTEND) - [.milestone/advanced_history_frontend.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/advanced_history_frontend.md)
 
 ---
 **Mission Status**: **HARDENED** | CONSOLE ANONYMIZED

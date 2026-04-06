@@ -28,4 +28,20 @@ Resolve the "Refresh Gap" by unifying the Late-Joiner Sync logic with the live m
 
 ### Manual Verification
 - Visual check: Confirm the "MERGE_DETECTED" logs trigger on initial connection if active events exist.
-- Inspect the `last_update_time` via the terminal dashboard (if active) to confirm synchronized expiration timers.
+---
+
+## Implementation Record
+
+Completed: 2026-04-06
+
+### Changes Deployed
+
+| File | Change |
+|---|---|
+| `ws_manager.py` | Integrated `build_merged_payloads` for Late-Joiner sync parity. |
+| `main.py` | Implemented `CLUSTER_TIMEOUT_SYNC` for unified event expiration. |
+| `cluster_utils.py` | Exposed `get_cluster_groups` helper for timeout synchronization. |
+
+### Summary
+
+Successfully resolved the "Refresh Gap" by unifying the WebSocket initial sync logic with the live merging pipeline. The introduction of Cluster-Aware Timeouts ensures that all members of a merged tactical group expire simultaneously, preventing visual fragmentation during sparse rolling updates.

@@ -71,15 +71,24 @@ Transitioned to v0.8.0 (Alpha).
 - **Frontend Modularization (FE-MODULAR-S1 - Complete)**:
     - Decomposed monolithic `App.jsx` (954 -> 115 lines) and `App.css` (1061 -> 520 lines) into modular architecture.
     - Plan: [.milestone/frontend_modularization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/frontend_modularization.md)
-- **Sync and Merge Hardening (SYNC-HARDEN-S1 - Phase A)**:
-    - Resolving the "Refresh Gap" by unifying Late-Joiner Sync with the live merger.
-    - Implementing Cluster-Aware Timeouts to synchronize expiration for unified groups.
-    - Plan: [.open_work/sync_merge_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/sync_merge_hardening.md)
-- **Backend Vectorization Completion (NUMPY-HPOWER-S2 - Implementation)**:
-    - Fully vectorizing clustering via `scipy.sparse.csgraph.connected_components`.
-    - Implementing integer-based bitmasking for O(1) subset detection.
-    - Eliminating remaining Python loops in `engine.py` and `cluster_utils.py`.
-    - Plan: [.open_work/backend_vectorization_completion.md](file:///c:/Users/amirl/.gemini/antigravity/brain/79a8286c-22a6-44e5-b721-4024971c6106/implementation_plan.md)
+- **Sync and Merge Hardening (Alpha - Milestone)**:
+    - Resolved Refresh Gap via unified Late-Joiner sync.
+    - Implemented Cluster-Aware Timeouts for synchronized expiration.
+    - Plan: [.milestone/sync_merge_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/sync_merge_hardening.md)
+- **Backend Vectorization (NUMPY-HPOWER-S1 - Complete)**:
+    - Vectorized $O(N^2)$ loops in `cluster_utils.py` and `engine.py` using NumPy/SciPy.
+    - Achieved ~12x speedup for massive thread salvos.
+    - Plan: [.milestone/backend_vectorization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/backend_vectorization.md)
+- **Advanced History: Backend Aggregation (HISTORY-ADV-BACKEND - Complete)**:
+    - Unified missiles, drones, infiltrations, and earthquakes into a single consolidated history stream.
+    - Implemented parallel async fetching and interleaved chronological sorting by alert ID.
+    - Enhanced REST API with `?category=` filter support for granular dashboard retrieval.
+    - Plan: [.milestone/advanced_history_backend.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/advanced_history_backend.md)
+- **Advanced History: Frontend Visualization (HISTORY-ADV-FRONTEND - Complete)**:
+    - Integrated real-time category filtering for missiles, drones, infiltrations, and earthquakes.
+    - Implemented expandable `motion.div` cards with regional area grouping via `regionalData`.
+    - Harmonized visual aesthetics with category-specific Lucide icons and Glassmorphic styling.
+    - Plan: [.milestone/advanced_history_frontend.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/advanced_history_frontend.md)
     - `context/TacticalContext.jsx`: Global state provider with WebSocket lifecycle, audio engine, all actions/derived state.
     - `utils/constants.js`: Centralized env detection, WS URLs, geodata derivations, color tokens, Leaflet icon fix.
     - `components/Map/MapViewer.jsx`: Isolated Leaflet container with base layer and coordinate sync.
