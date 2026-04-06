@@ -243,8 +243,11 @@ async def main():
                                     await _broadcast_multi_alert(ws, active_events, engine)
                             
                         await ws.broadcast({
-                            "type": "health_status", "status": "OPERATIONAL" if resp.status == 200 else "DEGRADED",
-                            "timestamp": datetime.now(TIMEZONE).isoformat(), "version": VERSION
+                            "type": "health_status", 
+                            "status": "OPERATIONAL" if resp.status == 200 else "DEGRADED",
+                            "upstream_source": "ISRAEL_RELAY",
+                            "timestamp": datetime.now(TIMEZONE).isoformat(), 
+                            "version": VERSION
                         })
                 except asyncio.TimeoutError:
                     logger.warning("RELAY_TIMEOUT: Upstream relay did not respond within 5s.")

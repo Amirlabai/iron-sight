@@ -87,10 +87,14 @@ Transitioned to Development Alpha.
 - **Advanced History: Frontend Visualization (HISTORY-ADV-FRONTEND)**:
     - Integrated real-time category filtering and regional area grouping in history.
     - Plan: [.milestone/advanced_history_frontend.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/advanced_history_frontend.md)
-- **Tactical History Merging**:
+- [x] **Tactical History Merging**:
     - Unified clustered alerts into single history records to resolve ID-driven fragmentation.
     - Implemented state-independent grouping and consolidated Master Payload persistence.
     - Plan: [.milestone/history_merging.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/history_merging.md)
+- [x] **Tactical Health Stabilization**:
+    - Fixed "undefined" live intercept status by adding `upstream_source` to backend health signals.
+    - Hardened frontend `TacticalContext` with a default 'OPERATIONAL' fallback for status sources.
+
     - `context/TacticalContext.jsx`: Global state provider with WebSocket lifecycle, audio engine.
     - `utils/constants.js`: Centralized env detection, WS URLs, geodata derivations, color tokens, Leaflet icon fix.
     - `components/Map/MapViewer.jsx`: Isolated Leaflet container with base layer and coordinate sync.

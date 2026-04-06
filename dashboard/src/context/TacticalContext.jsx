@@ -113,7 +113,7 @@ export function TacticalProvider({ children }) {
         setLiveEvents([]);
         if (viewMode === 'live') { setMapConfig({ center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM }); }
       } else if (data.type === 'health_status') {
-        setTacticalHealth({ status: data.status, source: data.upstream_source });
+        setTacticalHealth({ status: data.status, source: data.upstream_source || 'OPERATIONAL' });
       }
     };
     ws.current.onclose = () => { setIsConnected(false); setTimeout(connect, 3000); };
