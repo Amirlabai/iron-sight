@@ -186,7 +186,7 @@ def group_events(active_events, threshold_km=15, include_all=False):
     
     return [[event_items[idx]["id"] for idx in comp] for comp in components]
 
-def merge_event_group(group_ids, active_events, engine=None):
+async def merge_event_group(group_ids, active_events, engine=None):
     """
     Consolidates a group of alert IDs into a single master payload.
     Uses the first lexicographical ID as the stable Master ID.
@@ -241,14 +241,33 @@ def merge_event_group(group_ids, active_events, engine=None):
         base_data["center"] = new_cnt
         
         if category == "missiles" and len(sorted_ids) > 1 and engine:
-            org_name, depth = engine.get_origin(merged_all_cities)
+            org_name, depth = await engine.get_origin(merged_all_cities)
             border_entry = engine.get_projected_origin(merged_all_cities, org_name, depth=depth)
             merged_trajectories = [{
                 "origin": org_name,
                 "origin_coords": border_entry,
                 "marker_coords": engine.origins.get(org_name, border_entry),
-                "target_coords": new_cnt
+                "target_coords": new_cnt,
+                "depth": depth
             }]
+            
+            # v0.9.0: ML-Based Pruning
+            # If the ML match is significantly different from the vector-based origin, 
+            # or if the cluster contains cities that are geographically inconsistent, 
+            # the engine's _lookup_historical_match will guide the refinement.
+            if len(merged_all_cities) > 1:
+                ml_origin, ml_depth = engine._lookup_historical_match(merged_all_cities) or (None, None)
+                if ml_origin and ml_origin != org_name:
+                    logger.warning(f"ML_MISMATCH: Vector says {org_name}, ML says {ml_origin}. Prioritizing ML for verified patterns.")
+                    org_name = ml_origin
+                    depth = ml_depth
+                    border_entry = engine.get_projected_origin(merged_all_cities, org_name, depth=depth)
+                    merged_trajectories[0].update({
+                        "origin": org_name,
+                        "origin_coords": border_entry,
+                        "marker_coords": engine.origins.get(org_name, border_entry),
+                        "depth": depth
+                    })
             
     base_data["all_cities"] = merged_all_cities
     base_data["clusters"] = merged_clusters
@@ -260,7 +279,7 @@ def merge_event_group(group_ids, active_events, engine=None):
         
     return base_data
 
-def build_merged_payloads(active_events, engine=None, threshold_km=15):
+async def build_merged_payloads(active_events, engine=None, threshold_km=15):
     """
     Legacy wrapper for websocket broadcast, utilizing refactored grouping logic.
     """
@@ -268,7 +287,7 @@ def build_merged_payloads(active_events, engine=None, threshold_km=15):
     
     merged_payloads = []
     for group_ids in clusters:
-        payload = merge_event_group(group_ids, active_events, engine)
+        payload = await merge_event_group(group_ids, active_events, engine)
         if payload:
             merged_payloads.append(payload)
             

@@ -34,6 +34,8 @@ class WebSocketManager:
         self.add_route("POST", "/api/calibrate", self.calibrate_handler)
         self.add_route("GET", "/api/history", self.history_handler)
         self.add_route("GET", "/api/cities", self.cities_handler)
+        self.add_route("POST", "/api/history/update", self.update_history_handler)
+        self.add_route("POST", "/api/history/split", self.split_history_handler)
 
     def add_route(self, method, path, handler):
         resource = self.app.router.add_resource(path)
@@ -59,7 +61,7 @@ class WebSocketManager:
             
             # Late-Joiner Sync: run the SAME merge pipeline as the live broadcast
             if self.active_events:
-                events_list = build_merged_payloads(self.active_events, self.engine, threshold_km=15)
+                events_list = await build_merged_payloads(self.active_events, self.engine, threshold_km=15)
                 
                 if events_list:
                     logger.info(f"LATE_JOINER_SYNC: Sending {len(events_list)} merged event(s) to new client.")
@@ -93,6 +95,57 @@ class WebSocketManager:
             if MISSION_KEY and request.headers.get("X-Mission-Key") != MISSION_KEY:
                 return web.json_response({"error": "Unauthorized"}, status=401)
             return web.json_response({"status": "SUCCESS"})
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def update_history_handler(self, request):
+        try:
+            if MISSION_KEY and request.headers.get("X-Mission-Key") != MISSION_KEY:
+                return web.json_response({"error": "Unauthorized"}, status=401)
+            
+            data = await request.json()
+            alert_id = data.get("id")
+            alert_type = data.get("category")
+            origin_name = data.get("origin_name")
+            origin_coords = data.get("origin_coords")
+            
+            if not all([alert_id, alert_type, origin_name, origin_coords]):
+                return web.json_response({"error": "Missing required fields"}, status=400)
+            
+            success = await self.db.update_alert_origin(alert_type, alert_id, origin_name, origin_coords)
+            
+            if success:
+                logger.info(f"HISTORY_FIXED: {alert_id} ({alert_type}) updated to {origin_name} by operator.")
+                # Broadcast history refresh
+                history = await self.db.get_consolidated_history(limit=50)
+                await self.broadcast({"type": "history_sync", "data": history})
+                return web.json_response({"status": "SUCCESS"})
+            else:
+                return web.json_response({"error": "Update failed"}, status=500)
+        except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def split_history_handler(self, request):
+        try:
+            if MISSION_KEY and request.headers.get("X-Mission-Key") != MISSION_KEY:
+                return web.json_response({"error": "Unauthorized"}, status=401)
+            
+            data = await request.json()
+            alert_id = data.get("id")
+            alert_type = data.get("category")
+            
+            if not all([alert_id, alert_type]):
+                return web.json_response({"error": "Missing required fields"}, status=400)
+            
+            success = await self.db.split_alert(alert_type, alert_id)
+            if success:
+                logger.info(f"HISTORY_SPLIT: {alert_id} ({alert_type}) removed for re-processing.")
+                # Broadcast history refresh
+                history = await self.db.get_consolidated_history(limit=50)
+                await self.broadcast({"type": "history_sync", "data": history})
+                return web.json_response({"status": "SUCCESS"})
+            else:
+                return web.json_response({"error": "Split failed"}, status=500)
         except Exception as e:
             return web.json_response({"error": str(e)}, status=500)
 

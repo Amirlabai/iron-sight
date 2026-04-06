@@ -36,7 +36,7 @@ async def main():
     # Initialize Core Components
     db = MongoManager()
     dm = LamasDataManager()
-    engine = TrackingEngine(dm)
+    engine = TrackingEngine(dm, db)
     processor = ThreatProcessor(engine)
     ws = WebSocketManager(db, engine, VERSION)
     
@@ -77,7 +77,7 @@ async def main():
                     
                     if all_ended and any_expired:
                         # Generate Unified Master Payload
-                        master_payload = merge_event_group(group_ids, active_events, engine)
+                        master_payload = await merge_event_group(group_ids, active_events, engine)
                         if master_payload and not master_payload.get("is_simulation"):
                             try:
                                 await db.save_alert(master_payload["category"], master_payload)
@@ -262,7 +262,7 @@ async def main():
 
 async def _broadcast_multi_alert(ws, active_events, engine):
     """Push the full active events array to all connected clients."""
-    events_list = build_merged_payloads(active_events, engine, threshold_km=15)
+    events_list = await build_merged_payloads(active_events, engine, threshold_km=15)
     
     await ws.broadcast({
         "type": "multi_alert",

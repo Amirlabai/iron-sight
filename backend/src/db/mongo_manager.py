@@ -27,7 +27,12 @@ class MongoManager:
             return
 
         try:
-            # Use update_one with upsert to avoid duplicates if same ID appears
+            # v0.9.0: Ensure verified flag is preserved if not explicitly overwritten
+            if "verified" not in payload:
+                existing = await collection.find_one({"id": payload["id"]})
+                if existing and existing.get("verified"):
+                    payload["verified"] = True
+
             await collection.update_one(
                 {"id": payload["id"]},
                 {"$set": payload},
@@ -38,6 +43,41 @@ class MongoManager:
             logger.info(f"DB_SYNC_SUCCESS: {alert_type.capitalize()} {payload['id']} committed.{merged_info}")
         except Exception as e:
             logger.error(f"DB_SYNC_FAILURE: {e}")
+
+    async def update_alert_origin(self, alert_type, alert_id, origin_name, origin_coords, verified=True):
+        """Update the origin of an existing alert and mark as verified."""
+        collection = self.collections.get(alert_type)
+        if collection is None: return False
+        
+        try:
+            # Update the main trajectories and origin metadata
+            update_data = {
+                "verified": verified,
+                "trajectories.0.origin": origin_name,
+                "trajectories.0.marker_coords": origin_coords,
+                # Also update clusters if it's a unified one
+                "clusters.0.origin": origin_name
+            }
+            
+            result = await collection.update_one(
+                {"id": alert_id},
+                {"$set": update_data}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"DB_UPDATE_FAILURE: {alert_id} - {e}")
+            return False
+
+    async def split_alert(self, alert_type, alert_id):
+        """EXPERIMENTAL: Remove a merged alert. (Actual splitting logic handled by re-processor)."""
+        collection = self.collections.get(alert_type)
+        if collection is None: return False
+        try:
+            result = await collection.delete_one({"id": alert_id})
+            return result.deleted_count > 0
+        except Exception as e:
+            logger.error(f"DB_DELETE_FAILURE: {alert_id} - {e}")
+            return False
 
     async def log_event(self, event_id, a_type, status, data=None):
         """Non-blocking lifecycle logger. Upserts event documents in event_logs."""
@@ -142,4 +182,20 @@ class MongoManager:
             return unified[:limit]
         except Exception as e:
             logger.error(f"DB_CONSOLIDATED_FETCH_FAILURE: {e}")
+            return []
+
+    async def get_verified_history(self, limit=1000):
+        """Retrieve archive for verified alerts across all categories."""
+        try:
+            import asyncio
+            tasks = [self.db[coll].find({"verified": True}).limit(limit).to_list(length=limit) for coll in [COLLECTION_SALVO, COLLECTION_DRONE]]
+            results = await asyncio.gather(*tasks)
+            unified = []
+            for res in results:
+                for item in res:
+                    item.pop("_id", None)
+                    unified.append(item)
+            return unified
+        except Exception as e:
+            logger.error(f"VERIFIED_FETCH_FAILURE: {e}")
             return []

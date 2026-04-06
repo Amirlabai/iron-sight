@@ -10,8 +10,12 @@ from src.utils.text_utils import standardize_name
 logger = logging.getLogger("IronSightBackend")
 
 class TrackingEngine:
-    def __init__(self, data_manager):
+    def __init__(self, data_manager, db_manager=None):
         self.dm = data_manager
+        self.db = db_manager
+        self.verified_history = []
+        self.last_sync_time = 0
+        
         self.origins = {
             "Gaza": [31.4167, 34.3333],
             "Lebanon": [33.8886, 35.8623],
@@ -186,10 +190,66 @@ class TrackingEngine:
             
             return [{'centroid': np.mean([m['coords'] for m in mem], axis=0).tolist(), 'cities': mem} for mem in groups.values()]
 
-    def get_origin(self, cluster_cities, manual_origin=None):
+    async def _sync_verified_history(self):
+        """Periodically refresh the local cache of verified historical clusters."""
+        if not self.db: return
+        now = time.time()
+        if now - self.last_sync_time < 300: # Sync every 5 minutes
+            return
+        
+        try:
+            self.verified_history = await self.db.get_verified_history(limit=2000)
+            self.last_sync_time = now
+            logger.info(f"TACTICAL_ML_SYNC: {len(self.verified_history)} verified records loaded.")
+        except Exception as e:
+            logger.error(f"ML_SYNC_FAILURE: {e}")
+
+    def _lookup_historical_match(self, cities):
+        """
+        KNN-lite: Matches the current city set against verified historical clusters.
+        1. Exact City Set Hash
+        2. Centroid Proximity (<5km)
+        """
+        if not self.verified_history: return None
+        
+        current_names = {c['name'] for c in cities if c.get('name')}
+        current_centroid = np.mean([c['coords'] for c in cities], axis=0)
+        
+        best_match = None
+        best_score = 0
+        
+        for item in self.verified_history:
+            hist_names = {c['name'] for c in item.get("all_cities", []) if c.get('name')}
+            
+            # Exact Match
+            if current_names == hist_names:
+                return item["trajectories"][0]["origin"], item["trajectories"][0].get("depth", 10.0)
+            
+            # Centroid Proximity
+            hist_centroid = np.array(item.get("center") or [0, 0])
+            dist = np.linalg.norm(current_centroid - hist_centroid) * 111.0 # approx degree to km
+            
+            if dist < 5.0: # Close enough to be the same geographic salvo
+                intersection = current_names.intersection(hist_names)
+                union = current_names.union(hist_names)
+                jaccard = len(intersection) / len(union) if union else 0
+                
+                if jaccard > 0.8: # High similarity
+                    return item["trajectories"][0]["origin"], item["trajectories"][0].get("depth", 10.0)
+        
+        return None
+
+    async def get_origin(self, cluster_cities, manual_origin=None):
         if manual_origin: return manual_origin
         
-        # Vectorized coordinate extraction
+        # 1. Historical Lookup (ML-lite)
+        await self._sync_verified_history()
+        hist_match = self._lookup_historical_match(cluster_cities)
+        if hist_match:
+            logger.info(f"TACTICAL_ML_HIT: Matched historical verified salvo -> {hist_match[0]}")
+            return hist_match
+        
+        # 2. Traditional Vectorial Analysis
         coords = np.array([c['coords'] for c in cluster_cities])
         centroid = np.mean(coords, axis=0).tolist()
         vector = self.calculate_regression_vector(cluster_cities)
