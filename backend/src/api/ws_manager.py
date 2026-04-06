@@ -107,22 +107,54 @@ class WebSocketManager:
             alert_id = data.get("id")
             alert_type = data.get("category")
             origin_name = data.get("origin_name")
-            origin_coords = data.get("origin_coords")
+            marker_coords = data.get("origin_coords") # Usually from UI drag
             
-            if not all([alert_id, alert_type, origin_name, origin_coords]):
+            if not all([alert_id, alert_type, origin_name, marker_coords]):
                 return web.json_response({"error": "Missing required fields"}, status=400)
             
-            success = await self.db.update_alert_origin(alert_type, alert_id, origin_name, origin_coords)
+            # Fetch existing to recalculate
+            existing = await self.db.get_alert(alert_id, alert_type)
+            if not existing:
+                return web.json_response({"error": "Alert not found"}, status=404)
+
+            # 1. Update Title and Origin labels
+            display_origin = "Iran" if origin_name == "North Iran" else origin_name
+            existing["title"] = f"{display_origin} Salvo" if alert_type == "missiles" else existing["title"]
+            existing["verified"] = True
             
-            if success:
-                logger.info(f"HISTORY_FIXED: {alert_id} ({alert_type}) updated to {origin_name} by operator.")
-                # Broadcast history refresh
-                history = await self.db.get_consolidated_history(limit=50)
-                await self.broadcast({"type": "history_sync", "data": history})
-                return web.json_response({"status": "SUCCESS"})
-            else:
-                return web.json_response({"error": "Update failed"}, status=500)
+            # Update Zoom Level (root and trajectory for dual-consumer compatibility)
+            zoom = self.engine.zoom_levels.get(origin_name, self.engine.zoom_levels.get("Iran", 6) if "Iran" in origin_name else 8)
+            existing["zoom_level"] = zoom
+
+            # 2. Update Clusters
+            if existing.get("clusters"):
+                for cluster in existing["clusters"]:
+                    cluster["origin"] = origin_name
+
+            # 3. Recalculate Trajectory Entry Point if Missiles
+            if alert_type == "missiles" and existing.get("trajectories"):
+                traj = existing["trajectories"][0]
+                traj["origin"] = origin_name
+                traj["marker_coords"] = marker_coords
+                traj["zoom"] = zoom # Dashboard history expects this here
+                
+                # RECALCULATE entry point on border
+                depth = self.engine.strategic_depths.get(origin_name, 10.0)
+                border_entry = self.engine.get_projected_origin(existing["all_cities"], origin_name, depth=depth)
+                traj["origin_coords"] = border_entry
+                logger.info(f"HISTORY_RECALC: {alert_id} trajectory recalculated for {origin_name} (Border entry: {border_entry})")
+
+            # 4. Commit FULL synchronized payload
+            await self.db.save_alert(alert_type, existing)
+            
+            logger.info(f"HISTORY_FIXED_FULL: {alert_id} ({alert_type}) synchronized to {origin_name} by operator.")
+            # Broadcast history refresh
+            history = await self.db.get_consolidated_history(limit=50)
+            await self.broadcast({"type": "history_sync", "data": history})
+            return web.json_response({"status": "SUCCESS", "event": existing})
+            
         except Exception as e:
+            logger.error(f"HISTORY_UPDATE_FAILURE: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
 
     async def split_history_handler(self, request):

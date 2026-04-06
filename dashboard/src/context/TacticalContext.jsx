@@ -163,15 +163,15 @@ export function TacticalProvider({ children }) {
   const selectArchive = (event) => {
     setArchiveEvent(event);
     setViewMode('archive');
-    if (event.trajectories?.length > 0) {
-      const mainTraj = event.trajectories[0];
-      const origin_coords = mainTraj.marker_coords || mainTraj.origin_coords;
-      const meta = STRATEGIC_METADATA[mainTraj.origin] || {};
-      setMapConfig({
-        center: [(origin_coords?.[0] + ISRAEL_CENTER[0]) / 2, (origin_coords?.[1] + ISRAEL_CENTER[1]) / 2],
-        zoom: meta.zoom || 8
-      });
-    }
+    
+    // Zoom/Center Synchronization
+    const dbZoom = event.zoom_level || event.trajectories?.[0]?.zoom;
+    const meta = event.trajectories?.[0] ? (STRATEGIC_METADATA[event.trajectories[0].origin] || {}) : {};
+    
+    setMapConfig({
+      center: event.center || ISRAEL_CENTER,
+      zoom: dbZoom || meta.zoom || 8
+    });
   };
 
   const toggleCity = (city) => {

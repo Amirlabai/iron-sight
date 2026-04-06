@@ -162,6 +162,18 @@ class MongoManager:
             logger.error(f"DB_FETCH_FAILURE for {alert_type}: {e}")
             return []
 
+    async def get_alert(self, alert_id, alert_type="missiles"):
+        """Retrieve a single alert from the database by ID."""
+        collection = self.collections.get(alert_type)
+        if collection is None: return None
+        try:
+            doc = await collection.find_one({"id": alert_id})
+            if doc: doc.pop("_id", None)
+            return doc
+        except Exception as e:
+            logger.error(f"DB_FETCH_FAILURE for alert {alert_id}: {e}")
+            return None
+
     async def get_consolidated_history(self, limit=50):
         """Retrieve archive across all tactical categories, unified and sorted."""
         import asyncio

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, useMap } from 'react-leaflet';
 import { Shield, Clock, MapPin, ChevronRight, CheckCircle, SplitSquareVertical, Filter, RefreshCcw } from 'lucide-react';
 import { fetchHistory, updateAlertOrigin, splitAlert, fetchCities } from './api/apiService';
 import { ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_RED, HIGHLIGHT_RED, ORIGINS_DATA, STRATEGIC_METADATA } from './utils/constants';
@@ -84,10 +84,12 @@ function App() {
         originMarker
       );
       if (resp.status === 'SUCCESS') {
-        // Optimistic update
+        const updatedEvent = resp.event;
+        // FULL state sync
         setHistory(prev => prev.map(h => 
-          h.id === selectedEvent.id ? { ...h, verified: true } : h
+          h.id === updatedEvent.id ? updatedEvent : h
         ));
+        setSelectedEvent(updatedEvent);
         
         // Auto-select next unverified if available
         if (hideVerified) {
@@ -218,7 +220,7 @@ function App() {
                 ))}
 
                 {/* Tracking Line */}
-                {originMarker && selectedEvent.center && (
+                {originMarker && selectedEvent?.center && (
                   <Polyline 
                     positions={[originMarker, selectedEvent.center]} 
                     color={HIGHLIGHT_RED} 
@@ -262,7 +264,15 @@ function App() {
               
               <div className="data-group">
                 <label>ORIGIN LABEL</label>
-                <select value={originName} onChange={(e) => setOriginName(e.target.value)}>
+                <select 
+                  value={originName} 
+                  onChange={(e) => {
+                    const newOrigin = e.target.value;
+                    setOriginName(newOrigin);
+                    const defaultCoords = ORIGINS_DATA[newOrigin] || ORIGINS_DATA["Iran"];
+                    setOriginMarker(defaultCoords);
+                  }}
+                >
                   {Object.keys(ORIGINS_DATA).map(o => <option key={o} value={o}>{o}</option>)}
                   <option value="North Iran">North Iran</option>
                   <option value="Iraq">Iraq</option>

@@ -66,6 +66,8 @@
 - [x] **MISSION**: History Fixer Restoration (Highlighting & Mobile Optimization) - [.milestone/history_fixer_restoration.md](file:///c:/Users/amirl/.milestone/history_fixer_restoration.md)
 - [x] **MISSION**: Dashboard Visual & Mobile Hardening (Restoration) - [.milestone/dashboard_restoration.md](file:///c:/Users/amirl/.milestone/dashboard_restoration.md)
 - [x] **MISSION**: History Aircraft Card Crash Fix (Hardening) - [.milestone/history_aircraft_hardening.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
+- [x] **MISSION**: History Tactical Recalculation (Data Integrity) - [.milestone/history_recalculation.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
+- [x] **MISSION**: History Tactical Recalculation (Data Integrity) - [.milestone/history_recalculation.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
 
 
 ---
