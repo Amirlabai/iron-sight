@@ -75,19 +75,24 @@ def recalculate_unified_metadata(cities):
             
     return centroid, hull
 
-def _build_adjacency_components(active_items, threshold_km):
+def _compute_adjacency_matrix(items, threshold_km):
     """
-    Fully vectorized adjacency builder. Returns connected components as lists of indices.
-    Uses Haversine matrix for proximity and binary matrix operations for subset detection.
+    Core vectorized adjacency builder.
+    items: List of dicts, each containing:
+           - "id": unique identifier
+           - "category": threat category
+           - "cities": list of city objects
+           - "center": [lat, lon] or None
+    Returns an NxN boolean adjacency matrix.
     """
-    n = len(active_items)
+    n = len(items)
     if n <= 1:
-        return [[0]] if n == 1 else []
+        return np.eye(n, dtype=bool) if n == 1 else np.empty((0, 0), dtype=bool)
 
     # 1. Pre-calculate indices for subset detection
     all_city_names = set()
-    for item in active_items:
-        for c in item["ev"]["data"].get("all_cities", []):
+    for item in items:
+        for c in item.get("cities", []):
             if c.get('name'): all_city_names.add(c['name'])
     
     city_to_idx = {name: i for i, name in enumerate(sorted(all_city_names))}
@@ -95,8 +100,8 @@ def _build_adjacency_components(active_items, threshold_km):
     
     # 2. Build presence matrix (N x K) and presence counts
     presence = np.zeros((n, num_cities), dtype=bool)
-    for i, item in enumerate(active_items):
-        for c in item["ev"]["data"].get("all_cities", []):
+    for i, item in enumerate(items):
+        for c in item.get("cities", []):
             name = c.get('name')
             if name in city_to_idx:
                 presence[i, city_to_idx[name]] = True
@@ -104,28 +109,30 @@ def _build_adjacency_components(active_items, threshold_km):
     city_counts = presence.sum(axis=1) # (N,)
     
     # 3. Vectorized Proximity (Haversine)
-    centers = np.array([item["ev"]["data"].get("center") or [0.0, 0.0] for item in active_items], dtype=np.float64)
-    has_center = np.array([item["ev"]["data"].get("center") is not None for item in active_items])
+    centers = np.array([item.get("center") or [0.0, 0.0] for item in items], dtype=np.float64)
+    has_center = np.array([item.get("center") is not None for item in items])
     dist_mat = haversine_distance_matrix(centers)
     valid_pair = has_center[:, None] & has_center[None, :]
     proximate = valid_pair & (dist_mat <= threshold_km)
 
-    # 4. Vectorized Subset Check (Linear Algebra: I = M @ M.T)
-    # i is subset of j if (M_i . M_j) == sum(M_i)
-    # Using bitwise_and on boolean arrays for better memory if n is small
-    # For O(N^2) but with boolean acceleration:
+    # 4. Vectorized Subset Check
+    # i is subset of j if (presence[i] & presence[j]).sum() == presence[i].sum()
     intersection = (presence[:, None, :] & presence[None, :, :]).sum(axis=2)
     is_subset = (intersection == city_counts[:, None]) & (city_counts[:, None] > 0)
     is_superset = (intersection == city_counts[None, :]) & (city_counts[None, :] > 0)
     subset_match = is_subset | is_superset
 
     # 5. Combine rules (Category + (Proximity | Subset))
-    categories = np.array([item["ev"].get("category", "") for item in active_items])
+    categories = np.array([item.get("category", "") for item in items])
     cat_match = (categories[:, None] == categories[None, :])
     
-    adj_matrix = cat_match & (proximate | subset_match)
+    return cat_match & (proximate | subset_match)
 
-    # 6. Extract components using scipy.sparse (if available) or BFS
+def _get_connected_components(adj_matrix):
+    """Utility to extract components from an adjacency matrix."""
+    n = adj_matrix.shape[0]
+    if n == 0: return []
+    
     try:
         from scipy.sparse import csr_matrix
         from scipy.sparse.csgraph import connected_components
@@ -154,112 +161,123 @@ def _build_adjacency_components(active_items, threshold_km):
         return components
 
 
-def build_merged_payloads(active_events, engine=None, threshold_km=15):
+def group_events(active_events, threshold_km=15, include_all=False):
     """
-    Implements intelligent payload broadcast parsing.
-    1. Subset Rule: If Event A's cities are a subset of Event B, merge A into B.
-    2. Proximity Rule: If Event A and B share the same category and their centroids are within the tactical threshold, merge them.
-    3. Transitive Rules: If A matches B and B matches C, all three form a single cluster.
-    
-    Returns a unified multi_alert payload list.
+    Groups events into clusters based on proximity and subset rules.
+    If include_all=True, it includes ended events (required for history merging).
+    Returns a list of clusters (each cluster is a list of event IDs).
     """
-    # Filter to active only
-    active_items = []
+    event_items = []
     for eid, ev in active_events.items():
-        if ev.get("end_time") is None:
-            active_items.append({"eid": eid, "ev": ev})
+        if include_all or ev.get("end_time") is None:
+            data = ev.get("data", {})
+            event_items.append({
+                "id": eid,
+                "category": ev.get("category", ""),
+                "cities": data.get("all_cities", []),
+                "center": data.get("center")
+            })
             
-    if not active_items:
+    if not event_items:
         return []
 
-    # Vectorized adjacency + connected components
-    components = _build_adjacency_components(active_items, threshold_km)
-            
-    # Step 3: Merge each component into a single payload
-    merged_payloads = []
-    for component in components:
-        # Use the first item as the lead (arbitrary but consistent)
-        lead_idx = component[0]
-        lead_item = active_items[lead_idx]
-        base_data = dict(lead_item["ev"]["data"])
-        base_data["id"] = lead_item["eid"] # Ensure the broadcast ID is stable
-        category = base_data.get("category")
+    adj_matrix = _compute_adjacency_matrix(event_items, threshold_km)
+    components = _get_connected_components(adj_matrix)
+    
+    return [[event_items[idx]["id"] for idx in comp] for comp in components]
+
+def merge_event_group(group_ids, active_events, engine=None):
+    """
+    Consolidates a group of alert IDs into a single master payload.
+    Uses the first lexicographical ID as the stable Master ID.
+    """
+    if not group_ids:
+        return None
         
-        merged_all_cities = list(base_data.get("all_cities", []))
-        merged_clusters = list(base_data.get("clusters", []))
-        merged_trajectories = list(base_data.get("trajectories", []))
-        merged_origins = list(base_data.get("highlight_origins", []))
+    # Sort IDs for stability
+    sorted_ids = sorted(group_ids)
+    master_id = sorted_ids[0]
+    
+    lead_item = active_events[master_id]
+    base_data = dict(lead_item["ev"]["data"] if "ev" in lead_item else lead_item["data"])
+    base_data["id"] = master_id
+    base_data["merged_ids"] = sorted_ids  # Audit traceability (v0.8.8)
+    
+    category = base_data.get("category")
+    
+    merged_all_cities = list(base_data.get("all_cities", []))
+    merged_clusters = list(base_data.get("clusters", []))
+    merged_trajectories = list(base_data.get("trajectories", []))
+    merged_origins = list(base_data.get("highlight_origins", []))
+    
+    existing_city_names = {c['name'] for c in merged_all_cities if c.get('name')}
+    
+    for other_id in sorted_ids[1:]:
+        other_item = active_events[other_id]
+        other_data = other_item["ev"]["data"] if "ev" in other_item else other_item["data"]
         
-        existing_city_names = {c['name'] for c in merged_all_cities if c.get('name')}
+        # Merge unique cities
+        for c in other_data.get("all_cities", []):
+            if c.get('name') and c['name'] not in existing_city_names:
+                merged_all_cities.append(c)
+                existing_city_names.add(c['name'])
         
-        for other_idx in component[1:]:
-            other_data = active_items[other_idx]["ev"]["data"]
+        # Aggregate visual overlays
+        merged_trajectories.extend(other_data.get("trajectories", []))
+        merged_origins.extend(other_data.get("highlight_origins", []))
+        
+        if category not in ["missiles", "hostileAircraftIntrusion"]:
+            merged_clusters.extend(other_data.get("clusters", []))
             
-            # Merge unique cities
-            for c in other_data.get("all_cities", []):
-                if c.get('name') and c['name'] not in existing_city_names:
-                    merged_all_cities.append(c)
-                    existing_city_names.add(c['name'])
-            
-            # Aggregate visual overlays (trajectories/origins)
-            merged_trajectories.extend(other_data.get("trajectories", []))
-            merged_origins.extend(other_data.get("highlight_origins", []))
-            
-            # For clusters, we only extend if we're not flattening
-            if category not in ["missiles", "hostileAircraftIntrusion"]:
-                merged_clusters.extend(other_data.get("clusters", []))
-            
-        # Hardened Unification: If it's a unified category, recalculate ONE cluster
-        if category in ["missiles", "hostileAircraftIntrusion"]:
-            new_cnt, new_hull = recalculate_unified_metadata(merged_all_cities)
-            merged_clusters = [{
-                "origin": category,
-                "centroid": new_cnt,
-                "cities": merged_all_cities,
-                "hull": new_hull
+    # Hardened Unification
+    if category in ["missiles", "hostileAircraftIntrusion"]:
+        new_cnt, new_hull = recalculate_unified_metadata(merged_all_cities)
+        merged_clusters = [{
+            "origin": category,
+            "centroid": new_cnt,
+            "cities": merged_all_cities,
+            "hull": new_hull
+        }]
+        base_data["center"] = new_cnt
+        
+        if category == "missiles" and len(sorted_ids) > 1 and engine:
+            org_name, depth = engine.get_origin(merged_all_cities)
+            border_entry = engine.get_projected_origin(merged_all_cities, org_name, depth=depth)
+            merged_trajectories = [{
+                "origin": org_name,
+                "origin_coords": border_entry,
+                "marker_coords": engine.origins.get(org_name, border_entry),
+                "target_coords": new_cnt
             }]
-            base_data["center"] = new_cnt # Update the event-level center too
             
-            # Refinement (v0.8.6): Recalculate unified trajectory for missiles
-            if category == "missiles" and len(component) > 1 and engine:
-                org_name, depth = engine.get_origin(merged_all_cities)
-                border_entry = engine.get_projected_origin(merged_all_cities, org_name, depth=depth)
-                merged_trajectories = [{
-                    "origin": org_name,
-                    "origin_coords": border_entry,
-                    "marker_coords": engine.origins.get(org_name, border_entry),
-                    "target_coords": new_cnt
-                }]
-            
-        base_data["all_cities"] = merged_all_cities
-        base_data["clusters"] = merged_clusters
-        base_data["trajectories"] = merged_trajectories
-        base_data["highlight_origins"] = merged_origins
+    base_data["all_cities"] = merged_all_cities
+    base_data["clusters"] = merged_clusters
+    base_data["trajectories"] = merged_trajectories
+    base_data["highlight_origins"] = merged_origins
+    
+    if len(sorted_ids) > 1:
+        logger.info(f"CLUSTER_MERGED: {len(sorted_ids)} IDs consolidated -> Master ID: {master_id}")
         
-        if len(component) > 1:
-            logger.info(f"MERGE_DETECTED: {len(component)} events unified into one cluster (ID: {base_data['id']})")
+    return base_data
+
+def build_merged_payloads(active_events, engine=None, threshold_km=15):
+    """
+    Legacy wrapper for websocket broadcast, utilizing refactored grouping logic.
+    """
+    clusters = group_events(active_events, threshold_km, include_all=False)
+    
+    merged_payloads = []
+    for group_ids in clusters:
+        payload = merge_event_group(group_ids, active_events, engine)
+        if payload:
+            merged_payloads.append(payload)
             
-        merged_payloads.append(base_data)
-        
     return merged_payloads
 
 
 def get_cluster_groups(active_events, threshold_km=15):
     """
-    Returns a list of clusters, where each cluster is a list of event IDs
-    that are merged together by the subset/proximity rules.
-    
-    Lightweight version of build_merged_payloads — no payload transformation,
-    just adjacency grouping. Used for cluster-aware timeout synchronization.
+    Lightweight wrapper for cluster-aware timeout synchronization.
+    Note: Always filters to active-only events.
     """
-    active_items = []
-    for eid, ev in active_events.items():
-        if ev.get("end_time") is None:
-            active_items.append({"eid": eid, "ev": ev})
-    
-    if not active_items:
-        return []
-
-    # Reuse the shared vectorized adjacency builder
-    components = _build_adjacency_components(active_items, threshold_km)
-    return [[active_items[idx]["eid"] for idx in comp] for comp in components]
+    return group_events(active_events, threshold_km, include_all=False)

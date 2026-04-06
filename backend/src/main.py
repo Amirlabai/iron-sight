@@ -12,18 +12,18 @@ from src.data.data_manager import LamasDataManager
 from src.core.engine import TrackingEngine
 from src.core.threat_processor import ThreatProcessor
 from src.api.ws_manager import WebSocketManager
-from src.utils.cluster_utils import build_merged_payloads, get_cluster_groups
+from src.utils.cluster_utils import build_merged_payloads, get_cluster_groups, group_events, merge_event_group
 
 # Global Logging Setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s')
 logger = logging.getLogger("IronSightTerminal")
 
 # Load Version Info
-VERSION = "0.8.0"
+VERSION = "0.0.0"
 try:
     with open(os.path.join(os.path.dirname(__file__), '..', '..', 'version.json'), 'r') as f:
         vdata = json.load(f)
-        VERSION = vdata.get("version", "0.8.0")
+        VERSION = vdata.get("version", "0.0.0")
 except Exception as e:
     logger.warning(f"VERSION_INIT_FAILURE: {e}")
 
@@ -53,36 +53,55 @@ async def main():
                 now = time.time()
                 events_changed = False
 
-                # --- Lifecycle Maintenance ---
-                expired_ids = []
-                for eid, ev in list(active_events.items()):
-                    # Inactivity timeout: only trigger after 5 min of NO updates (last_update_time based)
-                    if ev["end_time"] is None and (now - ev["last_update_time"] > INACTIVITY_TIMEOUT):
-                        ev["end_time"] = now
-                        logger.info(f"EVENT_TIMEOUT: {eid} - No updates for {INACTIVITY_TIMEOUT}s. Marking for termination.")
-                        await db.log_event(eid, ev["category"], "TIMEOUT", ev["data"])
+                # --- Cluster-Aware Lifecycle Maintenance ---
+                clusters = get_cluster_groups(active_events, threshold_km=15) # Only active-only groups for sync
+                all_groups = group_events(active_events, include_all=True) # All groups including ended
+                
+                purged_ids = []
+                for group_ids in all_groups:
+                    members = [active_events[gid] for gid in group_ids if gid in active_events]
+                    if not members: continue
                     
-                    # End-of-threat grace period (10s after end signal)
-                    if ev["end_time"] and (now - ev["end_time"] > 10):
-                        # Persist to DB before purging
-                        if not ev["data"].get("is_simulation"):
+                    # 1. Inactivity Timeout (Unchanged)
+                    for gid in group_ids:
+                        ev = active_events[gid]
+                        if ev["end_time"] is None and (now - ev["last_update_time"] > INACTIVITY_TIMEOUT):
+                            ev["end_time"] = now
+                            logger.info(f"EVENT_TIMEOUT: {gid} - Silence depth exceeded. Marking for termination.")
+                            await db.log_event(gid, ev["category"], "TIMEOUT", ev["data"])
+
+                    # 2. Group Persistence Check
+                    # Trigger if ALL members have an end_time AND at least one passed 10s grace
+                    all_ended = all(m["end_time"] is not None for m in members)
+                    any_expired = any(m["end_time"] and (now - m["end_time"] > 10) for m in members)
+                    
+                    if all_ended and any_expired:
+                        # Generate Unified Master Payload
+                        master_payload = merge_event_group(group_ids, active_events, engine)
+                        if master_payload and not master_payload.get("is_simulation"):
                             try:
-                                await db.save_alert(ev["category"], ev["data"])
-                                logger.info(f"EVENT_PERSISTED: {eid} ({ev['category']}) - {len(ev['data'].get('all_cities', []))} cities saved to MongoDB.")
+                                await db.save_alert(master_payload["category"], master_payload)
+                                logger.info(f"CLUSTER_PERSISTED: {len(group_ids)} IDs unified -> {master_payload['id']}")
+                                
+                                # Broadcast history refresh
                                 history = await db.get_consolidated_history(limit=50)
                                 await ws.broadcast({"type": "history_sync", "data": history})
                             except Exception as db_err:
-                                logger.error(f"EVENT_PERSIST_FAILURE: {eid} - {db_err}")
-                        expired_ids.append(eid)
-
-                for eid in expired_ids:
-                    category = active_events[eid]["category"]
-                    city_count = len(active_events[eid]["data"].get("all_cities", []))
-                    purge_data = active_events[eid]["data"]
-                    del active_events[eid]
+                                logger.error(f"CLUSTER_PERSIST_FAILURE: {master_payload['id']} - {db_err}")
+                        
+                        # Purge all IDs in the group simultaneously
+                        for gid in group_ids:
+                            purge_ev = active_events[gid]
+                            category = purge_ev["category"]
+                            city_count = len(purge_ev["data"].get("all_cities", []))
+                            
+                            await db.log_event(gid, category, "PURGED", purge_ev["data"])
+                            del active_events[gid]
+                            purged_ids.append(gid)
+                            logger.info(f"EVENT_PURGED: {gid} ({category}, {city_count} cities)")
+                
+                if purged_ids:
                     events_changed = True
-                    logger.info(f"EVENT_PURGED: {eid} ({category}, {city_count} cities)")
-                    await db.log_event(eid, category, "PURGED", purge_data)
 
                 # If events were purged, broadcast updated state
                 if events_changed:

@@ -98,7 +98,7 @@ function AppShell() {
 
       <Analytics />
 
-      {/* Tactical SVG Filters (v0.8.7) */}
+      {/* Tactical SVG Filters */}
       <svg style={{ position: 'absolute', width: 0, height: 0 }}>
         <defs>
           <filter id="organic-round">

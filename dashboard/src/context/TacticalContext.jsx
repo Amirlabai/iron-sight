@@ -9,7 +9,7 @@ import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
 
 const TacticalContext = createContext(null);
 
-// --- Tactical Audio Engine (v0.9.3) ---
+// --- Tactical Audio Engine ---
 const useAudioEngine = (liveEvents, isMuted) => {
   const activeAudioRef = useRef(null);
 

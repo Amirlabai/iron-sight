@@ -73,7 +73,7 @@ class WebSocketManager:
         try:
             async for msg in ws: pass
         finally:
-            self.clients.remove(ws)
+            self.clients.discard(ws)
         return ws
 
     async def history_handler(self, request):
@@ -101,7 +101,7 @@ class WebSocketManager:
         message = json.dumps(data, ensure_ascii=False)
         for client in list(self.clients):
             try: await client.send_str(message)
-            except: self.clients.remove(client)
+            except: self.clients.discard(client)
 
     async def start(self):
         runner = web.AppRunner(self.app)

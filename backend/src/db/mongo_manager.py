@@ -33,7 +33,9 @@ class MongoManager:
                 {"$set": payload},
                 upsert=True
             )
-            logger.info(f"DB_SYNC_SUCCESS: {alert_type.capitalize()} {payload['id']} committed.")
+            
+            merged_info = f" (Unified {len(payload['merged_ids'])} IDs)" if "merged_ids" in payload else ""
+            logger.info(f"DB_SYNC_SUCCESS: {alert_type.capitalize()} {payload['id']} committed.{merged_info}")
         except Exception as e:
             logger.error(f"DB_SYNC_FAILURE: {e}")
 
