@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { TacticalContext } from './TacticalContext';
 import {
   ISRAEL_CENTER, DEFAULT_ZOOM, IS_PROD, WEBSOCKET_URL, TACTICAL_API_URL,
   STRATEGIC_METADATA, TACTICAL_RED, TACTICAL_BLUE, HIGHLIGHT_RED, HIGHLIGHT_BLUE,
@@ -6,8 +7,6 @@ import {
 } from '../utils/constants';
 import missileSound from '../assets/sounds/missile_alert.mp3';
 import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
-
-const TacticalContext = createContext(null);
 
 // --- Tactical Audio Engine ---
 const useAudioEngine = (liveEvents, isMuted) => {
@@ -278,10 +277,4 @@ export function TacticalProvider({ children }) {
       {children}
     </TacticalContext.Provider>
   );
-}
-
-export function useTactical() {
-  const ctx = useContext(TacticalContext);
-  if (!ctx) throw new Error('useTactical must be used within TacticalProvider');
-  return ctx;
 }
