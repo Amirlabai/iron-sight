@@ -153,8 +153,29 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
       {/* Trajectories */}
       {event.trajectories?.map((traj, idx) => {
         const trajColor = event.visual_config?.color || STRATEGIC_METADATA[traj.origin]?.color || tacticalColor;
+        const boundary = TACTICAL_BOUNDARIES[traj.origin];
+        
         return (
           <React.Fragment key={`${eventKey}-traj-${idx}`}>
+            {/* Origin Country Highlight (Restored) */}
+            {boundary && (
+              <React.Fragment>
+                <Polygon positions={boundary}
+                  pathOptions={{
+                    color: trajColor,
+                    weight: 15, opacity: 0.05, fill: false, smoothFactor: 2.0, className: 'origin-threat-halo'
+                  }}
+                />
+                <Polygon positions={boundary}
+                  pathOptions={{
+                    fillColor: trajColor,
+                    fillOpacity: 0.1, color: trajColor,
+                    weight: 1, smoothFactor: 2.0, className: 'origin-threat-glow'
+                  }}
+                />
+              </React.Fragment>
+            )}
+
             <Polyline positions={[traj.origin_coords, traj.target_coords]}
               pathOptions={{ color: trajColor, weight: 10, opacity: 0.1, smoothFactor: 2.0, className: 'trajectory-halo' }}
             />
@@ -180,7 +201,7 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
         );
       })}
 
-      {/* Origin Highlights */}
+      {/* Legacy Origin Highlights (Standalone) */}
       {event.highlight_origins?.map((org, idx) => (
         <React.Fragment key={`${eventKey}-highlight-${idx}`}>
           {TACTICAL_BOUNDARIES[org.name] ? (
@@ -211,6 +232,7 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
           )}
         </React.Fragment>
       ))}
+
     </React.Fragment>
   );
 }

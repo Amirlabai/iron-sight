@@ -64,6 +64,7 @@
 - [x] **MISSION**: Tactical History Merging - [.milestone/history_merging.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/history_merging.md)
 - [x] **MISSION**: Tactical Health Stabilization (Undefined Fix)
 - [x] **MISSION**: History Fixer Restoration (Highlighting & Mobile Optimization) - [.milestone/history_fixer_restoration.md](file:///c:/Users/amirl/.milestone/history_fixer_restoration.md)
+- [x] **MISSION**: Dashboard Visual & Mobile Hardening (Restoration) - [.milestone/dashboard_restoration.md](file:///c:/Users/amirl/.milestone/dashboard_restoration.md)
 
 
 ---

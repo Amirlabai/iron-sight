@@ -6,7 +6,8 @@ import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
 // Geographic Constants
 export const ISRAEL_CENTER = [31.7683, 35.2137];
-export const DEFAULT_ZOOM = 8;
+export const DEFAULT_ZOOM = window.innerWidth < 768 ? 7 : 8;
+
 
 // Tactical Geodata (derived from GeoJSON at import time)
 export const TACTICAL_BOUNDARIES = TACTICAL_GEOJSON.features.reduce((acc, feature) => {

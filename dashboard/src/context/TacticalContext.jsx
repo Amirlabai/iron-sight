@@ -144,8 +144,11 @@ export function TacticalProvider({ children }) {
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setHistory(data);
+        setHistory(Array.isArray(data) ? data : []);
+      } else {
+        setHistory([]);
       }
+
     } catch (err) {
       if (!IS_PROD) console.error("HISTORY_FETCH_FAILED", err);
     }

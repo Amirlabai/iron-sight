@@ -98,6 +98,10 @@ Transitioned to Development Alpha.
     - Restored origin highlighting via `TACTICAL_BOUNDARIES` and `Polygon` rendering.
     - Fixed aircraft filter "blackout" crash via strict coordinate safety guards.
     - Implemented responsive `DEFAULT_ZOOM` and mobile-optimized layouts for phones.
+- [x] **Dashboard Visual & Mobile Restoration**:
+    - Restored origin high-fidelity boundary polygons in `ThreatOverlay.jsx` for all trajectories.
+    - Hardened history regional grouping in `Sidebar.jsx` and data fetching in `TacticalContext.jsx` to prevent blackout crashes.
+    - Calibrated `DEFAULT_ZOOM` for mobile responsiveness.
 
     - `context/TacticalContext.jsx`: Global state provider with WebSocket lifecycle, audio engine.
     - `utils/constants.js`: Centralized env detection, WS URLs, geodata derivations, color tokens, Leaflet icon fix.

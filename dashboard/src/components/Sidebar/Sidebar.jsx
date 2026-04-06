@@ -134,18 +134,25 @@ export default function Sidebar() {
                     }[event.category] || <ShieldAlert size={16} />;
                     
                     const groupCitiesByArea = (cities) => {
-                      if (!cities || !regionalData) return {};
+                      if (!cities || !Array.isArray(cities) || !regionalData) return {};
                       const groups = {};
                       cities.forEach(c => {
+                        const cityName = typeof c === 'string' ? c : c?.name;
+                        if (!cityName) return;
+                        
                         let foundArea = "Other";
                         for (const [area, areaCities] of Object.entries(regionalData)) {
-                          if (areaCities[c.name]) { foundArea = area; break; }
+                          if (areaCities && areaCities[cityName]) { 
+                            foundArea = area; 
+                            break; 
+                          }
                         }
                         if (!groups[foundArea]) groups[foundArea] = [];
-                        groups[foundArea].push(c.name);
+                        groups[foundArea].push(cityName);
                       });
                       return groups;
                     };
+
 
                     const grouped = groupCitiesByArea(event.all_cities);
 
