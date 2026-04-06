@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import { Shield, Clock, MapPin, ChevronRight, CheckCircle, SplitSquareVertical, Filter, RefreshCcw } from 'lucide-react';
 import { fetchHistory, updateAlertOrigin, splitAlert, fetchCities } from './api/apiService';
-import { ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_RED, HIGHLIGHT_RED, ORIGINS_DATA } from './utils/constants';
+import { ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_RED, HIGHLIGHT_RED, ORIGINS_DATA, STRATEGIC_METADATA } from './utils/constants';
+import { TACTICAL_BOUNDARIES } from './utils/tactical_geodata';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 
@@ -145,6 +146,8 @@ function App() {
             <option value="all">All Threats</option>
             <option value="missiles">Missiles</option>
             <option value="hostileAircraftIntrusion">Drones</option>
+            <option value="terroristInfiltration">Infiltration</option>
+            <option value="earthQuake">Earthquake</option>
           </select>
         </div>
       </header>
@@ -167,7 +170,10 @@ function App() {
                   <span className="event-id">#{ev.id}</span>
                 </div>
                 <div className="event-title">
-                  {ev.category === 'missiles' ? 'Rocket Salvo' : 'Drone Intrusion'}
+                  {ev.category === 'missiles' ? 'Rocket Salvo' : 
+                   ev.category === 'hostileAircraftIntrusion' ? 'Drone Intrusion' :
+                   ev.category === 'terroristInfiltration' ? 'Terrorist Infiltration' :
+                   ev.category === 'earthQuake' ? 'Earthquake' : ev.category}
                   {ev.verified && <CheckCircle size={14} className="text-green-500 ml-auto" />}
                 </div>
                 <div className="event-details">
@@ -185,8 +191,27 @@ function App() {
             
             {selectedEvent && (
               <>
-                {/* Cluster Points */}
-                {selectedEvent.all_cities?.map((city, idx) => (
+                {/* Origin Highlights */}
+                {selectedEvent.trajectories?.map((traj, idx) => {
+                  const boundary = TACTICAL_BOUNDARIES[traj.origin];
+                  if (!boundary) return null;
+                  const color = STRATEGIC_METADATA[traj.origin]?.color || HIGHLIGHT_RED;
+                  return (
+                    <React.Fragment key={`highlight-${idx}`}>
+                      <Polygon 
+                        positions={boundary} 
+                        pathOptions={{ color, weight: 15, opacity: 0.05, fill: false, className: 'origin-threat-halo' }} 
+                      />
+                      <Polygon 
+                        positions={boundary} 
+                        pathOptions={{ fillColor: color, fillOpacity: 0.1, color, weight: 1, className: 'origin-threat-glow' }} 
+                      />
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* Cluster Points (Safety Guarded) */}
+                {selectedEvent.all_cities?.filter(c => c.coords).map((city, idx) => (
                   <Marker key={idx} position={city.coords} icon={L.divIcon({ className: 'city-pulse-dot' })}>
                     <Popup>{city.name}</Popup>
                   </Marker>

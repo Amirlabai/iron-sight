@@ -63,6 +63,7 @@
 - [x] **MISSION**: Advanced History: Frontend Visualization (HISTORY-ADV-FRONTEND) - [.milestone/advanced_history_frontend.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/advanced_history_frontend.md)
 - [x] **MISSION**: Tactical History Merging - [.milestone/history_merging.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/history_merging.md)
 - [x] **MISSION**: Tactical Health Stabilization (Undefined Fix)
+- [x] **MISSION**: History Fixer Restoration (Highlighting & Mobile Optimization) - [.milestone/history_fixer_restoration.md](file:///c:/Users/amirl/.milestone/history_fixer_restoration.md)
 
 
 ---

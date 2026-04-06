@@ -317,3 +317,55 @@ body, html, #root {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
 }
+
+/* Tactical Highlights */
+.origin-threat-halo {
+  filter: blur(10px);
+  pointer-events: none;
+}
+
+.origin-threat-glow {
+  filter: drop-shadow(0 0 15px currentColor);
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.25; }
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .auditor-main {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .event-sidebar, .control-panel {
+    width: 100% !important;
+    height: 250px;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    flex: none;
+  }
+
+  .map-view {
+    height: 400px;
+    flex: none;
+    order: -1; /* Keep map at top on mobile if desired, or leave default */
+  }
+
+  .auditor-header h1 span {
+    display: none;
+  }
+
+  .header-controls {
+    gap: 6px;
+  }
+  
+  .filter-toggle {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+  }
+}
+

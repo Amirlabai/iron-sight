@@ -94,6 +94,10 @@ Transitioned to Development Alpha.
 - [x] **Tactical Health Stabilization**:
     - Fixed "undefined" live intercept status by adding `upstream_source` to backend health signals.
     - Hardened frontend `TacticalContext` with a default 'OPERATIONAL' fallback for status sources.
+- [x] **History Fixer Restoration**:
+    - Restored origin highlighting via `TACTICAL_BOUNDARIES` and `Polygon` rendering.
+    - Fixed aircraft filter "blackout" crash via strict coordinate safety guards.
+    - Implemented responsive `DEFAULT_ZOOM` and mobile-optimized layouts for phones.
 
     - `context/TacticalContext.jsx`: Global state provider with WebSocket lifecycle, audio engine.
     - `utils/constants.js`: Centralized env detection, WS URLs, geodata derivations, color tokens, Leaflet icon fix.
