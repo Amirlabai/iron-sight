@@ -22,6 +22,10 @@ export default function Sidebar() {
   
   const [expandedId, setExpandedId] = React.useState(null);
 
+  React.useEffect(() => {
+    setExpandedId(null);
+  }, [historyFilter]);
+
   const dragControls = useDragControls();
 
   return (
@@ -160,13 +164,12 @@ export default function Sidebar() {
 
                     return (
                       <motion.div 
-                        key={event.id || i} 
+                        key={event.id || `hist-${i}`} 
                         className={`history-card ${archiveEvent?.id === event.id && viewMode === 'archive' ? 'selected' : ''} ${isExpanded ? 'active' : ''}`} 
                         onClick={() => {
                           selectArchive(event);
                           setExpandedId(isExpanded ? null : event.id);
                         }}
-                        layout
                       >
                         <div className="card-main">
                           <div className="history-marker" style={{ background: event.visual_config?.color || 'var(--accent)' }}></div>

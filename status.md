@@ -26,6 +26,10 @@
     - Restored origin high-fidelity boundary polygons in `ThreatOverlay.jsx` for all trajectories.
     - Hardened history regional grouping in `Sidebar.jsx` and data fetching in `TacticalContext.jsx` to prevent blackout crashes.
     - Calibrated `DEFAULT_ZOOM` for mobile responsiveness.
+- [x] **Dashboard UI Optimization**:
+    - Stripped 'layout' prop from history cards to eliminate "jumping" and reduce memory overhead.
+    - Fixed history expansion "ghosting" by transitioning to unique `event.id` React keys.
+    - Implemented automatic expansion state reset when alternating between history filters.
 - [x] **Smart Tactical Zoom (Priority Zooming)**:
     - Implemented `calculateBestMapConfig` in `TacticalProvider.jsx` to prioritize furthest origins.
     - Enabled automatic "snap-back" to tighter zoom levels when strategic threats terminate.
@@ -74,6 +78,7 @@
 - [x] **MISSION**: History Aircraft Card Crash Fix (Hardening) - [.milestone/history_aircraft_hardening.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
 - [x] **MISSION**: History Tactical Recalculation (Data Integrity) - [.milestone/history_recalculation.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
 - [x] **MISSION**: Smart Tactical Zoom (Multi-Threat Priority Zooming) - [.milestone/smart_tactical_zoom.md](file:///C:/Users/amirl/.gemini/antigravity/brain/5f9d0dc1-309e-4ef0-bf2c-9fb7f2f1c824/walkthrough.md)
+- [x] **MISSION**: Dashboard UI Optimization (Memory & State Hardening) - [.milestone/dashboard_ui_optimization.md](file:///C:/Users/amirl/.gemini/antigravity/brain/5f9d0dc1-309e-4ef0-bf2c-9fb7f2f1c824/walkthrough_ui.md)
 - [x] **MISSION**: History Tactical Recalculation (Data Integrity) - [.milestone/history_recalculation.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
 
 
