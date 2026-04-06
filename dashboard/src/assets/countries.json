@@ -7,7 +7,7 @@
                 "location": "Yemen",
                 "color": "#A6A6A6",
                 "depth": 20,
-                "zoom level": 6
+                "zoom level": 5
             },
             "geometry": {
                 "type": "Polygon",
@@ -71,7 +71,7 @@
                 "location": "Iran",
                 "color": "#ff4d4d",
                 "depth": 13,
-                "zoom level": 6
+                "zoom level": 5
             },
             "geometry": {
                 "type": "Polygon",
