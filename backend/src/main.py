@@ -189,13 +189,26 @@ async def main():
                                         continue
                                     
                                     is_simulation = alert_payload.get("is_simulation", False)
+                                    analysis = await processor.process(a_type, cities_raw)
+                                    if not analysis:
+                                        continue
+
+                                    # Superseding Logic: Actual missiles supersede overlapping newsFlash ghosts
+                                    if a_type == "missiles":
+                                        incoming_cities = {c['name'] for c in analysis.get("all_cities", [])}
+                                        for gid, gv in list(active_events.items()):
+                                            if gv["category"] == "newsFlash" and gv["end_time"] is None:
+                                                gv_cities = {c['name'] for c in gv["data"].get("all_cities", [])}
+                                                if gv_cities.intersection(incoming_cities):
+                                                    gv["end_time"] = now
+                                                    logger.info(f"NEWSFLASH_SUPERSEDED: {gid} terminated by incoming missile alert {alert_id}")
+                                                    await db.log_event(gid, "newsFlash", "SUPERSEDED", gv["data"])
 
                                     if alert_id in active_events:
                                         # Rolling update: merge new cities into existing event
                                         existing = active_events[alert_id]
                                         existing_names_arr = np.array([c['name'] for c in existing["data"]["all_cities"]])
                                         
-                                        analysis = await processor.process(a_type, cities_raw)
                                         if analysis:
                                             incoming_names = np.array([c['name'] for c in analysis["all_cities"]])
                                             is_new = ~np.isin(incoming_names, existing_names_arr)
@@ -228,9 +241,6 @@ async def main():
                                                 await db.log_event(alert_id, a_type, "UPDATED", full_analysis)
                                     else:
                                         # New event
-                                        analysis = await processor.process(a_type, cities_raw)
-                                        if not analysis:
-                                            continue
                                         
                                         analysis["id"] = alert_id
                                         analysis["is_simulation"] = is_simulation

@@ -25,6 +25,7 @@ const useAudioEngine = (liveEvents, isMuted) => {
     liveEvents.forEach(event => {
       if (!SEEN_ALERTS.has(event.id)) {
         SEEN_ALERTS.add(event.id);
+        if (event.category === 'newsFlash') return; 
         const category = (event.category === 'missiles') ? 'missiles' : 'drones';
         const now = Date.now();
 

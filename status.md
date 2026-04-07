@@ -86,12 +86,15 @@
 
 - [x] **MISSION**: Tactical History Merging (Shared-City Logic) - [.milestone/history_merging_shared_city.md](file:///C:/Users/amirl/.gemini/antigravity/brain/ceccd364-ef73-49dc-86a5-756cc9074d01/walkthrough.md)
 - [x] **DATA_CORRECTION**: Lebanon Salvo `134200308790000000` - Fixed Yemen over-projection by force-calibrating depth to 0.5 and locking origin coordinates.
+- [x] **MISSION**: Tactical newsFlash Recalibration (Silent Ghost + Superseding) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/5e58fee5-8c60-44b6-88b4-c2a12da710b0/walkthrough.md)
 
 ---
 **Mission Status**: **HARDENED** | CONSOLE ANONYMIZED
 
 - Transitioned to ID-Driven Architecture: `active_events{}` dictionary with `last_update_time`-based inactivity timeout (5 min silence).
 - **Shared-City Merging**: Upgraded clustering from subset/superset to intersection-based. Any shared city between same-category active alerts triggers an automatic merge.
+- **Superseding Logic**: Implemented real-time protocol where actual `missiles` alerts immediately terminate overlapping `newsFlash` ghosts.
+- **Silent Ghost**: `newsFlash` alerts maintain ghostly visuals but trigger zero audio to denote their "Potential" status.
 - **Auditor Multi-Select**: History Fixer now supports manual batch merging of fragmented historical records.
 - **Multi-Alert Broadcast**: Backend pushes `multi_alert` payloads; dashboard renders all threats simultaneously on the map.
 - **Networking**: Masked backend infrastructure via Vercel `/api` proxy. Sanitized production logs.

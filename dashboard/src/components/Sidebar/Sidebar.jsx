@@ -145,6 +145,7 @@ export default function Sidebar() {
                     const isExpanded = expandedId === event.id;
                     const catIcon = {
                       'missiles': <Rocket size={16} />,
+                      'newsFlash': <Rocket size={16} />,
                       'hostileAircraftIntrusion': <Plane size={16} />,
                       'hostileAircraft': <Plane size={16} />,
                       'aircraft': <Plane size={16} />,
