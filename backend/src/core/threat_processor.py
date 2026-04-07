@@ -20,6 +20,8 @@ class ThreatProcessor:
             return await self._process_infiltration(cities_raw)
         elif alert_type == "earthQuake":
             return await self._process_earthquake(cities_raw)
+        elif alert_type == "newsFlash":
+            return await self._process_news_flash(cities_raw)
         return None
 
     def _build_unified_cluster(self, city_coords):
@@ -173,6 +175,37 @@ class ThreatProcessor:
                 "color": "#4cd964",  # Safety Green
                 "pulse": "slow_steady",
                 "movement": "static"
+            }
+        }
+
+    async def _process_news_flash(self, cities_raw):
+        """News Flash: originless tactical polygons for potential threat warnings."""
+        city_coords = self._map_cities(cities_raw)
+        if not city_coords: return None
+
+        cnt, hull = self._build_unified_cluster(city_coords)
+
+        processed_clusters = [{
+            "origin": "newsFlash",
+            "centroid": cnt,
+            "cities": city_coords,
+            "hull": hull
+        }]
+
+        return {
+            "type": "alert",
+            "category": "newsFlash",
+            "title": "Potential Threat Warning",
+            "clusters": processed_clusters,
+            "trajectories": [],
+            "all_cities": city_coords,
+            "center": cnt,
+            "zoom_level": 8,
+            "visual_config": {
+                "color": "#f8f8f8",  # Ghost White
+                "pulse": "slow_steady",
+                "movement": "static",
+                "opacity": 0.4
             }
         }
 

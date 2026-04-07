@@ -80,6 +80,8 @@
 - [x] **MISSION**: Smart Tactical Zoom (Multi-Threat Priority Zooming) - [.milestone/smart_tactical_zoom.md](file:///C:/Users/amirl/.gemini/antigravity/brain/5f9d0dc1-309e-4ef0-bf2c-9fb7f2f1c824/walkthrough.md)
 - [x] **MISSION**: Dashboard UI Optimization (Memory & State Hardening) - [.milestone/dashboard_ui_optimization.md](file:///C:/Users/amirl/.gemini/antigravity/brain/5f9d0dc1-309e-4ef0-bf2c-9fb7f2f1c824/walkthrough_ui.md)
 - [x] **MISSION**: History Tactical Recalculation (Data Integrity) - [.milestone/history_recalculation.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
+- [x] **MISSION**: Simplified Tactical Map (Label-Free Dark Mode integration)
+
 
 
 - [x] **MISSION**: Tactical History Merging (Shared-City Logic) - [.milestone/history_merging_shared_city.md](file:///C:/Users/amirl/.gemini/antigravity/brain/ceccd364-ef73-49dc-86a5-756cc9074d01/walkthrough.md)

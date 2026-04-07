@@ -290,7 +290,7 @@ async def merge_event_group(group_ids, active_events, engine=None):
             merged_clusters.extend(other_data.get("clusters", []))
             
     # Hardened Unification
-    if category == "hostileAircraftIntrusion":
+    if category in ["hostileAircraftIntrusion", "newsFlash"]:
         new_cnt, new_hull = recalculate_unified_metadata(merged_all_cities)
         merged_clusters = [{
             "origin": category,

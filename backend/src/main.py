@@ -78,7 +78,11 @@ async def main():
                     if all_ended and any_expired:
                         # Generate Unified Master Payload
                         master_payload = await merge_event_group(group_ids, active_events, engine)
-                        if master_payload and not master_payload.get("is_simulation"):
+                        
+                        # logic for transient (non-persistent) alerts like newsFlash
+                        is_transient = any(active_events[gid].get("is_transient") for gid in group_ids if gid in active_events)
+
+                        if master_payload and not master_payload.get("is_simulation") and not is_transient:
                             try:
                                 await db.save_alert(master_payload["category"], master_payload)
                                 logger.info(f"CLUSTER_PERSISTED: {len(group_ids)} IDs unified -> {master_payload['id']}")
@@ -88,6 +92,8 @@ async def main():
                                 await ws.broadcast({"type": "history_sync", "data": history})
                             except Exception as db_err:
                                 logger.error(f"CLUSTER_PERSIST_FAILURE: {master_payload['id']} - {db_err}")
+                        elif is_transient:
+                            logger.info(f"CLUSTER_PURGED_WITHOUT_SAVE: {len(group_ids)} IDs (Transient)")
                         
                         # Purge all IDs in the group simultaneously
                         for gid in group_ids:
@@ -125,8 +131,11 @@ async def main():
                                 instructions = str(alert_payload.get('instructions', ''))
                                 alert_id = alert_payload.get('id')
                                 
-                                # --- Threat End Signal (ID-Targeted) ---
-                                if a_type == "newsFlash" or "האירוע הסתיים" in instructions:
+                                # --- newsFlash Warning OR Threat End Signal (ID-Targeted) ---
+                                is_warning = a_type == "newsFlash" and (alert_payload.get('data') or alert_payload.get('cities'))
+                                is_clearance = "האירוע הסתיים" in instructions or (a_type == "newsFlash" and not is_warning)
+
+                                if is_clearance:
                                     target_ended_cities = []
                                     # Parse instructions against geographical nomenclature
                                     for area, cities_dict in dm.areas.items():
@@ -167,7 +176,7 @@ async def main():
                                     continue
 
                                 # --- Multi-Threat Processing ---
-                                if a_type in ["missiles", "hostileAircraftIntrusion", "terroristInfiltration", "earthQuake"]:
+                                if a_type in ["missiles", "hostileAircraftIntrusion", "terroristInfiltration", "earthQuake", "newsFlash"]:
                                     if not alert_id:
                                         continue
                                     
@@ -231,7 +240,8 @@ async def main():
                                             "data": analysis,
                                             "last_update_time": now,
                                             "end_time": None,
-                                            "category": a_type
+                                            "category": a_type,
+                                            "is_transient": a_type == "newsFlash"
                                         }
                                         
                                         city_count = len(analysis.get("all_cities", []))

@@ -68,6 +68,7 @@ Transitioned to Development Alpha.
 - **Log Export Utility**:
     - Implemented `scripts/export_logs.py` for automated extraction of `event_logs` from MongoDB to CSV.
     - Flattens nested `city_list` and serializes `timeline` JSON for high-fidelity data analysis.
+
 - **Frontend Modularization (FE-MODULAR-S1 - Complete)**:
     - Decomposed monolithic `App.jsx` (954 -> 115 lines) and `App.css` (1061 -> 520 lines) into modular architecture.
     - Plan: [.milestone/frontend_modularization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/frontend_modularization.md)

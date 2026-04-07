@@ -98,12 +98,12 @@ class TrackingEngine:
 
     def get_convex_hull(self, points):
         pts = np.array(points)
-        if len(pts) < 3: return points 
+        if len(pts) < 3: return pts.tolist() 
         try:
             hull = ConvexHull(pts)
             return pts[hull.vertices].tolist()
         except Exception:
-            return points 
+            return pts.tolist() 
 
     def is_point_in_polygon(self, point, poly_name, use_tactical=False):
         boundaries = self.boundaries if use_tactical else self.calc_boundaries

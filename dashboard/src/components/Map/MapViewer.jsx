@@ -39,9 +39,11 @@ export default function MapViewer() {
         zoom={DEFAULT_ZOOM}
         className="leaflet-container"
         zoomControl={false}
+        attributionControl={false}
         preferCanvas={true}
       >
-        <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+        <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png" />
+
         <MapController center={mapConfig.center} zoom={mapConfig.zoom} />
         <MapClickHandler onMapClick={() => { if (window.innerWidth <= 1024) setIsSidebarExpanded(false); }} />
 
