@@ -36,8 +36,8 @@ class TrackingEngine:
             "Yemen": 20.0
         }
         self.zoom_levels = {
-            "Gaza": 10,
-            "Lebanon": 8,
+            "Gaza": 8,
+            "Lebanon": 7,
             "Iran": 6,
             "North Iran": 6,
             "Yemen": 6
