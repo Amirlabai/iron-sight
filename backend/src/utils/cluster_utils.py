@@ -2,8 +2,19 @@ import math
 import logging
 import numpy as np
 from scipy.spatial import ConvexHull
+from src.utils.text_utils import standardize_name
 
 logger = logging.getLogger("IronSightClustering")
+
+AREAS_ADJACENCY = {
+    "צפון": ["חיפה"],
+    "חיפה": ["צפון", "מרכז", "יהודה ושומרון"],
+    "מרכז": ["חיפה", "תל אביב", "ירושלים", "דרום", "יהודה ושומרון"],
+    "תל אביב": ["מרכז"],
+    "ירושלים": ["מרכז", "יהודה ושומרון", "דרום"],
+    "דרום": ["מרכז", "ירושלים"],
+    "יהודה ושומרון": ["צפון", "חיפה", "מרכז", "ירושלים"]
+}
 
 _R_EARTH = 6371.0  # Radius of earth in kilometers
 
@@ -89,22 +100,27 @@ def _compute_adjacency_matrix(items, threshold_km):
     if n <= 1:
         return np.eye(n, dtype=bool) if n == 1 else np.empty((0, 0), dtype=bool)
 
-    # 1. Pre-calculate indices for subset detection
-    all_city_names = set()
+    # 1. Standardize and index cities
+    # (v0.9.3: Fix empty string overlaps by filtering standardize_name results)
+    item_standardized_cities = []
+    all_std_names = set()
     for item in items:
+        std_list = []
         for c in item.get("cities", []):
-            if c.get('name'): all_city_names.add(c['name'])
+            std = standardize_name(c.get('name'))
+            if std:
+                std_list.append(std)
+                all_std_names.add(std)
+        item_standardized_cities.append(std_list)
     
-    city_to_idx = {name: i for i, name in enumerate(sorted(all_city_names))}
-    num_cities = len(city_to_idx)
+    std_to_idx = {name: i for i, name in enumerate(sorted(all_std_names))}
+    num_cities = len(std_to_idx)
     
-    # 2. Build presence matrix (N x K) and presence counts
+    # 2. Build presence matrix (N x K)
     presence = np.zeros((n, num_cities), dtype=bool)
-    for i, item in enumerate(items):
-        for c in item.get("cities", []):
-            name = c.get('name')
-            if name in city_to_idx:
-                presence[i, city_to_idx[name]] = True
+    for i, std_list in enumerate(item_standardized_cities):
+        for std in std_list:
+            presence[i, std_to_idx[std]] = True
     
     city_counts = presence.sum(axis=1) # (N,)
     
@@ -112,15 +128,51 @@ def _compute_adjacency_matrix(items, threshold_km):
     centers = np.array([item.get("center") or [0.0, 0.0] for item in items], dtype=np.float64)
     has_center = np.array([item.get("center") is not None for item in items])
     dist_mat = haversine_distance_matrix(centers)
+    
+    # 4. Regional Hardening Phase (v0.9.3)
+    # Determine majority area for each alert
+    alert_areas = []
+    for i, std_list in enumerate(item_standardized_cities):
+        alert_areas.append(items[i].get("dominant_area", "Unknown"))
+    
+    # Adjacency calculation (Vectorized pair-wise region checks)
+    is_same_area = np.zeros((n, n), dtype=bool)
+    is_adjacent_area = np.zeros((n, n), dtype=bool)
+    for i in range(n):
+        for j in range(n):
+            a1, a2 = alert_areas[i], alert_areas[j]
+            if a1 == a2:
+                is_same_area[i, j] = True
+            elif a2 in AREAS_ADJACENCY.get(a1, []):
+                is_adjacent_area[i, j] = True
+    
+    # Thresholds: 15km for same/adjacent, 5km for disjoint (Opposites)
+    thresholds = np.where(is_same_area | is_adjacent_area, threshold_km, 5.0)
+    
+    # Gaza Envelope Exception: Relaxed for "דרום"
+    is_gaza = np.array([a == "דרום" for a in alert_areas])
+    thresholds[is_gaza[:, None] & is_gaza[None, :]] = max(threshold_km, 25.0) 
+
+    # Proximity Rule
     valid_pair = has_center[:, None] & has_center[None, :]
-    proximate = valid_pair & (dist_mat <= threshold_km)
+    proximate = valid_pair & (dist_mat <= thresholds)
 
-    # 4. Vectorized Shared City Check
-    # Any shared city between two alerts of the same category triggers a merge.
+    # 5. Shared City Rule (Intersection Check)
+    # Disjoint regions require 50% subset to merge (Subset Intersection Match)
     intersection = (presence[:, None, :] & presence[None, :, :]).sum(axis=2)
-    shared_match = (intersection > 0)
+    
+    # Intersection must be > 0 always
+    has_shared = (intersection > 0)
+    
+    # For disjoint areas, requires 50% subset of the smaller alert
+    min_counts = np.minimum(city_counts[:, None], city_counts[None, :])
+    subset_ratio = np.divide(intersection, min_counts, out=np.zeros_like(intersection, dtype=float), where=min_counts>0)
+    strong_shared = (subset_ratio >= 0.5) & (intersection > 0)
+    
+    # Combine Proximity and Shared
+    shared_match = np.where(is_same_area | is_adjacent_area | is_gaza[:, None], has_shared, strong_shared)
 
-    # 5. Combine rules (Category + (Proximity | Shared Cities))
+    # 6. Final Category Guard
     categories = np.array([item.get("category", "") for item in items])
     cat_match = (categories[:, None] == categories[None, :])
     
@@ -166,14 +218,24 @@ def group_events(active_events, threshold_km=15, include_all=False):
     Returns a list of clusters (each cluster is a list of event IDs).
     """
     event_items = []
+    
+    # We need access to area data to determine dominant_area
+    # For now, we attempt to resolve the context from the cities
     for eid, ev in active_events.items():
         if include_all or ev.get("end_time") is None:
             data = ev.get("data", {})
+            cities = data.get("all_cities", [])
+            
+            # Simple dominant area detection
+            areas = [c.get("area", "Unknown") for c in cities if c.get("area")]
+            dominant = max(set(areas), key=areas.count) if areas else "Unknown"
+            
             event_items.append({
                 "id": eid,
                 "category": ev.get("category", ""),
-                "cities": data.get("all_cities", []),
-                "center": data.get("center")
+                "cities": cities,
+                "center": data.get("center"),
+                "dominant_area": dominant
             })
             
     if not event_items:
