@@ -61,7 +61,7 @@ def recalculate_unified_metadata(cities):
     if len(coords) == 1:
         # Create a small tactical diamond for single points
         p = coords[0]
-        offset = 0.08  # ~8km tactical buffer
+        offset = 0.02  # ~8km tactical buffer
         hull = [
             [p[0] + offset, p[1]],
             [p[0], p[1] + offset],
@@ -290,7 +290,7 @@ async def merge_event_group(group_ids, active_events, engine=None):
             merged_clusters.extend(other_data.get("clusters", []))
             
     # Hardened Unification
-    if category in ["missiles", "hostileAircraftIntrusion"]:
+    if category == "hostileAircraftIntrusion":
         new_cnt, new_hull = recalculate_unified_metadata(merged_all_cities)
         merged_clusters = [{
             "origin": category,

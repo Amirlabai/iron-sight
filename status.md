@@ -83,6 +83,7 @@
 
 
 - [x] **MISSION**: Tactical History Merging (Shared-City Logic) - [.milestone/history_merging_shared_city.md](file:///C:/Users/amirl/.gemini/antigravity/brain/ceccd364-ef73-49dc-86a5-756cc9074d01/walkthrough.md)
+- [x] **DATA_CORRECTION**: Lebanon Salvo `134200308790000000` - Fixed Yemen over-projection by force-calibrating depth to 0.5 and locking origin coordinates.
 
 ---
 **Mission Status**: **HARDENED** | CONSOLE ANONYMIZED
