@@ -80,7 +80,7 @@ const calculateBestMapConfig = (events) => {
         (bestTraj.origin_coords[0] + bestTraj.target_coords[0]) / 2,
         (bestTraj.origin_coords[1] + bestTraj.target_coords[1]) / 2
       ],
-      zoom: minZoom
+      zoom: window.innerWidth < 768 ? minZoom - 1 : minZoom
     };
   }
 
