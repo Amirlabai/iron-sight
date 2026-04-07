@@ -36,6 +36,7 @@ class WebSocketManager:
         self.add_route("GET", "/api/cities", self.cities_handler)
         self.add_route("POST", "/api/history/update", self.update_history_handler)
         self.add_route("POST", "/api/history/split", self.split_history_handler)
+        self.add_route("POST", "/api/history/merge", self.merge_history_handler)
 
     def add_route(self, method, path, handler):
         resource = self.app.router.add_resource(path)
@@ -179,6 +180,36 @@ class WebSocketManager:
             else:
                 return web.json_response({"error": "Split failed"}, status=500)
         except Exception as e:
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def merge_history_handler(self, request):
+        try:
+            if MISSION_KEY and request.headers.get("X-Mission-Key") != MISSION_KEY:
+                return web.json_response({"error": "Unauthorized"}, status=401)
+            
+            data = await request.json()
+            alert_ids = data.get("ids")
+            alert_category = data.get("category")
+            
+            if not alert_ids or not alert_category or not isinstance(alert_ids, list):
+                return web.json_response({"error": "Invalid IDs or category"}, status=400)
+            
+            if len(alert_ids) < 2:
+                return web.json_response({"error": "Select at least two events to merge"}, status=400)
+                
+            master_payload = await self.db.merge_alerts(alert_category, alert_ids, self.engine)
+            
+            if master_payload:
+                logger.info(f"HISTORY_MANUAL_MERGE: {len(alert_ids)} events consolidated -> {master_payload['id']}")
+                # Broadcast history refresh
+                history = await self.db.get_consolidated_history(limit=50)
+                await self.broadcast({"type": "history_sync", "data": history})
+                return web.json_response({"status": "SUCCESS", "event": master_payload})
+            else:
+                return web.json_response({"error": "Merge failed"}, status=500)
+                
+        except Exception as e:
+            logger.error(f"HISTORY_MERGE_FAILURE: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
 
     async def broadcast(self, data):

@@ -211,3 +211,50 @@ class MongoManager:
         except Exception as e:
             logger.error(f"VERIFIED_FETCH_FAILURE: {e}")
             return []
+
+    async def merge_alerts(self, alert_type, alert_ids, engine=None):
+        """
+        Consolidate multiple historical alerts into a single record.
+        1. Fetch all original documents.
+        2. Use the cluster merging logic to generate a unified Master.
+        3. Save the Master and delete the originals.
+        """
+        from src.utils.cluster_utils import merge_event_group
+        
+        collection = self.collections.get(alert_type)
+        if collection is None: return None
+        
+        try:
+            # 1. Fetch original documents
+            cursor = collection.find({"id": {"$in": alert_ids}})
+            docs = await cursor.to_list(length=len(alert_ids))
+            if not docs: return None
+            
+            # 2. Convert to active_events format for merge_event_group
+            # merge_event_group expects { id: { "data": payload } }
+            pseudo_active_events = {
+                doc["id"]: {"data": doc, "category": alert_type} for doc in docs
+            }
+            
+            # 3. Generate Master Payload
+            master_payload = await merge_event_group(alert_ids, pseudo_active_events, engine)
+            if not master_payload: return None
+            
+            # 4. Save Master and Delete Originals
+            # We use save_alert which handles upsert correctly
+            await self.save_alert(alert_type, master_payload)
+            
+            # Delete other IDs (all except the new Master ID)
+            # Standard merge_event_group uses the first ID in sorted list as Master
+            master_id = master_payload["id"]
+            to_delete = [aid for aid in alert_ids if aid != master_id]
+            
+            if to_delete:
+                await collection.delete_many({"id": {"$in": to_delete}})
+                logger.info(f"DB_MERGE_CLEANUP: {len(to_delete)} original records purged.")
+            
+            master_payload.pop("_id", None)
+            return master_payload
+        except Exception as e:
+            logger.error(f"DB_MERGE_FAILURE: {alert_ids} - {e}")
+            return None

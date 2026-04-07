@@ -82,13 +82,13 @@
 - [x] **MISSION**: History Tactical Recalculation (Data Integrity) - [.milestone/history_recalculation.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
 
 
-- [x] **MISSION**: Threat Processor Async Fix (TypeError: Coroutine Unpacking) - [.milestone/threat_processor_async_fix.md](file:///C:/Users/amirl/.gemini/antigravity/brain/c9879247-ccd5-4ab5-b4ee-504dfbb8fc10/walkthrough.md)
+- [x] **MISSION**: Tactical History Merging (Shared-City Logic) - [.milestone/history_merging_shared_city.md](file:///C:/Users/amirl/.gemini/antigravity/brain/ceccd364-ef73-49dc-86a5-756cc9074d01/walkthrough.md)
 
 ---
 **Mission Status**: **HARDENED** | CONSOLE ANONYMIZED
 
 - Transitioned to ID-Driven Architecture: `active_events{}` dictionary with `last_update_time`-based inactivity timeout (5 min silence).
-- **Lifecycle Hardening**: Fixed premature event purging (was `start_time` based, now `last_update_time`). Added mandatory DETECTION_SIGNAL, ROLLING_UPDATE, EVENT_TIMEOUT, EVENT_PERSISTED, EVENT_PURGED logging.
-- **No More Clustering**: Stripped DBSCAN from `threat_processor.py`. All cities per alert ID form one unified cluster.
+- **Shared-City Merging**: Upgraded clustering from subset/superset to intersection-based. Any shared city between same-category active alerts triggers an automatic merge.
+- **Auditor Multi-Select**: History Fixer now supports manual batch merging of fragmented historical records.
 - **Multi-Alert Broadcast**: Backend pushes `multi_alert` payloads; dashboard renders all threats simultaneously on the map.
 - **Networking**: Masked backend infrastructure via Vercel `/api` proxy. Sanitized production logs.

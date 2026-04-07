@@ -115,18 +115,16 @@ def _compute_adjacency_matrix(items, threshold_km):
     valid_pair = has_center[:, None] & has_center[None, :]
     proximate = valid_pair & (dist_mat <= threshold_km)
 
-    # 4. Vectorized Subset Check
-    # i is subset of j if (presence[i] & presence[j]).sum() == presence[i].sum()
+    # 4. Vectorized Shared City Check
+    # Any shared city between two alerts of the same category triggers a merge.
     intersection = (presence[:, None, :] & presence[None, :, :]).sum(axis=2)
-    is_subset = (intersection == city_counts[:, None]) & (city_counts[:, None] > 0)
-    is_superset = (intersection == city_counts[None, :]) & (city_counts[None, :] > 0)
-    subset_match = is_subset | is_superset
+    shared_match = (intersection > 0)
 
-    # 5. Combine rules (Category + (Proximity | Subset))
+    # 5. Combine rules (Category + (Proximity | Shared Cities))
     categories = np.array([item.get("category", "") for item in items])
     cat_match = (categories[:, None] == categories[None, :])
     
-    return cat_match & (proximate | subset_match)
+    return cat_match & (proximate | shared_match)
 
 def _get_connected_components(adj_matrix):
     """Utility to extract components from an adjacency matrix."""

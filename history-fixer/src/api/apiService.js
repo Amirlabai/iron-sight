@@ -31,6 +31,15 @@ export const splitAlert = async (id, category) => {
   return res.json();
 };
 
+export const mergeAlerts = async (ids, category) => {
+  const res = await fetch(`${TACTICAL_API_URL}/api/history/merge`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ ids, category })
+  });
+  return res.json();
+};
+
 export const fetchCities = async () => {
   const res = await fetch(`${TACTICAL_API_URL}/api/cities`);
   return res.json();

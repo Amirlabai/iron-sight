@@ -358,10 +358,46 @@
 
 .alert-marker {
     width: 4px;
-    height: 35px;
+    height: 100%;
+    min-height: 40px;
     background: var(--accent);
     border-radius: 2px;
     box-shadow: 0 0 10px var(--accent);
+}
+
+/* --- Regional Breakdown Styles --- */
+.regional-breakdown-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.area-group-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.area-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-sub);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.area-cities {
+    font-size: 11px;
+    color: var(--text-main);
+    line-height: 1.4;
+    opacity: 0.9;
+}
+
+.alert-item.live-active {
+    align-items: flex-start;
 }
 
 .alert-item.sandbox {

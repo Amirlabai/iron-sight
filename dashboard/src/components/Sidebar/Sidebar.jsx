@@ -82,19 +82,32 @@ export default function Sidebar() {
                 <div className="alerts-list">
                   {liveEvents.map((ev, evIdx) => {
                     const alertColor = ev.visual_config?.color || '#ff944d';
-                    const citiesText = ev.all_cities?.map(c => c.name).join(', ') || 'N/A';
+                    const grouped = (ev.all_cities || []).reduce((acc, city) => {
+                      const area = city.area || 'Other';
+                      if (!acc[area]) acc[area] = [];
+                      acc[area].push(city.name);
+                      return acc;
+                    }, {});
+
                     return (
                       <motion.div
                         key={ev.id || evIdx}
                         initial={{ x: 20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
-                        className="alert-item"
+                        className="alert-item live-active"
                         style={{ borderLeftColor: alertColor }}
                       >
                         <div className="alert-marker" style={{ background: alertColor, boxShadow: `0 0 10px ${alertColor}` }}></div>
                         <div className="alert-info">
                           <h3 style={{ color: alertColor }}>{ev.title?.toUpperCase()} | {ev.time}</h3>
-                          <p>{citiesText}</p>
+                          <div className="regional-breakdown-mini">
+                            {Object.entries(grouped).map(([area, cities]) => (
+                              <div key={area} className="area-group-mini">
+                                <span className="area-label">{area}:</span>
+                                <span className="area-cities">{cities.join(', ')}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                         <ShieldAlert size={16} color={alertColor} />
                       </motion.div>

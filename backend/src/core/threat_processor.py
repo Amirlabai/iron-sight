@@ -183,6 +183,7 @@ class ThreatProcessor:
             if std in self.engine.dm.city_map:
                 mapped.append({
                     "name": c, 
-                    "coords": [self.engine.dm.city_map[std]['lat'], self.engine.dm.city_map[std]['lon']]
+                    "coords": [self.engine.dm.city_map[std]['lat'], self.engine.dm.city_map[std]['lon']],
+                    "area": self.engine.dm.city_map[std].get('area', 'Other')
                 })
         return mapped

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, useMap } from 'react-leaflet';
-import { Shield, Clock, MapPin, ChevronRight, CheckCircle, SplitSquareVertical, Filter, RefreshCcw } from 'lucide-react';
-import { fetchHistory, updateAlertOrigin, splitAlert, fetchCities } from './api/apiService';
+import { Shield, Clock, MapPin, ChevronRight, CheckCircle, SplitSquareVertical, Filter, RefreshCcw, Combine } from 'lucide-react';
+import { fetchHistory, updateAlertOrigin, splitAlert, mergeAlerts, fetchCities } from './api/apiService';
 import { ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_RED, HIGHLIGHT_RED, ORIGINS_DATA, STRATEGIC_METADATA } from './utils/constants';
 import { TACTICAL_BOUNDARIES } from './utils/tactical_geodata';
 import 'leaflet/dist/leaflet.css';
@@ -30,6 +30,7 @@ function MapCenterer({ center, zoom }) {
 function App() {
   const [history, setHistory] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [hideVerified, setHideVerified] = useState(false);
@@ -62,6 +63,17 @@ function App() {
       setOriginMarker(traj.marker_coords || traj.origin_coords);
       setOriginName(traj.origin);
     }
+  };
+
+  const toggleSelection = (id, e) => {
+    e.stopPropagation();
+    const newSelection = new Set(selectedIds);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedIds(newSelection);
   };
 
   const handleMarkerDrag = (e) => {
@@ -124,6 +136,34 @@ function App() {
     }
   };
 
+  const handleMerge = async () => {
+    if (selectedIds.size < 2) return;
+    
+    const selectedEvents = history.filter(h => selectedIds.has(h.id));
+    const categories = new Set(selectedEvents.map(e => e.category));
+    
+    if (categories.size > 1) {
+      alert("Operational Conflict: Cannot merge different threat categories (e.g. Missiles and Drones).");
+      return;
+    }
+    
+    const category = Array.from(categories)[0];
+    if (!confirm(`Merge ${selectedIds.size} ${category} records into a single tactical event? (Originals will be purged)`)) return;
+    
+    setLoading(true);
+    try {
+      const resp = await mergeAlerts(Array.from(selectedIds), category);
+      if (resp.status === 'SUCCESS') {
+        setSelectedIds(new Set());
+        loadHistory();
+      }
+    } catch (err) {
+      alert("Merge failed: " + err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="history-auditor">
       <header className="auditor-header">
@@ -151,6 +191,12 @@ function App() {
             <option value="terroristInfiltration">Infiltration</option>
             <option value="earthQuake">Earthquake</option>
           </select>
+
+          {selectedIds.size >= 2 && (
+            <button className="merge-btn active" onClick={handleMerge}>
+              <Combine size={14} /> MERGE ({selectedIds.size})
+            </button>
+          )}
         </div>
       </header>
 
@@ -164,22 +210,31 @@ function App() {
             {displayedHistory.map(ev => (
               <div 
                 key={ev.id} 
-                className={`event-card ${selectedEvent?.id === ev.id ? 'active' : ''} ${ev.verified ? 'verified' : ''}`}
+                className={`event-card ${selectedEvent?.id === ev.id ? 'active' : ''} ${ev.verified ? 'verified' : ''} ${selectedIds.has(ev.id) ? 'selected' : ''}`}
                 onClick={() => selectEvent(ev)}
               >
-                <div className="event-meta">
-                  <span className="event-time">{ev.time || '00:00:00'}</span>
-                  <span className="event-id">#{ev.id}</span>
+                <div className="selection-area" onClick={(e) => toggleSelection(ev.id, e)}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.has(ev.id)} 
+                    onChange={() => {}} // Handled by onClick on parent
+                  />
                 </div>
-                <div className="event-title">
-                  {ev.category === 'missiles' ? 'Rocket Salvo' : 
-                   ev.category === 'hostileAircraftIntrusion' ? 'Drone Intrusion' :
-                   ev.category === 'terroristInfiltration' ? 'Terrorist Infiltration' :
-                   ev.category === 'earthQuake' ? 'Earthquake' : ev.category}
-                  {ev.verified && <CheckCircle size={14} className="text-green-500 ml-auto" />}
-                </div>
-                <div className="event-details">
-                  {ev.all_cities?.length} Cities • {ev.trajectories?.[0]?.origin || 'Unknown'}
+                <div className="card-content">
+                  <div className="event-meta">
+                    <span className="event-time">{ev.time || '00:00:00'}</span>
+                    <span className="event-id">#{ev.id}</span>
+                  </div>
+                  <div className="event-title">
+                    {ev.category === 'missiles' ? 'Rocket Salvo' : 
+                     ev.category === 'hostileAircraftIntrusion' ? 'Drone Intrusion' :
+                     ev.category === 'terroristInfiltration' ? 'Terrorist Infiltration' :
+                     ev.category === 'earthQuake' ? 'Earthquake' : ev.category}
+                    {ev.verified && <CheckCircle size={14} className="text-green-500 ml-auto" />}
+                  </div>
+                  <div className="event-details">
+                    {ev.all_cities?.length} Cities • {ev.trajectories?.[0]?.origin || 'Unknown'}
+                  </div>
                 </div>
               </div>
             ))}

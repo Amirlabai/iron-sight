@@ -118,6 +118,9 @@ body, html, #root {
 }
 
 .event-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-color);
   cursor: pointer;
@@ -129,6 +132,24 @@ body, html, #root {
   background: rgba(255,255,255,0.05);
 }
 
+.selection-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selection-area input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent-blue);
+}
+
+.card-content {
+  flex: 1;
+  min-width: 0;
+}
+
 .event-card.active {
   background: rgba(77, 148, 255, 0.1);
   border-left: 4px solid var(--accent-blue);
@@ -136,6 +157,10 @@ body, html, #root {
 
 .event-card.verified {
   border-right: 4px solid var(--accent-green);
+}
+
+.event-card.selected {
+  background: rgba(77, 148, 255, 0.05);
 }
 
 .event-meta {
@@ -156,6 +181,27 @@ body, html, #root {
 .event-details {
   font-size: 0.8rem;
   color: var(--text-secondary);
+}
+
+.merge-btn {
+  background: var(--accent-blue);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(77, 148, 255, 0.3);
+}
+
+.merge-btn:hover {
+  background: #3b7ad9;
+  transform: translateY(-1px);
 }
 
 .map-view {
