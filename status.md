@@ -82,6 +82,8 @@
 - [x] **MISSION**: History Tactical Recalculation (Data Integrity) - [.milestone/history_recalculation.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
 
 
+- [x] **MISSION**: Threat Processor Async Fix (TypeError: Coroutine Unpacking) - [.milestone/threat_processor_async_fix.md](file:///C:/Users/amirl/.gemini/antigravity/brain/c9879247-ccd5-4ab5-b4ee-504dfbb8fc10/walkthrough.md)
+
 ---
 **Mission Status**: **HARDENED** | CONSOLE ANONYMIZED
 

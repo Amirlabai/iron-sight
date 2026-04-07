@@ -9,17 +9,17 @@ class ThreatProcessor:
     def __init__(self, engine):
         self.engine = engine
 
-    def process(self, alert_type, cities_raw):
+    async def process(self, alert_type, cities_raw):
         """Route threat analysis based on category and inject visual orchestration.
         No more DBSCAN clustering. All cities within a single alert ID form one unified cluster."""
         if alert_type == "missiles":
-            return self._process_missiles(cities_raw)
+            return await self._process_missiles(cities_raw)
         elif alert_type == "hostileAircraftIntrusion":
-            return self._process_drone(cities_raw)
+            return await self._process_drone(cities_raw)
         elif alert_type == "terroristInfiltration":
-            return self._process_infiltration(cities_raw)
+            return await self._process_infiltration(cities_raw)
         elif alert_type == "earthQuake":
-            return self._process_earthquake(cities_raw)
+            return await self._process_earthquake(cities_raw)
         return None
 
     def _build_unified_cluster(self, city_coords):
@@ -30,7 +30,7 @@ class ThreatProcessor:
         hull = self.engine.get_convex_hull(coords)
         return cnt, hull
 
-    def _process_missiles(self, cities_raw):
+    async def _process_missiles(self, cities_raw):
         """Ballistic trajectory analysis. Single unified cluster per ID, no DBSCAN."""
         city_coords = self._map_cities(cities_raw)
         if not city_coords: return None
@@ -40,7 +40,7 @@ class ThreatProcessor:
         total_unique = len({c['name'] for c in city_coords})
         force_iran = total_unique > MAX_IRAN_THRESHOLD
 
-        org_name, depth = self.engine.get_origin(city_coords)
+        org_name, depth = await self.engine.get_origin(city_coords)
         if force_iran:
             org_name, depth = "Iran", self.engine.strategic_depths["Iran"]
 
@@ -78,7 +78,7 @@ class ThreatProcessor:
             }
         }
 
-    def _process_drone(self, cities_raw):
+    async def _process_drone(self, cities_raw):
         """Hostile Aircraft: unified cluster for the flight path zone."""
         city_coords = self._map_cities(cities_raw)
         if not city_coords: return None
@@ -109,7 +109,7 @@ class ThreatProcessor:
             }
         }
 
-    def _process_infiltration(self, cities_raw):
+    async def _process_infiltration(self, cities_raw):
         """Terrorist Infiltration: per-city markers within a unified group."""
         city_coords = self._map_cities(cities_raw)
         if not city_coords: return None
@@ -143,7 +143,7 @@ class ThreatProcessor:
             }
         }
 
-    def _process_earthquake(self, cities_raw):
+    async def _process_earthquake(self, cities_raw):
         """Seismic Event: per-city static pulsing alerts."""
         city_coords = self._map_cities(cities_raw)
         if not city_coords: return None

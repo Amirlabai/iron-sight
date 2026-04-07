@@ -186,7 +186,7 @@ async def main():
                                         existing = active_events[alert_id]
                                         existing_names_arr = np.array([c['name'] for c in existing["data"]["all_cities"]])
                                         
-                                        analysis = processor.process(a_type, cities_raw)
+                                        analysis = await processor.process(a_type, cities_raw)
                                         if analysis:
                                             incoming_names = np.array([c['name'] for c in analysis["all_cities"]])
                                             is_new = ~np.isin(incoming_names, existing_names_arr)
@@ -194,7 +194,7 @@ async def main():
                                             existing["data"]["all_cities"].extend(new_cities)
                                             
                                             # Recalculate with full city set
-                                            full_analysis = processor.process(a_type, [c['name'] for c in existing["data"]["all_cities"]])
+                                            full_analysis = await processor.process(a_type, [c['name'] for c in existing["data"]["all_cities"]])
                                             if full_analysis:
                                                 full_analysis["id"] = alert_id
                                                 full_analysis["is_simulation"] = is_simulation
@@ -219,7 +219,7 @@ async def main():
                                                 await db.log_event(alert_id, a_type, "UPDATED", full_analysis)
                                     else:
                                         # New event
-                                        analysis = processor.process(a_type, cities_raw)
+                                        analysis = await processor.process(a_type, cities_raw)
                                         if not analysis:
                                             continue
                                         
