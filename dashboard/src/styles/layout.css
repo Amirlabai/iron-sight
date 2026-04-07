@@ -154,6 +154,12 @@ body {
         gap: 4px;
     }
 
+    .status-pill.online {
+        padding: 6px 6px;
+        font-size: 4px;
+        gap: 4px;
+    }
+
     .sidebar-tabs {
         display: flex;
         flex-direction: row;
