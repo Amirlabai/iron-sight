@@ -10,12 +10,18 @@
 - **GPU Optimized Suite**: Zero-Cost Halo system & Disciplined Pulse (5 cycles).
 - **Theater Discrimination**: Real-time `is_point_in_polygon` detection for the Iranian northern sector.
 - **Strategic Highlight Alias**: Automated regional mapping (`North Iran` -> `Iran`) for visual continuity.
-- [x] MISSION: North Iran Strategic Calibration
-- [x] MISSION: History Metadata Enrichment (Dates/Titles)
-- [x] MISSION: Origin-Aware Strategic Zooming
-- [x] MISSION: Persistence Migration (MongoDB Atlas)
-- [x] MISSION: Tactical Security Hardening (CORS & Mission-Key)
-- [x] **Streamlined Archive Interface**: Removed legacy manual calibration buttons from mission history.
+
+# Iron Sight: Project Status
+Updated: 2026-04-09 16:34
+
+## Current Phase: Optimization & Hardening
+Status: **ACTIVE** - Resolving visual trajectory redundancy.
+
+### Recent Accomplishments
+- [x] Consolidated multi-origin trajectories in `merge_event_group`.
+- [x] Standardized origin naming (stripping whitespace) in `TrackingEngine`.
+- [x] Unified trajectory projection for collective cluster fronts (Lebanon/Iran).
+- [x] Refactored `ThreatProcessor` for missile trajectory consistency.
 - [x] **Mission Archive Persistence**: Migrated from `history.json` to **MongoDB Atlas**.
 - [x] **Secret Intelligence Suite**: Implemented `.env` for tactical credential management.
 - [x] **Strategic Calculation Borders**: Decoupled detection polygons from visual silhouettes for robust origin vectoring.
@@ -50,7 +56,7 @@
 - [x] **Reversed Tactical Geodata**: Generated reversed-coordinate `.txt` archives for `calculation_borders` and `tactical_borders`.
 - [x] MISSION: Tactical Relay Filtering (type: newsFlash Logic)
 - [x] MISSION: WebSocket Active Salvo Persistence (Late-Joiner Synchronization)
-- [x] **MISSION**: Cluster-Based Iran Filtering (Dual-Tier Threshold 10/40) - [Implementation plan archived](file:///c:/Users/amirl/.gemini/antigravity/brain/fde75a3d-5e3c-4fb0-aa25-0c1a82d8add5/implementation_plan.md)
+- [x] **MISSION**: Cluster-Based Iran Filtering (Dual-Tier Threshold 10/40)
 - [x] **MISSION**: Tactical Reset Hardening (Immediate News Flash Response)
 - [x] **MISSION**: Numpy Vectorized Strategy Engine (Backend Hardware Acceleration)
 - [x] **MISSION**: Professional Backend Modular Refactor (`src/` architecture)
@@ -59,40 +65,37 @@
 - [x] **MISSION**: Geographic Multi-Threat Visual Orchestration (React Tracker)
 - [x] **MISSION**: ID-Driven Multi-Threat Architecture (Simultaneous Alert Lifecycle)
 - [x] **MISSION**: Lifecycle Hardening (Inactivity Timeout + Mandatory Detection Logging)
-- [x] **MISSION**: Event Lifecycle Logging (MongoDB Stabilization) - [.open_work/event_lifecycle_logging.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/event_lifecycle_logging.md)
-- [x] **MISSION**: Socket Synchronization Review (Late-Joiner Protocol) - [.milestone/socket_sync_review.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/socket_sync_review.md)
-- [x] **MISSION**: Tactical Intelligence & Visual Hardening - [.milestone/tactical_merging_and_visuals.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/tactical_merging_and_visuals.md)
-- [x] **MISSION**: Tactical Merging and Visual Restoration (Hardening) - [.milestone/tactical_visual_restoration.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/tactical_visual_restoration.md)
-- [x] **MISSION**: Tactical Visual Refinement - [.milestone/tactical_visual_refinement.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/tactical_visual_refinement.md)
-- [x] **MISSION**: Tactical Audio Engine - [.milestone/tactical_audio_engine.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/tactical_audio_engine.md)
-- [x] **MISSION**: Automated Log Export to CSV - [scripts/export_logs.py](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/scripts/export_logs.py)
-- [x] **MISSION**: Frontend Modularization (Alpha) - [.milestone/frontend_modularization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/frontend_modularization.md)
-- [x] **MISSION**: Sync and Merge Hardening (Alpha) - [.milestone/sync_merge_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/sync_merge_hardening.md)
-- [x] **MISSION**: Backend Vectorization (Numpy/SciPy Optimization) - [.milestone/backend_vectorization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/backend_vectorization.md)
-- [x] **MISSION**: Advanced History: Backend Aggregation (HISTORY-ADV-BACKEND) - [.milestone/advanced_history_backend.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/advanced_history_backend.md)
-- [x] **MISSION**: Advanced History: Frontend Visualization (HISTORY-ADV-FRONTEND) - [.milestone/advanced_history_frontend.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/advanced_history_frontend.md)
-- [x] **MISSION**: Tactical History Merging - [.milestone/history_merging.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/history_merging.md)
+- [x] **MISSION**: Event Lifecycle Logging (MongoDB Stabilization)
+- [x] **MISSION**: Socket Synchronization Review (Late-Joiner Protocol)
+- [x] **MISSION**: Tactical Intelligence & Visual Hardening
+- [x] **MISSION**: Tactical Merging and Visual Restoration (Hardening)
+- [x] **MISSION**: Tactical Visual Refinement
+- [x] **MISSION**: Tactical Audio Engine
+- [x] **MISSION**: Automated Log Export to CSV
+- [x] **MISSION**: Frontend Modularization (Alpha)
+- [x] **MISSION**: Sync and Merge Hardening (Alpha)
+- [x] **MISSION**: Backend Vectorization (Numpy/SciPy Optimization)
+- [x] **MISSION**: Advanced History: Backend Aggregation
+- [x] **MISSION**: Advanced History: Frontend Visualization
+- [x] **MISSION**: Tactical History Merging
 - [x] **MISSION**: Tactical Health Stabilization (Undefined Fix)
-- [x] **MISSION**: History Fixer Restoration (Highlighting & Mobile Optimization) - [.milestone/history_fixer_restoration.md](file:///c:/Users/amirl/.milestone/history_fixer_restoration.md)
-- [x] **MISSION**: Dashboard Visual & Mobile Hardening (Restoration) - [.milestone/dashboard_restoration.md](file:///c:/Users/amirl/.milestone/dashboard_restoration.md)
-- [x] **MISSION**: History Aircraft Card Crash Fix (Hardening) - [.milestone/history_aircraft_hardening.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
-- [x] **MISSION**: History Tactical Recalculation (Data Integrity) - [.milestone/history_recalculation.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
-- [x] **MISSION**: Smart Tactical Zoom (Multi-Threat Priority Zooming) - [.milestone/smart_tactical_zoom.md](file:///C:/Users/amirl/.gemini/antigravity/brain/5f9d0dc1-309e-4ef0-bf2c-9fb7f2f1c824/walkthrough.md)
-- [x] **MISSION**: Dashboard UI Optimization (Memory & State Hardening) - [.milestone/dashboard_ui_optimization.md](file:///C:/Users/amirl/.gemini/antigravity/brain/5f9d0dc1-309e-4ef0-bf2c-9fb7f2f1c824/walkthrough_ui.md)
-- [x] **MISSION**: History Tactical Recalculation (Data Integrity) - [.milestone/history_recalculation.md](file:///C:/Users/amirl/.gemini/antigravity/brain/053312cb-53b2-4ae1-84c3-95893ef59dfe/walkthrough.md)
+- [x] **MISSION**: History Fixer Restoration (Highlighting & Mobile Optimization)
+- [x] **MISSION**: Dashboard Visual & Mobile Hardening (Restoration)
+- [x] **MISSION**: History Aircraft Card Crash Fix (Hardening)
+- [x] **MISSION**: History Tactical Recalculation (Data Integrity)
+- [x] **MISSION**: Smart Tactical Zoom (Multi-Threat Priority Zooming)
+- [x] **MISSION**: Dashboard UI Optimization (Memory & State Hardening)
 - [x] **MISSION**: Simplified Tactical Map (Label-Free Dark Mode integration)
-
-
-
-- [x] **MISSION**: Tactical History Merging (Shared-City Logic) - [.milestone/history_merging_shared_city.md](file:///C:/Users/amirl/.gemini/antigravity/brain/ceccd364-ef73-49dc-86a5-756cc9074d01/walkthrough.md)
-- [x] **DATA_CORRECTION**: Lebanon Salvo `134200308790000000` - Fixed Yemen over-projection by force-calibrating depth to 0.5 and locking origin coordinates.
-- [x] **MISSION**: Tactical newsFlash Recalibration (Silent Ghost + Superseding) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/5e58fee5-8c60-44b6-88b4-c2a12da710b0/walkthrough.md)
+- [x] **MISSION**: Tactical History Merging (Shared-City Logic)
+- [x] **DATA_CORRECTION**: Lebanon Salvo `134200308790000000`
+- [x] **MISSION**: Tactical newsFlash Recalibration (Silent Ghost + Superseding)
 
 ---
 **Mission Status**: **HARDENED** | CONSOLE ANONYMIZED
-
 - Transitioned to ID-Driven Architecture: `active_events{}` dictionary with `last_update_time`-based inactivity timeout (5 min silence).
-- **Shared-City Merging**: Upgraded clustering from subset/superset to intersection-based. Any shared city between same-category active alerts triggers an automatic merge.
+- **Shared-City Merging**: Upgraded clustering from subset/superset to intersection-based. Multi-regional merges (e.g. Center/North) now require 50% intersection; same-region or Gaza alerts merge with 1 shared city.
+- **Unified Re-computation**: Merged events now strip accumulated trajectories and re-run ballistic analysis on the full city set for a single 'Master' trajectory.
+- **Multi-Hull Persistence**: Restored `engine.cluster` support allowing a single alert ID to maintain multiple distinct tactical polygons (e.g. simultaneous North and South hits).
 - **Superseding Logic**: Implemented real-time protocol where actual `missiles` alerts immediately terminate overlapping `newsFlash` ghosts.
 - **Silent Ghost**: `newsFlash` alerts maintain ghostly visuals but trigger zero audio to denote their "Potential" status.
 - **Auditor Multi-Select**: History Fixer now supports manual batch merging of fragmented historical records.

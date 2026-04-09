@@ -170,13 +170,15 @@ def _compute_adjacency_matrix(items, threshold_km):
     strong_shared = (subset_ratio >= 0.5) & (intersection > 0)
     
     # Combine Proximity and Shared
-    shared_match = np.where(is_same_area | is_adjacent_area | is_gaza[:, None], has_shared, strong_shared)
+    shared_match = np.where(is_same_area | is_gaza[:, None], has_shared, strong_shared)
 
-    # 6. Final Category Guard
+    # 6. Final Category and Origin Guard
     categories = np.array([item.get("category", "") for item in items])
+    origins = np.array([item.get("origin", "Unknown") for item in items])
     cat_match = (categories[:, None] == categories[None, :])
+    origin_match = (origins[:, None] == origins[None, :])
     
-    return cat_match & (proximate | shared_match)
+    return cat_match & origin_match & (proximate | shared_match)
 
 def _get_connected_components(adj_matrix):
     """Utility to extract components from an adjacency matrix."""
@@ -230,9 +232,14 @@ def group_events(active_events, threshold_km=15, include_all=False):
             areas = [c.get("area", "Unknown") for c in cities if c.get("area")]
             dominant = max(set(areas), key=areas.count) if areas else "Unknown"
             
+            # Extract detected origin for origin-aware merging
+            trajectories = data.get("trajectories", [])
+            origin = trajectories[0].get("origin", "Unknown") if trajectories else "Unknown"
+            
             event_items.append({
                 "id": eid,
                 "category": ev.get("category", ""),
+                "origin": origin,
                 "cities": cities,
                 "center": data.get("center"),
                 "dominant_area": dominant
@@ -264,70 +271,90 @@ async def merge_event_group(group_ids, active_events, engine=None):
     base_data["merged_ids"] = sorted_ids  # Audit traceability (v0.8.8)
     
     category = base_data.get("category")
-    
     merged_all_cities = list(base_data.get("all_cities", []))
-    merged_clusters = list(base_data.get("clusters", []))
-    merged_trajectories = list(base_data.get("trajectories", []))
-    merged_origins = list(base_data.get("highlight_origins", []))
-    
     existing_city_names = {c['name'] for c in merged_all_cities if c.get('name')}
     
+    # 1. Collect all unique cities from the group
     for other_id in sorted_ids[1:]:
         other_item = active_events[other_id]
         other_data = other_item["ev"]["data"] if "ev" in other_item else other_item["data"]
-        
-        # Merge unique cities
         for c in other_data.get("all_cities", []):
             if c.get('name') and c['name'] not in existing_city_names:
                 merged_all_cities.append(c)
                 existing_city_names.add(c['name'])
         
-        # Aggregate visual overlays
-        merged_trajectories.extend(other_data.get("trajectories", []))
-        merged_origins.extend(other_data.get("highlight_origins", []))
-        
-        if category not in ["missiles", "hostileAircraftIntrusion"]:
-            merged_clusters.extend(other_data.get("clusters", []))
-            
-    # Hardened Unification
-    if category in ["hostileAircraftIntrusion", "newsFlash"]:
-        new_cnt, new_hull = recalculate_unified_metadata(merged_all_cities)
-        merged_clusters = [{
-            "origin": category,
-            "centroid": new_cnt,
-            "cities": merged_all_cities,
-            "hull": new_hull
-        }]
+    # 2. Recompute visual structures
+    # Starting state: unified lists
+    merged_clusters = []
+    merged_trajectories = []
+    merged_origins = []
+
+    if category in ["missiles", "hostileAircraftIntrusion", "newsFlash"]:
+        # Cohesive threats get unified trajectory but can maintain multiple tactical hulls
+        coords = np.array([c['coords'] for c in merged_all_cities])
+        new_cnt = np.mean(coords, axis=0).tolist()
         base_data["center"] = new_cnt
         
-        if category == "missiles" and len(sorted_ids) > 1 and engine:
-            org_name, depth = await engine.get_origin(merged_all_cities)
-            border_entry = engine.get_projected_origin(merged_all_cities, org_name, depth=depth)
-            merged_trajectories = [{
-                "origin": org_name,
-                "origin_coords": border_entry,
-                "marker_coords": engine.origins.get(org_name, border_entry),
-                "target_coords": new_cnt,
-                "depth": depth
+        # Use engine to preserve spatially distinct clusters (e.g. North vs South)
+        if engine:
+            raw_clusters = engine.cluster(merged_all_cities)
+            for rc in raw_clusters:
+                merged_clusters.append({
+                    "origin": category,
+                    "centroid": rc['centroid'],
+                    "cities": rc['cities'],
+                    "hull": engine.get_convex_hull([c['coords'] for c in rc['cities']])
+                })
+        else:
+            _, new_hull = recalculate_unified_metadata(merged_all_cities)
+            merged_clusters = [{
+                "origin": category,
+                "centroid": new_cnt,
+                "cities": merged_all_cities,
+                "hull": new_hull
             }]
+        
+        if category == "missiles" and engine:
+            # Smart Multi-Origin Trajectory Grouping (v1.0.2)
+            # Group clusters by their standardized origin to ensure exactly one trajectory per front
+            origin_groups = {} # { origin_name: { "cities": [], "depth": float } }
             
-            # v0.9.0: ML-Based Pruning
-            # If the ML match is significantly different from the vector-based origin, 
-            # or if the cluster contains cities that are geographically inconsistent, 
-            # the engine's _lookup_historical_match will guide the refinement.
-            if len(merged_all_cities) > 1:
-                ml_origin, ml_depth = engine._lookup_historical_match(merged_all_cities) or (None, None)
-                if ml_origin and ml_origin != org_name:
-                    logger.warning(f"ML_MISMATCH: Vector says {org_name}, ML says {ml_origin}. Prioritizing ML for verified patterns.")
-                    org_name = ml_origin
-                    depth = ml_depth
-                    border_entry = engine.get_projected_origin(merged_all_cities, org_name, depth=depth)
-                    merged_trajectories[0].update({
-                        "origin": org_name,
-                        "origin_coords": border_entry,
-                        "marker_coords": engine.origins.get(org_name, border_entry),
-                        "depth": depth
-                    })
+            for mc in merged_clusters:
+                raw_org, cl_depth = await engine.get_origin(mc['cities'])
+                cl_org = raw_org.strip()
+                mc['origin'] = cl_org 
+                
+                if cl_org not in origin_groups:
+                    origin_groups[cl_org] = {"cities": [], "depth": cl_depth}
+                origin_groups[cl_org]["cities"].extend(mc['cities'])
+                # Standardize depth: Use the deepest calculated trajectory if multiple exist for same origin
+                origin_groups[cl_org]["depth"] = max(origin_groups[cl_org]["depth"], cl_depth)
+            
+            merged_trajectories = []
+            for org, group_data in origin_groups.items():
+                g_cities = group_data["cities"]
+                g_depth = group_data["depth"]
+                # Unified target center for this origin
+                g_coords = np.array([c['coords'] for c in g_cities])
+                g_cnt = np.mean(g_coords, axis=0).tolist()
+                
+                # Global origin projection for the entire front
+                border_entry = engine.get_projected_origin(g_cities, org, depth=g_depth)
+                merged_trajectories.append({
+                    "origin": org,
+                    "origin_coords": border_entry,
+                    "marker_coords": engine.origins.get(org, border_entry),
+                    "target_coords": g_cnt,
+                    "depth": g_depth
+                })
+    else:
+        # Multi-cluster threats (Infiltration, Earthquake) accumulate original markers
+        merged_clusters = list(base_data.get("clusters", []))
+        for other_id in sorted_ids[1:]:
+            other_item = active_events[other_id]
+            other_data = other_item["ev"]["data"] if "ev" in other_item else other_item["data"]
+            merged_clusters.extend(other_data.get("clusters", []))
+            # No trajectories for these types
             
     base_data["all_cities"] = merged_all_cities
     base_data["clusters"] = merged_clusters

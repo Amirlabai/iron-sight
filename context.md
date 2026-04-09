@@ -10,6 +10,12 @@
 Iron Sight is a real-time, strategic intelligence engine designed to detect, analyze, and visualize tactical threats in the Israeli theater. 
 It converts raw Pikud HaOref API feeds into actionable intelligence through real-time clustering, trajectory vectoring, and strategic mapping.
 
+## STRATEGIC LOGIC (TACTICAL-CORE-v1.2)
+- **Automatic Merging**: Regional hard-coded adjacency rules determine consolidation. Same-region alerts merge on 1 shared city; cross-region requires 50% intersection.
+- **Trajectory Consolidation**: Enforcement of exactly one representative trajectory per origin group (e.g., Lebanon) during detection and merging.
+- **Origin Projection**: Uses regression vectors from cluster city sets to project entry points within tactical boundaries. Recalculated projection points to the specific entry point for the whole group.
+- **Depth Calibration**: Standardized strategic depths (Gaza 0.5, Lebanon 0.5, Iran 16.0, Yemen 20.0).
+
 ## KEY MISSION COMPONENTS
 - **`backend/` (Command Center)**: Modular Python 3.12 tactical engine (`src/` architecture).
     - **`src/core/`**: Unified-cluster analysis (no DBSCAN), PCA vectoring, and multi-threat processing (`missiles`, `hostileAircraftIntrusion`, `terroristInfiltration`, `earthQuake`).

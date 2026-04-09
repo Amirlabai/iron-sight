@@ -42,28 +42,53 @@ class ThreatProcessor:
         total_unique = len({c['name'] for c in city_coords})
         force_iran = total_unique > MAX_IRAN_THRESHOLD
 
-        org_name, depth = await self.engine.get_origin(city_coords)
-        if force_iran:
-            org_name, depth = "Iran", self.engine.strategic_depths["Iran"]
+        raw_clusters = self.engine.cluster(city_coords)
+        processed_clusters = []
+        origin_groups = {}
+        
+        for rc in raw_clusters:
+            raw_org, cl_depth = await self.engine.get_origin(rc['cities'])
+            cl_org = raw_org.strip()
+            if force_iran:
+                cl_org, cl_depth = "Iran", self.engine.strategic_depths["Iran"]
+                
+            processed_clusters.append({
+                "origin": cl_org,
+                "centroid": rc['centroid'],
+                "cities": rc['cities'],
+                "hull": self.engine.get_convex_hull([c['coords'] for c in rc['cities']])
+            })
+            if cl_org not in origin_groups:
+                origin_groups[cl_org] = {"cities": [], "depth": cl_depth}
+            origin_groups[cl_org]["cities"].extend(rc['cities'])
+            # Standardize depth: Use the deepest calculated trajectory if multiple exist for same origin
+            origin_groups[cl_org]["depth"] = max(origin_groups[cl_org]["depth"], cl_depth)
+            
+        trajectories = []
+        for org, group_data in origin_groups.items():
+            g_cities = group_data["cities"]
+            g_depth = group_data["depth"]
+            # Unified target center for this origin
+            g_coords = np.array([c['coords'] for c in g_cities])
+            g_cnt = np.mean(g_coords, axis=0).tolist()
+            
+            # Global origin projection for the entire front
+            border_entry = self.engine.get_projected_origin(g_cities, org, depth=g_depth)
+            
+            trajectories.append({
+                "origin": org,
+                "origin_coords": border_entry,
+                "marker_coords": self.engine.origins.get(org, border_entry),
+                "target_coords": g_cnt,
+                "depth": g_depth
+            })
 
-        border_entry = self.engine.get_projected_origin(city_coords, org_name, depth=depth)
-
-        trajectories = [{
-            "origin": org_name,
-            "origin_coords": border_entry,
-            "marker_coords": self.engine.origins[org_name],
-            "target_coords": cnt
-        }]
-
-        processed_clusters = [{
-            "origin": org_name,
-            "centroid": cnt,
-            "cities": city_coords,
-            "hull": hull
-        }]
-
-        display_origin = "Iran" if org_name == "North Iran" else org_name
-        title = f"{display_origin} Salvo"
+        if len(origin_groups) == 1:
+            org_name = list(origin_groups.keys())[0]
+            display_origin = "Iran" if org_name == "North Iran" else org_name
+            title = f"{display_origin} Salvo"
+        else:
+            title = "Combined Salvo"
 
         return {
             "type": "alert",
@@ -87,12 +112,15 @@ class ThreatProcessor:
 
         cnt, hull = self._build_unified_cluster(city_coords)
 
-        processed_clusters = [{
-            "origin": "hostileAircraftIntrusion",
-            "centroid": cnt,
-            "cities": city_coords,
-            "hull": hull
-        }]
+        raw_clusters = self.engine.cluster(city_coords)
+        processed_clusters = []
+        for rc in raw_clusters:
+            processed_clusters.append({
+                "origin": "hostileAircraftIntrusion",
+                "centroid": rc['centroid'],
+                "cities": rc['cities'],
+                "hull": self.engine.get_convex_hull([c['coords'] for c in rc['cities']])
+            })
 
         return {
             "type": "alert",

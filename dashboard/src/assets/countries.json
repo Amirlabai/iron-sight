@@ -69,7 +69,7 @@
             "type": "Feature",
             "properties": {
                 "location": "Iran",
-                "color": "#ff4d4d",
+                "color": "#ff944d",
                 "depth": 13,
                 "zoom level": 5
             },
@@ -158,7 +158,7 @@
             "type": "Feature",
             "properties": {
                 "location": "Lebanon",
-                "color": "#C7A800",
+                "color": "#FFB300",
                 "depth": 0.5,
                 "zoom level": 10
             },

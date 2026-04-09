@@ -236,12 +236,14 @@ class TrackingEngine:
                 jaccard = len(intersection) / len(union) if union else 0
                 
                 if jaccard > 0.8: # High similarity
-                    return item["trajectories"][0]["origin"], item["trajectories"][0].get("depth", 10.0)
+                    org = item["trajectories"][0]["origin"]
+                    depth = item["trajectories"][0].get("depth", 10.0)
+                    return org.strip(), depth
         
         return None
 
     async def get_origin(self, cluster_cities, manual_origin=None):
-        if manual_origin: return manual_origin
+        if manual_origin: return manual_origin.strip(), self.strategic_depths.get(manual_origin.strip(), 10.0)
         
         # 1. Historical Lookup (ML-lite)
         await self._sync_verified_history()
@@ -274,7 +276,7 @@ class TrackingEngine:
             depth = 0.5
             proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
             for territory in ["Lebanon", "Gaza"]:
-                if self.is_point_in_polygon(proj, territory): return territory, depth
+                if self.is_point_in_polygon(proj, territory): return territory.strip(), depth
         # Fallback Heuristics
         dist_gaza = self.get_distance(centroid, self.origins["Gaza"])
         dist_lebanon = self.get_distance(centroid, self.origins["Lebanon"])
