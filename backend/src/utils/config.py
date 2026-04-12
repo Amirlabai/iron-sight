@@ -10,7 +10,7 @@ POLL_INTERVAL = 3
 TIMEZONE = ZoneInfo("Asia/Jerusalem")
 
 # --- Tactical Logic Constants ---
-MIN_IRAN_THRESHOLD = 10
+MIN_IRAN_THRESHOLD = 35
 MAX_IRAN_THRESHOLD = 50
 
 # --- Resource URLs ---
