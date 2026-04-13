@@ -296,8 +296,9 @@ class TrackingEngine:
         # Orient away from target
         dist_current = self.get_distance([cnt_lat, cnt_lon], origin_center)
         dist_forward = self.get_distance([cnt_lat + v_lat*0.1, cnt_lon + v_lon*0.1], origin_center)
-        if dist_forward > dist_current and len(cluster_cities) <= MIN_IRAN_THRESHOLD:
-            v_lat, v_lon = -v_lat, -v_lon
+        if dist_forward > dist_current:
+            if len(cluster_cities) <= MIN_IRAN_THRESHOLD or origin_name in ["Lebanon", "Gaza"]:
+                v_lat, v_lon = -v_lat, -v_lon
         scalar = depth if depth is not None else self.strategic_depths.get(origin_name, 10.0)
         proj = [cnt_lat + v_lat * scalar, cnt_lon + v_lon * scalar]
         if not self.is_point_in_polygon(proj, origin_name, use_tactical=True):
