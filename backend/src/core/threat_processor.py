@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from src.utils.config import MAX_IRAN_THRESHOLD
+from src.utils.config import MAX_IRAN_THRESHOLD, MISSILE_INFLATION_FACTOR, DRONE_INFLATION_FACTOR, DEFAULT_INFLATION_FACTOR
 from src.utils.text_utils import standardize_name
 
 logger = logging.getLogger("IronSightBackend")
@@ -24,12 +24,12 @@ class ThreatProcessor:
             return await self._process_news_flash(cities_raw)
         return None
 
-    def _build_unified_cluster(self, city_coords):
+    def _build_unified_cluster(self, city_coords, factor=DEFAULT_INFLATION_FACTOR):
         """Treat all cities as a single cluster: one hull, one centroid."""
         if not city_coords: return [0, 0], []
         coords = np.array([c['coords'] for c in city_coords])
         cnt = np.mean(coords, axis=0).tolist()
-        hull = self.engine.get_convex_hull(coords)
+        hull = self.engine.get_inflated_hull(coords, factor)
         return cnt, hull
 
     async def _process_missiles(self, cities_raw):
@@ -37,7 +37,7 @@ class ThreatProcessor:
         city_coords = self._map_cities(cities_raw)
         if not city_coords: return None
 
-        cnt, hull = self._build_unified_cluster(city_coords)
+        cnt, hull = self._build_unified_cluster(city_coords, MISSILE_INFLATION_FACTOR)
 
         total_unique = len({c['name'] for c in city_coords})
         force_iran = total_unique > MAX_IRAN_THRESHOLD
@@ -56,7 +56,7 @@ class ThreatProcessor:
                 "origin": cl_org,
                 "centroid": rc['centroid'],
                 "cities": rc['cities'],
-                "hull": self.engine.get_convex_hull([c['coords'] for c in rc['cities']])
+                "hull": self.engine.get_inflated_hull([c['coords'] for c in rc['cities']], MISSILE_INFLATION_FACTOR)
             })
             if cl_org not in origin_groups:
                 origin_groups[cl_org] = {"cities": [], "depth": cl_depth}
@@ -110,7 +110,7 @@ class ThreatProcessor:
         city_coords = self._map_cities(cities_raw)
         if not city_coords: return None
 
-        cnt, hull = self._build_unified_cluster(city_coords)
+        cnt, hull = self._build_unified_cluster(city_coords, DRONE_INFLATION_FACTOR)
 
         raw_clusters = self.engine.cluster(city_coords)
         processed_clusters = []
@@ -119,7 +119,7 @@ class ThreatProcessor:
                 "origin": "hostileAircraftIntrusion",
                 "centroid": rc['centroid'],
                 "cities": rc['cities'],
-                "hull": self.engine.get_convex_hull([c['coords'] for c in rc['cities']])
+                "hull": self.engine.get_inflated_hull([c['coords'] for c in rc['cities']], DRONE_INFLATION_FACTOR)
             })
 
         return {

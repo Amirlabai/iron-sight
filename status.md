@@ -90,6 +90,8 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] **DATA_CORRECTION**: Lebanon Salvo `134200308790000000`
 - [x] **MISSION**: Tactical newsFlash Recalibration (Silent Ghost + Superseding)
 - [x] **MISSION**: Historical Trajectory Hardening (INDEX_ERROR_HARDENING) - [.milestone/index_error_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/index_error_hardening.md)
+- [x] **MISSION**: Tactical Cluster Shape Inflation (CLUSTER_INFLATION) - [.milestone/cluster_inflation.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/cluster_inflation.md)
+
 
 
 

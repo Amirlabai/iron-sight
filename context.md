@@ -117,6 +117,10 @@ Transitioned to Development Alpha.
 - **Historical Trajectory Hardening (v1.0.3 - Completed)**:
     - Implemented defensive guard clauses for safe trajectory array access and optimized MongoDB verified fetches.
     - Plan: [.milestone/index_error_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/index_error_hardening.md)
+- **Tactical Cluster Shape Inflation (v1.0.4 - Briefing)**:
+    - implementing configurable hull expansion for drones and missiles in the engine and threat processor layers.
+    - Plan: [.open_work/cluster_inflation.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/cluster_inflation.md)
+
 
 
 

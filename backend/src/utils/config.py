@@ -13,6 +13,11 @@ TIMEZONE = ZoneInfo("Asia/Jerusalem")
 MIN_IRAN_THRESHOLD = 35
 MAX_IRAN_THRESHOLD = 50
 
+# --- Hull Inflation Factors ---
+DEFAULT_INFLATION_FACTOR = 1.0
+DRONE_INFLATION_FACTOR = 1.5
+MISSILE_INFLATION_FACTOR = 1.25
+
 # --- Resource URLs ---
 LAMAS_DATA_URL = "https://raw.githubusercontent.com/idodov/RedAlert/refs/heads/main/apps/red_alerts_israel/lamas_data.json"
 LOCAL_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "lamas_data.json")

@@ -105,6 +105,17 @@ class TrackingEngine:
         except Exception:
             return pts.tolist() 
 
+    def get_inflated_hull(self, points, factor=1.0):
+        """Compute convex hull and inflate vertices outward from centroid by the given factor.
+        factor=1.0 returns the standard hull (no inflation)."""
+        hull = self.get_convex_hull(points)
+        if factor == 1.0 or len(hull) < 2:
+            return hull
+        pts = np.array(hull)
+        centroid = np.mean(pts, axis=0)
+        inflated = centroid + (pts - centroid) * factor
+        return inflated.tolist()
+
     def is_point_in_polygon(self, point, poly_name, use_tactical=False):
         boundaries = self.boundaries if use_tactical else self.calc_boundaries
         if poly_name not in boundaries: return False

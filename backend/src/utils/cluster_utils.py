@@ -3,6 +3,7 @@ import logging
 import numpy as np
 from scipy.spatial import ConvexHull
 from src.utils.text_utils import standardize_name
+from src.utils.config import DEFAULT_INFLATION_FACTOR, DRONE_INFLATION_FACTOR, MISSILE_INFLATION_FACTOR
 
 logger = logging.getLogger("IronSightClustering")
 
@@ -47,7 +48,7 @@ def is_subset(cities_a, cities_b):
         return False
     return set_a.issubset(set_b)
 
-def recalculate_unified_metadata(cities):
+def recalculate_unified_metadata(cities, factor=DRONE_INFLATION_FACTOR):
     """
     Given a list of cities, recalculate a single unified centroid and convex hull.
     This replaces the multiple sub-clusters from merged events.
@@ -71,15 +72,14 @@ def recalculate_unified_metadata(cities):
     elif len(coords) == 2:
         # Inflate 2 points away from each other
         cnt = np.array(centroid)
-        inflated = cnt + (coords - cnt) * 1.5
+        inflated = cnt + (coords - cnt) * factor
         hull = inflated.tolist()
     else:
         try:
             ch = ConvexHull(coords)
             hull_pts = coords[ch.vertices]
-            # Inflation Phase (v0.8.7): Expand hull by 50% to encapsulate drone paths
             cnt = np.array(centroid)
-            inflated = cnt + (hull_pts - cnt) * 1.5
+            inflated = cnt + (hull_pts - cnt) * factor
             hull = inflated.tolist()
         except:
             hull = coords.tolist()
@@ -296,6 +296,14 @@ async def merge_event_group(group_ids, active_events, engine=None):
         base_data["center"] = new_cnt
         
         # Use engine to preserve spatially distinct clusters (e.g. North vs South)
+        # Resolve category-specific inflation factor
+        if category == "missiles":
+            merge_factor = MISSILE_INFLATION_FACTOR
+        elif category == "hostileAircraftIntrusion":
+            merge_factor = DRONE_INFLATION_FACTOR
+        else:
+            merge_factor = DEFAULT_INFLATION_FACTOR
+
         if engine:
             raw_clusters = engine.cluster(merged_all_cities)
             for rc in raw_clusters:
@@ -303,10 +311,10 @@ async def merge_event_group(group_ids, active_events, engine=None):
                     "origin": category,
                     "centroid": rc['centroid'],
                     "cities": rc['cities'],
-                    "hull": engine.get_convex_hull([c['coords'] for c in rc['cities']])
+                    "hull": engine.get_inflated_hull([c['coords'] for c in rc['cities']], merge_factor)
                 })
         else:
-            _, new_hull = recalculate_unified_metadata(merged_all_cities)
+            _, new_hull = recalculate_unified_metadata(merged_all_cities, merge_factor)
             merged_clusters = [{
                 "origin": category,
                 "centroid": new_cnt,
