@@ -89,6 +89,9 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] **MISSION**: Tactical History Merging (Shared-City Logic)
 - [x] **DATA_CORRECTION**: Lebanon Salvo `134200308790000000`
 - [x] **MISSION**: Tactical newsFlash Recalibration (Silent Ghost + Superseding)
+- [x] **MISSION**: Historical Trajectory Hardening (INDEX_ERROR_HARDENING) - [.milestone/index_error_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/index_error_hardening.md)
+
+
 
 ---
 **Mission Status**: **HARDENED** | CONSOLE ANONYMIZED

@@ -114,6 +114,11 @@ Transitioned to Development Alpha.
     - Implemented `calculateBestMapConfig` in `TacticalProvider.jsx` to prioritize furthest origins.
     - Enabled automatic "snap-back" to tighter zoom levels when strategic threats terminate.
     - Synchronized "Return to Live" functionality with multi-threat awareness.
+- **Historical Trajectory Hardening (v1.0.3 - Completed)**:
+    - Implemented defensive guard clauses for safe trajectory array access and optimized MongoDB verified fetches.
+    - Plan: [.milestone/index_error_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/index_error_hardening.md)
+
+
 
     - `context/TacticalContext.jsx`: Global state provider with WebSocket lifecycle, audio engine.
     - `utils/constants.js`: Centralized env detection, WS URLs, geodata derivations, color tokens, Leaflet icon fix.

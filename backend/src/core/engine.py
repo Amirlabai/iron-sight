@@ -201,7 +201,10 @@ class TrackingEngine:
         try:
             self.verified_history = await self.db.get_verified_history(limit=2000)
             self.last_sync_time = now
-            logger.info(f"TACTICAL_ML_SYNC: {len(self.verified_history)} verified records loaded.")
+            if not self.verified_history:
+                logger.warning("TACTICAL_ML_SYNC: Zero valid verified records loaded. Historical matching disabled.")
+            else:
+                logger.info(f"TACTICAL_ML_SYNC: {len(self.verified_history)} verified records loaded.")
         except Exception as e:
             logger.error(f"ML_SYNC_FAILURE: {e}")
 
@@ -220,11 +223,16 @@ class TrackingEngine:
         best_score = 0
         
         for item in self.verified_history:
+            # Guard: skip records with empty or missing trajectories
+            trajectories = item.get("trajectories")
+            if not trajectories:
+                continue
+
             hist_names = {c['name'] for c in item.get("all_cities", []) if c.get('name')}
             
             # Exact Match
             if current_names == hist_names:
-                return item["trajectories"][0]["origin"], item["trajectories"][0].get("depth", 10.0)
+                return trajectories[0]["origin"], trajectories[0].get("depth", 10.0)
             
             # Centroid Proximity
             hist_centroid = np.array(item.get("center") or [0, 0])
@@ -236,8 +244,8 @@ class TrackingEngine:
                 jaccard = len(intersection) / len(union) if union else 0
                 
                 if jaccard > 0.8: # High similarity
-                    org = item["trajectories"][0]["origin"]
-                    depth = item["trajectories"][0].get("depth", 10.0)
+                    org = trajectories[0]["origin"]
+                    depth = trajectories[0].get("depth", 10.0)
                     return org.strip(), depth
         
         return None

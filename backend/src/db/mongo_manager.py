@@ -197,10 +197,11 @@ class MongoManager:
             return []
 
     async def get_verified_history(self, limit=1000):
-        """Retrieve archive for verified alerts across all categories."""
+        """Retrieve archive for verified alerts with valid trajectory data."""
         try:
             import asyncio
-            tasks = [self.db[coll].find({"verified": True}).limit(limit).to_list(length=limit) for coll in [COLLECTION_SALVO, COLLECTION_DRONE]]
+            query = {"verified": True, "trajectories.0": {"$exists": True}}
+            tasks = [self.db[coll].find(query).limit(limit).to_list(length=limit) for coll in [COLLECTION_SALVO, COLLECTION_DRONE]]
             results = await asyncio.gather(*tasks)
             unified = []
             for res in results:
