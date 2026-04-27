@@ -106,6 +106,11 @@ Transitioned to Development Alpha.
     - Restored origin highlighting via `TACTICAL_BOUNDARIES` and `Polygon` rendering.
     - Fixed aircraft filter "blackout" crash via strict coordinate safety guards.
     - Implemented responsive `DEFAULT_ZOOM` and mobile-optimized layouts for phones.
+- [x] **Dashboard UI Optimization**:
+    - Stripped 'layout' prop from history cards to eliminate "jumping" and reduce memory overhead.
+    - Fixed history expansion "ghosting" by transitioning to unique `event.id` React keys.
+    - Implemented automatic expansion state reset when alternating between history filters.
+    - Conditionally hidden summary regional breakdown in history cards when expanded to reduce visual clutter.
 - [x] **Dashboard Visual & Mobile Restoration**:
     - Restored origin high-fidelity boundary polygons in `ThreatOverlay.jsx` for all trajectories.
     - Hardened history regional grouping in `Sidebar.jsx` and data fetching in `TacticalContext.jsx` to prevent blackout crashes.

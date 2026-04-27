@@ -36,6 +36,7 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
     - Stripped 'layout' prop from history cards to eliminate "jumping" and reduce memory overhead.
     - Fixed history expansion "ghosting" by transitioning to unique `event.id` React keys.
     - Implemented automatic expansion state reset when alternating between history filters.
+    - Conditionally hidden summary regional breakdown in history cards when expanded to reduce visual clutter.
 - [x] **Smart Tactical Zoom (Priority Zooming)**:
     - Implemented `calculateBestMapConfig` in `TacticalProvider.jsx` to prioritize furthest origins.
     - Enabled automatic "snap-back" to tighter zoom levels when strategic threats terminate.

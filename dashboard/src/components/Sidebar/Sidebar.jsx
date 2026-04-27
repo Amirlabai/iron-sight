@@ -19,7 +19,7 @@ export default function Sidebar() {
     totalClusters, totalTargets, setExpandedRegions,
     historyFilter, setHistoryFilter, fetchHistory
   } = useTactical();
-  
+
   const [expandedId, setExpandedId] = React.useState(null);
 
   React.useEffect(() => {
@@ -126,8 +126,8 @@ export default function Sidebar() {
                   { id: 'terroristInfiltration', label: 'INFILTRATION', Icon: Users },
                   { id: 'earthQuake', label: 'QUAKE', Icon: Waves },
                 ].map(({ id, label, Icon }) => (
-                  <button 
-                    key={id} 
+                  <button
+                    key={id}
                     className={`filter-tab ${historyFilter === id ? 'active' : ''}`}
                     onClick={() => setHistoryFilter(id)}
                   >
@@ -152,19 +152,19 @@ export default function Sidebar() {
                       'terroristInfiltration': <Users size={16} />,
                       'earthQuake': <Waves size={16} />
                     }[event.category || 'missiles'] || <ShieldAlert size={16} />;
-                    
+
                     const groupCitiesByArea = (cities) => {
                       if (!cities || !Array.isArray(cities) || !regionalData) return {};
                       const groups = {};
                       cities.forEach(c => {
                         const cityName = typeof c === 'string' ? c : c?.name;
                         if (!cityName) return;
-                        
+
                         let foundArea = "Other";
                         for (const [area, areaCities] of Object.entries(regionalData)) {
-                          if (areaCities && typeof areaCities === 'object' && areaCities[cityName]) { 
-                            foundArea = area; 
-                            break; 
+                          if (areaCities && typeof areaCities === 'object' && areaCities[cityName]) {
+                            foundArea = area;
+                            break;
                           }
                         }
                         if (!groups[foundArea]) groups[foundArea] = [];
@@ -177,9 +177,9 @@ export default function Sidebar() {
                     const grouped = groupCitiesByArea(event.all_cities);
 
                     return (
-                      <motion.div 
-                        key={event.id || `hist-${i}`} 
-                        className={`history-card ${archiveEvent?.id === event.id && viewMode === 'archive' ? 'selected' : ''} ${isExpanded ? 'active' : ''}`} 
+                      <motion.div
+                        key={event.id || `hist-${i}`}
+                        className={`history-card ${archiveEvent?.id === event.id && viewMode === 'archive' ? 'selected' : ''} ${isExpanded ? 'active' : ''}`}
                         onClick={() => {
                           selectArchive(event);
                           setExpandedId(isExpanded ? null : event.id);
@@ -193,13 +193,23 @@ export default function Sidebar() {
                               <span className="category-tag">{catIcon} {event.category?.toUpperCase()}</span>
                             </div>
                             <div className="history-title">{event.title || 'Unknown Salvo'}</div>
+                            {!isExpanded && (
+                              <div className="time">
+                                {Object.entries(grouped).map(([area, cities]) => (
+                                  <div key={area} className="area-header">
+                                    <span>{area}</span>
+                                    <span className="count-mini">{cities.length}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                         </div>
 
                         <AnimatePresence>
                           {isExpanded && (
-                            <motion.div 
+                            <motion.div
                               initial={{ height: 0, opacity: 0 }}
                               animate={{ height: 'auto', opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
