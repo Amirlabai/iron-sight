@@ -124,9 +124,15 @@ Transitioned to Development Alpha.
 - **Historical Trajectory Hardening (v1.0.3 - Completed)**:
     - Implemented defensive guard clauses for safe trajectory array access and optimized MongoDB verified fetches.
     - Plan: [.milestone/index_error_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/index_error_hardening.md)
-- **Tactical Cluster Shape Inflation (v1.0.4 - Briefing)**:
+- **Tactical Cluster Shape Inflation (v1.0.4 - Complete)**:
     - implementing configurable hull expansion for drones and missiles in the engine and threat processor layers.
     - Plan: [.open_work/cluster_inflation.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/cluster_inflation.md)
+- **Strategic Origin Filtering (v1.0.5 - Complete)**:
+    - Gated Iran/Yemen origin detection behind `allow_strategic` flag derived from newsFlash context.
+    - `engine.get_origin` skips long-range polygon projection when `allow_strategic=False`.
+    - `threat_processor._process_missiles` calculates `allow_strategic` from batch pre-scan and active newsFlash events.
+    - `main.py` pre-scans each alert batch for newsFlash presence and passes context through the pipeline.
+    - Plan: [.open_work/strategic_origin_filtering.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/strategic_origin_filtering.md)
 
 
 

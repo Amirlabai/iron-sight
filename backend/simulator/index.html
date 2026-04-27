@@ -223,6 +223,7 @@
             <option value="hostileAircraftIntrusion">Hostile Aircraft (Drone)</option>
             <option value="terroristInfiltration">Terrorist Infiltration</option>
             <option value="earthQuake">Earthquake Alert</option>
+            <option value="newsFlash">News Flash (PTW)</option>
         </select>
 
         <button class="btn-fire" id="btn-dispatch" onclick="dispatchAlert()">DISPATCH</button>
@@ -246,14 +247,16 @@
             "missiles": "#ff4d4d",
             "hostileAircraftIntrusion": "#ff9500",
             "terroristInfiltration": "#b518ff",
-            "earthQuake": "#4cd964"
+            "earthQuake": "#4cd964",
+            "newsFlash": "#f8f8f8"
         };
 
         const THREAT_LABELS = {
             "missiles": "ROCKET",
             "hostileAircraftIntrusion": "DRONE",
             "terroristInfiltration": "INFILTRATION",
-            "earthQuake": "SEISMIC"
+            "earthQuake": "SEISMIC",
+            "newsFlash": "NEWSFLASH"
         };
 
         // Loading Data
@@ -322,7 +325,8 @@
                 "missiles": { color: "#ff4d4d", label: "DISPATCH SALVO" },
                 "hostileAircraftIntrusion": { color: "#ff944d", label: "DISPATCH DRONE" },
                 "terroristInfiltration": { color: "#b518ff", label: "DISPATCH INFILTRATION" },
-                "earthQuake": { color: "#4cd964", label: "DISPATCH SEISMIC" }
+                "earthQuake": { color: "#4cd964", label: "DISPATCH SEISMIC" },
+                "newsFlash": { color: "#f8f8f8", label: "DISPATCH NEWSFLASH" }
             };
             
             const config = styles[type] || styles.missiles;

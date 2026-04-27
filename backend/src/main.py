@@ -126,6 +126,9 @@ async def main():
                             data = json.loads(await resp.text())
                             alerts = data if isinstance(data, list) else [data] if data else []
                             
+                            # Pre-scan: detect if any alert in this batch is a newsFlash
+                            has_newsflash_in_batch = any(a.get('type') == 'newsFlash' for a in alerts)
+
                             for alert_payload in alerts:
                                 a_type = str(alert_payload.get('type', ''))
                                 instructions = str(alert_payload.get('instructions', ''))
@@ -189,7 +192,7 @@ async def main():
                                         continue
                                     
                                     is_simulation = alert_payload.get("is_simulation", False)
-                                    analysis = await processor.process(a_type, cities_raw)
+                                    analysis = await processor.process(a_type, cities_raw, active_events, has_newsflash_in_batch)
                                     if not analysis:
                                         continue
 
@@ -216,7 +219,7 @@ async def main():
                                             existing["data"]["all_cities"].extend(new_cities)
                                             
                                             # Recalculate with full city set
-                                            full_analysis = await processor.process(a_type, [c['name'] for c in existing["data"]["all_cities"]])
+                                            full_analysis = await processor.process(a_type, [c['name'] for c in existing["data"]["all_cities"]], active_events, has_newsflash_in_batch)
                                             if full_analysis:
                                                 full_analysis["id"] = alert_id
                                                 full_analysis["is_simulation"] = is_simulation

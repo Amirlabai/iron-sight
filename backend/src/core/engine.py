@@ -261,7 +261,7 @@ class TrackingEngine:
         
         return None
 
-    async def get_origin(self, cluster_cities, manual_origin=None):
+    async def get_origin(self, cluster_cities, manual_origin=None, allow_strategic=True):
         if manual_origin: return manual_origin.strip(), self.strategic_depths.get(manual_origin.strip(), 10.0)
         
         # 1. Historical Lookup (ML-lite)
@@ -286,12 +286,13 @@ class TrackingEngine:
             dist_next = self.get_distance([centroid[0] + v_lat*0.1, centroid[1] + v_lon*0.1], isr)
             if dist_next < dist_now and len(cluster_cities) <= MIN_IRAN_THRESHOLD:
                 v_lat, v_lon = -v_lat, -v_lon
-            # Vector Projections Strategy
-            depth = 7
-            proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
-            for territory in ["North Iran", "Iran", "Yemen"]:
-                if self.is_point_in_polygon(proj, territory):
-                    return ("Iran", 16.0) if territory.endswith("Iran") else ("Yemen", depth)
+            # Vector Projections Strategy (Strategic origins gated by newsFlash context)
+            if allow_strategic:
+                depth = 7
+                proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
+                for territory in ["North Iran", "Iran", "Yemen"]:
+                    if self.is_point_in_polygon(proj, territory):
+                        return ("Iran", 16.0) if territory.endswith("Iran") else ("Yemen", depth)
             depth = 0.5
             proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
             for territory in ["Lebanon", "Gaza"]:

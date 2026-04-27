@@ -9,11 +9,11 @@ class ThreatProcessor:
     def __init__(self, engine):
         self.engine = engine
 
-    async def process(self, alert_type, cities_raw):
+    async def process(self, alert_type, cities_raw, active_events=None, has_newsflash_in_batch=False):
         """Route threat analysis based on category and inject visual orchestration.
         No more DBSCAN clustering. All cities within a single alert ID form one unified cluster."""
         if alert_type == "missiles":
-            return await self._process_missiles(cities_raw)
+            return await self._process_missiles(cities_raw, active_events, has_newsflash_in_batch)
         elif alert_type == "hostileAircraftIntrusion":
             return await self._process_drone(cities_raw)
         elif alert_type == "terroristInfiltration":
@@ -32,22 +32,30 @@ class ThreatProcessor:
         hull = self.engine.get_inflated_hull(coords, factor)
         return cnt, hull
 
-    async def _process_missiles(self, cities_raw):
+    async def _process_missiles(self, cities_raw, active_events=None, has_newsflash_in_batch=False):
         """Ballistic trajectory analysis. Single unified cluster per ID, no DBSCAN."""
         city_coords = self._map_cities(cities_raw)
         if not city_coords: return None
 
         cnt, hull = self._build_unified_cluster(city_coords, MISSILE_INFLATION_FACTOR)
 
+        # Strategic origin gate: Iran/Yemen only valid when newsFlash context is present
+        allow_strategic = has_newsflash_in_batch
+        if not allow_strategic and active_events:
+            allow_strategic = any(
+                ev.get("category") == "newsFlash" and ev.get("end_time") is None
+                for ev in active_events.values()
+            )
+
         total_unique = len({c['name'] for c in city_coords})
-        force_iran = total_unique > MAX_IRAN_THRESHOLD
+        force_iran = total_unique > MAX_IRAN_THRESHOLD and allow_strategic
 
         raw_clusters = self.engine.cluster(city_coords)
         processed_clusters = []
         origin_groups = {}
         
         for rc in raw_clusters:
-            raw_org, cl_depth = await self.engine.get_origin(rc['cities'])
+            raw_org, cl_depth = await self.engine.get_origin(rc['cities'], allow_strategic=allow_strategic)
             cl_org = raw_org.strip()
             if force_iran:
                 cl_org, cl_depth = "Iran", self.engine.strategic_depths["Iran"]

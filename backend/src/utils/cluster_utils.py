@@ -324,11 +324,16 @@ async def merge_event_group(group_ids, active_events, engine=None):
         
         if category == "missiles" and engine:
             # Smart Multi-Origin Trajectory Grouping (v1.0.2)
+            # Strategic origin gate: respect newsFlash context during merge recalculation
+            allow_strategic = any(
+                ev.get("category") == "newsFlash" and ev.get("end_time") is None
+                for ev in active_events.values()
+            )
             # Group clusters by their standardized origin to ensure exactly one trajectory per front
             origin_groups = {} # { origin_name: { "cities": [], "depth": float } }
             
             for mc in merged_clusters:
-                raw_org, cl_depth = await engine.get_origin(mc['cities'])
+                raw_org, cl_depth = await engine.get_origin(mc['cities'], allow_strategic=allow_strategic)
                 cl_org = raw_org.strip()
                 mc['origin'] = cl_org 
                 
