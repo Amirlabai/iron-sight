@@ -81,7 +81,7 @@ export default function Sidebar() {
               ) : (
                 <div className="alerts-list">
                   {liveEvents.map((ev, evIdx) => {
-                    const alertColor = ev.visual_config?.color || '#ff944d';
+                    const alertColor = (ev.category && `var(--${ev.category})`) || ev.visual_config?.color || '#ff944d';
                     const grouped = (ev.all_cities || []).reduce((acc, city) => {
                       const area = city.area || 'Other';
                       if (!acc[area]) acc[area] = [];
@@ -129,6 +129,7 @@ export default function Sidebar() {
                   <button
                     key={id}
                     className={`filter-tab ${historyFilter === id ? 'active' : ''}`}
+                    data-category={id}
                     onClick={() => setHistoryFilter(id)}
                   >
                     <Icon size={14} />

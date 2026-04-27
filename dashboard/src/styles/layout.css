@@ -14,6 +14,11 @@
     --border: rgba(255, 255, 255, 0.08);
     --success: #3ef0a2;
     --archive: var(--tactical-blue);
+    --missiles: #ff3b30;
+    --hostileAircraftIntrusion: #ff9500;
+    --terroristInfiltration: #b518ff;
+    --earthQuake: #4cd964;
+    --newsFlash: #f8f8f8;
     --sidebar-width: 400px;
 }
 

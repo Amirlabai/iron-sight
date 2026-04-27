@@ -38,6 +38,7 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
     - Implemented automatic expansion state reset when alternating between history filters.
     - Conditionally hidden summary regional breakdown in history cards when expanded to reduce visual clutter.
     - Optimized history filter layout with `flex-wrap` to support multi-row button display on smaller screens.
+    - Synchronized history filter active colors with category-specific threat colors (Red/Orange/Purple/Green).
 - [x] **Smart Tactical Zoom (Priority Zooming)**:
     - Implemented `calculateBestMapConfig` in `TacticalProvider.jsx` to prioritize furthest origins.
     - Enabled automatic "snap-back" to tighter zoom levels when strategic threats terminate.

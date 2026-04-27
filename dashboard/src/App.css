@@ -799,6 +799,30 @@
     box-shadow: 0 0 15px rgba(255, 77, 77, 0.2);
 }
 
+.filter-tab.active[data-category="missiles"] {
+    background: color-mix(in srgb, var(--missiles) 15%, transparent);
+    border-color: var(--missiles);
+    box-shadow: 0 0 15px color-mix(in srgb, var(--missiles) 20%, transparent);
+}
+
+.filter-tab.active[data-category="hostileAircraftIntrusion"] {
+    background: color-mix(in srgb, var(--hostileAircraftIntrusion) 15%, transparent);
+    border-color: var(--hostileAircraftIntrusion);
+    box-shadow: 0 0 15px color-mix(in srgb, var(--hostileAircraftIntrusion) 20%, transparent);
+}
+
+.filter-tab.active[data-category="terroristInfiltration"] {
+    background: color-mix(in srgb, var(--terroristInfiltration) 15%, transparent);
+    border-color: var(--terroristInfiltration);
+    box-shadow: 0 0 15px color-mix(in srgb, var(--terroristInfiltration) 20%, transparent);
+}
+
+.filter-tab.active[data-category="earthQuake"] {
+    background: color-mix(in srgb, var(--earthQuake) 15%, transparent);
+    border-color: var(--earthQuake);
+    box-shadow: 0 0 15px color-mix(in srgb, var(--earthQuake) 20%, transparent);
+}
+
 .history-card {
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid var(--border);

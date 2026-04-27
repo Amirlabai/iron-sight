@@ -155,9 +155,9 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
 
       {/* Trajectories */}
       {event.trajectories?.map((traj, idx) => {
-        const trajColor = event.visual_config?.color || STRATEGIC_METADATA[traj.origin]?.color || tacticalColor;
+        const trajColor = (event.category && `var(--${event.category})`) || event.visual_config?.color || STRATEGIC_METADATA[traj.origin]?.color || tacticalColor;
         const boundary = TACTICAL_BOUNDARIES[traj.origin];
-        
+
         return (
           <React.Fragment key={`${eventKey}-traj-${idx}`}>
             {/* Origin Country Highlight (Restored) */}
