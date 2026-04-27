@@ -111,6 +111,7 @@ Transitioned to Development Alpha.
     - Fixed history expansion "ghosting" by transitioning to unique `event.id` React keys.
     - Implemented automatic expansion state reset when alternating between history filters.
     - Conditionally hidden summary regional breakdown in history cards when expanded to reduce visual clutter.
+    - Optimized history filter layout with `flex-wrap` to support multi-row button display on smaller screens.
 - [x] **Dashboard Visual & Mobile Restoration**:
     - Restored origin high-fidelity boundary polygons in `ThreatOverlay.jsx` for all trajectories.
     - Hardened history regional grouping in `Sidebar.jsx` and data fetching in `TacticalContext.jsx` to prevent blackout crashes.

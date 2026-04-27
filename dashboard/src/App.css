@@ -764,16 +764,11 @@
 /* --- Advanced History Styles (HISTORY-ADV-FRONTEND) --- */
 .history-filters {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 15px;
     background: rgba(0, 0, 0, 0.2);
     border-bottom: 1px solid var(--border);
-    overflow-x: auto;
-    scrollbar-width: none;
-}
-
-.history-filters::-webkit-scrollbar {
-    display: none;
 }
 
 .filter-tab {
