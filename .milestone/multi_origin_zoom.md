@@ -42,4 +42,23 @@ Currently, the map centers on the midpoint of the "priority" trajectory (usually
   - Verify terminal output for `DETECTION_SIGNAL` or `ROLLING_UPDATE` shows the correct `center` and `zoom_level`.
 
 ### Manual Intelligence Check
-- Observe the Live Dashboard: ensure the map snap-centers to Israel when multiple origin silhouettes (e.g. red outlines for both Lebanon and Iran) appear simultaneously.
+
+---
+
+## Implementation Record
+
+Completed: 2026-04-27
+
+### Changes Deployed
+
+| File | Change |
+|---|---|
+| `threat_processor.py` | Added `zoom_level` and Israel centering for multi-origin missiles. |
+| `cluster_utils.py` | Mirrored multi-origin logic in merged payloads and optimized single-event grouping. |
+| `TacticalProvider.jsx` | Refactored `calculateBestMapConfig` to normalize origins and stabilized `setMapConfig` state updates. |
+| `MapViewer.jsx` | Hardened `MapController` with `prevRef` to eliminate redundant `flyTo` jitter. |
+
+### Summary
+
+Successfully implemented strategic map snapping for multi-origin salvos. Resolved the "pulling back" jitter issue by implementing deep-state comparison in `TacticalProvider` and a coordinate-based `prevRef` guard in `MapViewer`. The map now maintains a stable, wide-theater strategic view centered on Israel when threats originate from multiple geographic sectors.
+
