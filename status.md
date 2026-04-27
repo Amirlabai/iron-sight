@@ -95,6 +95,7 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] **MISSION**: Historical Trajectory Hardening (INDEX_ERROR_HARDENING) - [.milestone/index_error_hardening.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/index_error_hardening.md)
 - [x] **MISSION**: Tactical Cluster Shape Inflation (CLUSTER_INFLATION) - [.milestone/cluster_inflation.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/cluster_inflation.md)
 - [x] **MISSION**: Strategic Origin Filtering (NEWSFLASH_GUARD) - [.milestone/strategic_origin_filtering.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/strategic_origin_filtering.md)
+- [x] **MISSION**: Multi-Origin Tactical Zoom & Centering (MULTI_ORIGIN_ZOOM) - [.open_work/multi_origin_zoom.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/multi_origin_zoom.md)
 
 
 

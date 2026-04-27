@@ -260,6 +260,16 @@ async def merge_event_group(group_ids, active_events, engine=None):
     """
     if not group_ids:
         return None
+
+    # Single-event groups: return stored data directly (no recalculation).
+    # This preserves the original detection context (e.g. newsFlash-gated origins).
+    if len(group_ids) == 1:
+        eid = group_ids[0]
+        ev = active_events[eid]
+        data = dict(ev["ev"]["data"] if "ev" in ev else ev["data"])
+        data["id"] = eid
+        data["merged_ids"] = [eid]
+        return data
         
     # Sort IDs for stability
     sorted_ids = sorted(group_ids)
@@ -360,6 +370,14 @@ async def merge_event_group(group_ids, active_events, engine=None):
                     "target_coords": g_cnt,
                     "depth": g_depth
                 })
+            
+            # Multi-origin zoom & centering (v1.0.6)
+            if len(origin_groups) > 1:
+                base_data["center"] = [31.7, 35.2]
+                base_data["zoom_level"] = 6
+            elif len(origin_groups) == 1:
+                org_name = list(origin_groups.keys())[0]
+                base_data["zoom_level"] = engine.zoom_levels.get(org_name, 6)
     else:
         # Multi-cluster threats (Infiltration, Earthquake) accumulate original markers
         merged_clusters = list(base_data.get("clusters", []))

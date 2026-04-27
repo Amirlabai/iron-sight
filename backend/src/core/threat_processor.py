@@ -95,9 +95,12 @@ class ThreatProcessor:
             org_name = list(origin_groups.keys())[0]
             display_origin = "Iran" if org_name == "North Iran" else org_name
             title = f"{display_origin} Salvo"
+            zoom_level = self.engine.zoom_levels.get(org_name, 6)
         else:
             title = "Combined Salvo"
-
+            # Multi-origin: snap to Israel center with widest necessary zoom
+            cnt = [31.7, 35.2]
+            zoom_level = 6
         return {
             "type": "alert",
             "category": "missiles",
@@ -106,6 +109,7 @@ class ThreatProcessor:
             "trajectories": trajectories,
             "all_cities": city_coords,
             "center": cnt,
+            "zoom_level": zoom_level,
             "visual_config": {
                 "color": "#ff3b30",  # Rocket Red
                 "pulse": "high",

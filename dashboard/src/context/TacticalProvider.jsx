@@ -25,7 +25,7 @@ const useAudioEngine = (liveEvents, isMuted) => {
     liveEvents.forEach(event => {
       if (!SEEN_ALERTS.has(event.id)) {
         SEEN_ALERTS.add(event.id);
-        if (event.category === 'newsFlash') return; 
+        if (event.category === 'newsFlash') return;
         const category = (event.category === 'missiles') ? 'missiles' : 'drones';
         const now = Date.now();
 
@@ -63,17 +63,36 @@ const calculateBestMapConfig = (events) => {
   const allTrajectories = events.flatMap(e => e.trajectories || []);
 
   if (allTrajectories.length > 0) {
+    // Detect unique origins across ALL threats (normalize "North Iran" -> "Iran")
+    const allOrigins = [
+      ...allTrajectories.map(t => t.origin),
+      ...events.flatMap(e => e.clusters || []).map(c => c.origin)
+    ];
+
+    const uniqueOrigins = new Set(
+      allOrigins
+        .filter(o => o && o !== 'Unknown' && o !== 'newsFlash')
+        .map(o => o === 'North Iran' ? 'Iran' : o)
+    );
+
     // Find the trajectory with the LOWEST zoom level (most "strategic"/wide)
     let bestTraj = allTrajectories[0];
-    let minZoom = STRATEGIC_METADATA[bestTraj.origin]?.zoom || 8;
+    let minZoom = STRATEGIC_METADATA[bestTraj.origin]?.zoom || DEFAULT_ZOOM;
 
     for (const traj of allTrajectories) {
-      const z = STRATEGIC_METADATA[traj.origin]?.zoom || 8;
-      // Lower zoom numeric value = wider view (higher priority)
+      const z = STRATEGIC_METADATA[traj.origin]?.zoom || DEFAULT_ZOOM;
       if (z < minZoom) {
         minZoom = z;
         bestTraj = traj;
       }
+    }
+
+    // Multi-origin: snap to Israel center with widest strategic view
+    if (uniqueOrigins.size > 1) {
+      return {
+        center: ISRAEL_CENTER,
+        zoom: DEFAULT_ZOOM
+      };
     }
 
     return {
@@ -88,7 +107,7 @@ const calculateBestMapConfig = (events) => {
   // Fallback to center of first event if no trajectories but has centers (e.g. earthquakes)
   const withCenter = events.find(e => e.center);
   if (withCenter) {
-    return { center: withCenter.center, zoom: withCenter.zoom_level || 8 };
+    return { center: withCenter.center, zoom: withCenter.zoom_level || DEFAULT_ZOOM };
   }
 
   return { center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM };
@@ -137,7 +156,14 @@ export function TacticalProvider({ children }) {
         }
 
         const newConfig = calculateBestMapConfig(events);
-        setMapConfig(newConfig);
+        setMapConfig(prev => {
+          if (prev.center[0] === newConfig.center[0] &&
+            prev.center[1] === newConfig.center[1] &&
+            prev.zoom === newConfig.zoom) {
+            return prev;
+          }
+          return newConfig;
+        });
       } else if (data.type === 'reset') {
         setLiveEvents([]);
         if (viewMode === 'live') { setMapConfig({ center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM }); }

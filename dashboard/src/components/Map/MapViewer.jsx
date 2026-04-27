@@ -7,8 +7,13 @@ import ThreatOverlay from './ThreatOverlay';
 
 function MapController({ center, zoom }) {
   const map = useMap();
+  const prevRef = React.useRef('');
   React.useEffect(() => {
-    map.flyTo(center, zoom, { duration: 1.5 });
+    const key = `${center[0]},${center[1]},${zoom}`;
+    if (key !== prevRef.current) {
+      prevRef.current = key;
+      map.flyTo(center, zoom, { duration: 1.5 });
+    }
   }, [center, zoom, map]);
   return null;
 }

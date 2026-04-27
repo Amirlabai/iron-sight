@@ -133,6 +133,11 @@ Transitioned to Development Alpha.
     - `threat_processor._process_missiles` calculates `allow_strategic` from batch pre-scan and active newsFlash events.
     - `main.py` pre-scans each alert batch for newsFlash presence and passes context through the pipeline.
     - Plan: [.open_work/strategic_origin_filtering.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/strategic_origin_filtering.md)
+- **Multi-Origin Tactical Zoom & Centering (v1.0.6 - Complete)**:
+    - `threat_processor._process_missiles` injects `zoom_level` from `engine.zoom_levels` and snaps center to Israel `[31.7, 35.2]` when `len(origin_groups) > 1`.
+    - `cluster_utils.merge_event_group` mirrors the same multi-origin zoom/center logic during broadcast merges.
+    - `TacticalProvider.calculateBestMapConfig` detects unique origins (normalizing `North Iran` -> `Iran`) and returns `ISRAEL_CENTER` with widest zoom when `uniqueOrigins.size > 1`.
+    - Plan: [.open_work/multi_origin_zoom.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/multi_origin_zoom.md)
 
 
 
