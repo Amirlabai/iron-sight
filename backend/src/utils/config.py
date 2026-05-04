@@ -21,6 +21,8 @@ MISSILE_INFLATION_FACTOR = 1.25
 # --- Resource URLs ---
 LAMAS_DATA_URL = "https://raw.githubusercontent.com/idodov/RedAlert/refs/heads/main/apps/red_alerts_israel/lamas_data.json"
 LOCAL_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "lamas_data.json")
+CITIES_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "cities.json")
+POLYGONS_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "polygons.json")
 OREF_API_URL = "https://www.oref.org.il/WarningMessages/alert/alerts.json"
 
 # --- Database Configuration ---

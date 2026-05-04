@@ -48,7 +48,7 @@ def is_subset(cities_a, cities_b):
         return False
     return set_a.issubset(set_b)
 
-def recalculate_unified_metadata(cities, factor=DRONE_INFLATION_FACTOR):
+def recalculate_unified_metadata(cities, factor=DRONE_INFLATION_FACTOR, engine=None):
     """
     Given a list of cities, recalculate a single unified centroid and convex hull.
     This replaces the multiple sub-clusters from merged events.
@@ -59,30 +59,33 @@ def recalculate_unified_metadata(cities, factor=DRONE_INFLATION_FACTOR):
     coords = np.array([c['coords'] for c in cities])
     centroid = np.mean(coords, axis=0).tolist()
     
-    if len(coords) == 1:
-        # Create a small tactical diamond for single points
-        p = coords[0]
-        offset = 0.02  # ~8km tactical buffer
-        hull = [
-            [p[0] + offset, p[1]],
-            [p[0], p[1] + offset],
-            [p[0] - offset, p[1]],
-            [p[0], p[1] - offset]
-        ]
-    elif len(coords) == 2:
-        # Inflate 2 points away from each other
-        cnt = np.array(centroid)
-        inflated = cnt + (coords - cnt) * factor
-        hull = inflated.tolist()
+    if engine:
+        hull = engine.get_inflated_hull(coords, factor, cities=cities)
     else:
-        try:
-            ch = ConvexHull(coords)
-            hull_pts = coords[ch.vertices]
+        if len(coords) == 1:
+            # Create a small tactical diamond for single points
+            p = coords[0]
+            offset = 0.02 * factor
+            hull = [
+                [p[0] + offset, p[1]],
+                [p[0], p[1] + offset],
+                [p[0] - offset, p[1]],
+                [p[0], p[1] - offset]
+            ]
+        elif len(coords) == 2:
+            # Inflate 2 points away from each other
             cnt = np.array(centroid)
-            inflated = cnt + (hull_pts - cnt) * factor
+            inflated = cnt + (coords - cnt) * factor
             hull = inflated.tolist()
-        except:
-            hull = coords.tolist()
+        else:
+            try:
+                ch = ConvexHull(coords)
+                hull_pts = coords[ch.vertices]
+                cnt = np.array(centroid)
+                inflated = cnt + (hull_pts - cnt) * factor
+                hull = inflated.tolist()
+            except:
+                hull = coords.tolist()
             
     return centroid, hull
 
@@ -321,10 +324,10 @@ async def merge_event_group(group_ids, active_events, engine=None):
                     "origin": category,
                     "centroid": rc['centroid'],
                     "cities": rc['cities'],
-                    "hull": engine.get_inflated_hull([c['coords'] for c in rc['cities']], merge_factor)
+                    "hull": engine.get_inflated_hull([c['coords'] for c in rc['cities']], merge_factor, cities=rc['cities'])
                 })
         else:
-            _, new_hull = recalculate_unified_metadata(merged_all_cities, merge_factor)
+            _, new_hull = recalculate_unified_metadata(merged_all_cities, merge_factor, engine=engine)
             merged_clusters = [{
                 "origin": category,
                 "centroid": new_cnt,

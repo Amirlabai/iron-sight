@@ -10,10 +10,12 @@ logger = logging.getLogger("IronSightBackend")
 class LamasDataManager:
     def __init__(self):
         self.city_map = {}
+        self.city_to_id = {} # Standardized name -> City ID
         self.areas = {}
 
     async def load(self):
         """Load geographical data from local cache or remote repository."""
+        from src.utils.config import CITIES_DATA_FILE
         data_path = LOCAL_DATA_FILE
         # Ensure directory exists
         os.makedirs(os.path.dirname(data_path), exist_ok=True)
@@ -43,4 +45,18 @@ class LamasDataManager:
                     "area": area,
                     "name": city
                 }
+
+        # Load IDs from cities.json
+        if os.path.exists(CITIES_DATA_FILE):
+            try:
+                with open(CITIES_DATA_FILE, 'r', encoding='utf-8') as f:
+                    cities_data = json.load(f)
+                    for city_obj in cities_data:
+                        std = standardize_name(city_obj.get("name"))
+                        if std:
+                            self.city_to_id[std] = city_obj.get("id")
+                logger.info(f"CITY_IDS_LOADED: {len(self.city_to_id)} mappings.")
+            except Exception as e:
+                logger.error(f"CITY_IDS_LOAD_FAILURE: {e}")
+
         logger.info(f"TACTICAL_DATA_LOADED: {len(self.city_map)} cities mapped.")

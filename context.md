@@ -138,6 +138,11 @@ Transitioned to Development Alpha.
     - `cluster_utils.merge_event_group` mirrors the same multi-origin zoom/center logic during broadcast merges.
     - `TacticalProvider.calculateBestMapConfig` detects unique origins (normalizing `North Iran` -> `Iran`) and returns `ISRAEL_CENTER` with widest zoom when `uniqueOrigins.size > 1`.
     - Plan: [.open_work/multi_origin_zoom.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/multi_origin_zoom.md)
+- **City & Polygon Outlines (v1.0.7 - In Progress)**:
+    - Implementing high-fidelity city and regional outlines using `cities.json` and `polygons.json`.
+    - Transitioning from circular/diamond hulls to actual geographic silhouettes.
+    - Maintaining drone-specific inflation factors.
+    - Plan: [implementation_plan.md](file:///C:/Users/amirl/.gemini/antigravity/brain/03a60025-7f1e-46f3-9136-dbd6d342b469/implementation_plan.md)
 
 
 

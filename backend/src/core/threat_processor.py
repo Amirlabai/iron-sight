@@ -29,7 +29,7 @@ class ThreatProcessor:
         if not city_coords: return [0, 0], []
         coords = np.array([c['coords'] for c in city_coords])
         cnt = np.mean(coords, axis=0).tolist()
-        hull = self.engine.get_inflated_hull(coords, factor)
+        hull = self.engine.get_inflated_hull(coords, factor, cities=city_coords)
         return cnt, hull
 
     async def _process_missiles(self, cities_raw, active_events=None, has_newsflash_in_batch=False):
@@ -64,7 +64,7 @@ class ThreatProcessor:
                 "origin": cl_org,
                 "centroid": rc['centroid'],
                 "cities": rc['cities'],
-                "hull": self.engine.get_inflated_hull([c['coords'] for c in rc['cities']], MISSILE_INFLATION_FACTOR)
+                "hull": self.engine.get_inflated_hull([c['coords'] for c in rc['cities']], MISSILE_INFLATION_FACTOR, cities=rc['cities'])
             })
             if cl_org not in origin_groups:
                 origin_groups[cl_org] = {"cities": [], "depth": cl_depth}
@@ -131,7 +131,7 @@ class ThreatProcessor:
                 "origin": "hostileAircraftIntrusion",
                 "centroid": rc['centroid'],
                 "cities": rc['cities'],
-                "hull": self.engine.get_inflated_hull([c['coords'] for c in rc['cities']], DRONE_INFLATION_FACTOR)
+                "hull": self.engine.get_inflated_hull([c['coords'] for c in rc['cities']], DRONE_INFLATION_FACTOR, cities=rc['cities'])
             })
 
         return {
@@ -163,7 +163,7 @@ class ThreatProcessor:
                  "origin": "terroristInfiltration",
                  "centroid": city['coords'],
                  "cities": [city],
-                 "hull": [city['coords']]
+                 "hull": self.engine.get_inflated_hull([city['coords']], factor=1.0, cities=[city])
             })
 
         center = city_coords[0]['coords'] if city_coords else [31.7, 35.2]
@@ -197,7 +197,7 @@ class ThreatProcessor:
                  "origin": "earthQuake",
                  "centroid": city['coords'],
                  "cities": [city],
-                 "hull": [city['coords']]
+                 "hull": self.engine.get_inflated_hull([city['coords']], factor=1.0, cities=[city])
             })
             
         center = city_coords[0]['coords'] if city_coords else [31.7, 35.2]

@@ -96,6 +96,7 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] **MISSION**: Tactical Cluster Shape Inflation (CLUSTER_INFLATION) - [.milestone/cluster_inflation.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/cluster_inflation.md)
 - [x] **MISSION**: Strategic Origin Filtering (NEWSFLASH_GUARD) - [.milestone/strategic_origin_filtering.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/strategic_origin_filtering.md)
 - [x] **MISSION**: Multi-Origin Tactical Zoom & Centering (MULTI_ORIGIN_ZOOM) - [.milestone/multi_origin_zoom.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/multi_origin_zoom.md)
+- [x] **MISSION**: City & Polygon Outlines (POLYGON_OUTLINES) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/03a60025-7f1e-46f3-9136-dbd6d342b469/walkthrough.md)
 
 
 

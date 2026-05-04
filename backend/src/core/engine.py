@@ -43,6 +43,7 @@ class TrackingEngine:
             "Yemen": 6
         }
         
+        self.city_polygons = {}
         self._load_borders()
 
     def _load_borders(self):
@@ -82,6 +83,12 @@ class TrackingEngine:
                 self.calc_boundaries = self.boundaries.copy()
                 logger.info("STRATEGIC_CALCULATION_FALLBACK: Using tactical boundaries.")
                 
+            from src.utils.config import POLYGONS_DATA_FILE
+            if os.path.exists(POLYGONS_DATA_FILE):
+                with open(POLYGONS_DATA_FILE, 'r') as f:
+                    self.city_polygons = json.load(f)
+                logger.info(f"CITY_POLYGONS_LOADED: {len(self.city_polygons)} outlines.")
+                
         except Exception as e:
             logger.warning(f"TACTICAL_BORDERS_LOAD_FAILURE: {e}. Using hardcoded fallbacks.")
             self.boundaries = {
@@ -105,16 +112,50 @@ class TrackingEngine:
         except Exception:
             return pts.tolist() 
 
-    def get_inflated_hull(self, points, factor=1.0):
+    def get_inflated_hull(self, points, factor=1.0, cities=None):
         """Compute convex hull and inflate vertices outward from centroid by the given factor.
-        factor=1.0 returns the standard hull (no inflation)."""
-        hull = self.get_convex_hull(points)
-        if factor == 1.0 or len(hull) < 2:
+        If cities are provided, uses their high-fidelity polygons if available."""
+        all_pts = []
+        if cities:
+            for city in cities:
+                std = standardize_name(city.get('name'))
+                city_id = self.dm.city_to_id.get(std)
+                poly = self.city_polygons.get(str(city_id))
+                if poly:
+                    all_pts.extend(poly)
+                else:
+                    all_pts.append(city.get('coords'))
+        else:
+            all_pts = points
+
+        pts = np.array(all_pts)
+        
+        if len(pts) == 1:
+            # Single point fallback: Tactical diamond
+            p = pts[0]
+            offset = 0.015 * factor  # Scaled by inflation
+            hull = [
+                [p[0] + offset, p[1]],
+                [p[0], p[1] + offset],
+                [p[0] - offset, p[1]],
+                [p[0], p[1] - offset]
+            ]
             return hull
-        pts = np.array(hull)
-        centroid = np.mean(pts, axis=0)
-        inflated = centroid + (pts - centroid) * factor
-        return inflated.tolist()
+            
+        if len(pts) < 3:
+            # 2 points or sparse set: Inflate away from centroid
+            cnt = np.mean(pts, axis=0)
+            hull = cnt + (pts - cnt) * factor
+            return hull.tolist()
+
+        try:
+            ch = ConvexHull(pts)
+            hull_pts = pts[ch.vertices]
+            cnt = np.mean(hull_pts, axis=0)
+            inflated = cnt + (hull_pts - cnt) * factor
+            return inflated.tolist()
+        except Exception:
+            return pts.tolist()
 
     def is_point_in_polygon(self, point, poly_name, use_tactical=False):
         boundaries = self.boundaries if use_tactical else self.calc_boundaries
