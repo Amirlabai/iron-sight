@@ -103,6 +103,26 @@
 }
 
 /* --- Header Controls --- */
+.tactical-clock {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-sub);
+    opacity: 0.8;
+}
+
+.clock-date {
+    font-size: 10px;
+    letter-spacing: 1px;
+}
+
+.clock-time {
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 1px;
+}
+
 .icon-btn {
     background: none;
     border: none;

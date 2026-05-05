@@ -6,6 +6,7 @@ import { TacticalProvider } from './context/TacticalProvider';
 import { useTactical } from './context/TacticalContext';
 import MapViewer from './components/Map/MapViewer';
 import Sidebar from './components/Sidebar/Sidebar';
+import TacticalClock from './components/Header/TacticalClock';
 import './styles/layout.css';
 import './styles/animations.css';
 import './App.css';
@@ -56,6 +57,9 @@ function AppShell() {
           <img src="/favicon.png" className={`logo-img ${liveEvents.length > 0 ? 'alert-pulse' : ''}`} alt="IRON SIGHT" />
           <h1>IRON SIGHT <span>{viewMode === 'archive' ? 'ARCHIVE' : __APP_VERSION__}</span></h1>
         </div>
+
+        <TacticalClock />
+
         <div className="status-section">
           <button className="icon-btn" onClick={() => setIsMuted(!isMuted)}>
             {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}

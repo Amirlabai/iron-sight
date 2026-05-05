@@ -75,6 +75,7 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] **MISSION**: Tactical Visual Refinement
 - [x] **MISSION**: Tactical Audio Engine
 - [x] **MISSION**: Automated Log Export to CSV
+- [x] **MISSION**: Tactical Hardening (Relay Security Audit) - IP-based access control recommended.
 - [x] **MISSION**: Frontend Modularization (Alpha)
 - [x] **MISSION**: Sync and Merge Hardening (Alpha)
 - [x] **MISSION**: Backend Vectorization (Numpy/SciPy Optimization)
@@ -97,6 +98,7 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] **MISSION**: Strategic Origin Filtering (NEWSFLASH_GUARD) - [.milestone/strategic_origin_filtering.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/strategic_origin_filtering.md)
 - [x] **MISSION**: Multi-Origin Tactical Zoom & Centering (MULTI_ORIGIN_ZOOM) - [.milestone/multi_origin_zoom.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/multi_origin_zoom.md)
 - [x] **MISSION**: City & Polygon Outlines (POLYGON_OUTLINES) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/03a60025-7f1e-46f3-9136-dbd6d342b469/walkthrough.md)
+- [x] **MISSION**: Tactical Jerusalem Clock (CLOCK_DEPLOYMENT) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/a17e089c-a94a-4242-82f9-d916f45d6e4e/walkthrough.md)
 
 
 
@@ -113,3 +115,7 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - **Auditor Multi-Select**: History Fixer now supports manual batch merging of fragmented historical records.
 - **Multi-Alert Broadcast**: Backend pushes `multi_alert` payloads; dashboard renders all threats simultaneously on the map.
 - **Networking**: Masked backend infrastructure via Vercel `/api` proxy. Sanitized production logs.
+- **Relay Security Audit**: Evaluated risks of public key exposure. User migrating to server-side secrets for multi-project integration. Recommended removing hardcoded fallbacks.
+- **Relay Integration Protocol**: Finalized and documented Advanced Matrix (v1.2) for smart threat categorization and superseding logic.
+- **Cross-Project Handshake**: Resolved 401 Unauthorized errors by standardizing on `x-relay-auth` header for external Deno/Base44 integrations.
+- **Termination Protocol**: Standardized **Hybrid Model**; requires explicit `newsFlash` clearance ("האירוע הסתיים") with a 20-minute inactivity fallback.

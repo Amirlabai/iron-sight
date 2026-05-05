@@ -134,10 +134,21 @@ Transitioned to Development Alpha.
     - `main.py` pre-scans each alert batch for newsFlash presence and passes context through the pipeline.
     - Plan: [.open_work/strategic_origin_filtering.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/strategic_origin_filtering.md)
 - **Multi-Origin Tactical Zoom & Centering (v1.0.6 - Complete)**:
-    - `threat_processor._process_missiles` injects `zoom_level` from `engine.zoom_levels` and snaps center to Israel `[31.7, 35.2]` when `len(origin_groups) > 1`.
-    - `cluster_utils.merge_event_group` mirrors the same multi-origin zoom/center logic during broadcast merges.
-    - `TacticalProvider.calculateBestMapConfig` detects unique origins (normalizing `North Iran` -> `Iran`) and returns `ISRAEL_CENTER` with widest zoom when `uniqueOrigins.size > 1`.
-    - Plan: [.open_work/multi_origin_zoom.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/multi_origin_zoom.md)
+    - Integrated `calculateBestMapConfig` for multi-threat awareness.
+- **Relay Integration Brief (v1.2)**:
+    - Protocol: GET `/alerts` with `x-relay-auth` header.
+    - **Smart Categorization**:
+        - Cat 1: Missiles (Critical/Siren/Linear)
+        - Cat 2: Drones (High/Warble/Sweep)
+        - Cat 3: Infiltration (Critical/Ripple/Point)
+        - Cat 4: Earthquake (Safety/Static/Steady)
+        - newsFlash: Potential (Standby/Ghost/Silent)
+    - **Superseding Protocol**: Rockets terminate overlapping newsFlash ghosts.
+    - **Superseding Protocol**: Rockets terminate overlapping newsFlash ghosts.
+    - **Termination Protocol (Hybrid)**: 
+        - **Explicit**: System waits for a `newsFlash` containing "האירוע הסתיים" to mark an alert as ended.
+        - **Grace Period**: 10-second visual cool-down after the "Clear" signal.
+        - **Fallback**: 20-minute inactivity timeout if no "Clear" signal is received.
 - **City & Polygon Outlines (v1.0.7 - In Progress)**:
     - Implementing high-fidelity city and regional outlines using `cities.json` and `polygons.json`.
     - Transitioning from circular/diamond hulls to actual geographic silhouettes.
@@ -151,7 +162,9 @@ Transitioned to Development Alpha.
     - `utils/constants.js`: Centralized env detection, WS URLs, geodata derivations, color tokens, Leaflet icon fix.
     - `components/Map/MapViewer.jsx`: Isolated Leaflet container with base layer and coordinate sync.
     - `components/Map/ThreatOverlay.jsx`: Per-event rendering of clusters, trajectories, origin highlights, TrackingDrone.
+    - `components/Header/TacticalClock.jsx`: Real-time Jerusalem (Asia) time synchronization.
     - `components/Sidebar/Sidebar.jsx`: Modular drawer with Live/History/Sandbox panels and mobile drag behavior.
     - `styles/layout.css`: Structural layout rules (grid, flex, mobile breakpoints).
     - `styles/animations.css`: All @keyframes and animation-applying utility classes.
+    - **Security Awareness**: Migrating to server-side secrets for `RELAY_AUTH_KEY`; ensuring zero hardcoded credentials in relay bridge.
     - Plan: [.open_work/frontend_modularization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/frontend_modularization.md)
