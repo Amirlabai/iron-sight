@@ -121,6 +121,9 @@
     font-size: 10px;
     font-weight: 400;
     letter-spacing: 1px;
+    font-variant-numeric: tabular-nums;
+    min-width: 65px;
+    text-align: center;
 }
 
 .icon-btn {
