@@ -138,21 +138,30 @@ export function TacticalProvider({ children }) {
 
   useAudioEngine(liveEvents, isMuted);
   const ws = useRef(null);
+  const viewModeRef = useRef(viewMode);
+
+  useEffect(() => {
+    viewModeRef.current = viewMode;
+  }, [viewMode]);
 
   const connect = useCallback(() => {
+    if (ws.current?.readyState === WebSocket.OPEN) return;
     ws.current = new WebSocket(WEBSOCKET_URL);
     ws.current.onopen = () => { setIsConnected(true); setLoadingProgress(p => p + 30); };
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'history_sync') {
-        setHistory(data.data);
+        // Only overwrite history if no filter is active to prevent 'reverting to all' bug
+        if (historyFilter === 'all' && timeFrame === 'all') {
+          setHistory(data.data);
+        }
         setLoadingProgress(100);
         setTimeout(() => setIsReady(true), 1500);
       } else if (data.type === 'multi_alert') {
         const events = data.events || [];
         setLiveEvents(events);
 
-        if (viewMode === 'archive' && events.length > 0) {
+        if (viewModeRef.current === 'archive' && events.length > 0) {
           setViewMode('live');
           setActiveTab('live');
         }
@@ -174,7 +183,7 @@ export function TacticalProvider({ children }) {
       }
     };
     ws.current.onclose = () => { setIsConnected(false); setTimeout(connect, 3000); };
-  }, [viewMode, isMuted]);
+  }, [historyFilter, timeFrame]);
 
   useEffect(() => {
     connect();
@@ -214,10 +223,10 @@ export function TacticalProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (isReady && historyFilter) {
-      fetchHistory(historyFilter, timeFrame);
-    }
-  }, [historyFilter, timeFrame, isReady, fetchHistory]);
+    // Fetch history whenever filters change, regardless of isReady state
+    // to ensure user-initiated filters 'get it right the first time'
+    fetchHistory(historyFilter, timeFrame);
+  }, [historyFilter, timeFrame, fetchHistory]);
 
   const selectArchive = (event) => {
     setArchiveEvent(event);
