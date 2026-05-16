@@ -21,7 +21,7 @@ export default function Sidebar() {
 
     historyFilter, setHistoryFilter, fetchHistory,
     timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setViewMode, setMapConfig,
-    renderableEvents
+    renderableEvents, sidebarEvents
   } = useTactical();
 
   const [expandedId, setExpandedId] = React.useState(null);
@@ -232,7 +232,7 @@ export default function Sidebar() {
                 <div className="empty-state"><Clock size={48} color="#333" /><p>NO HISTORY RECORDED</p></div>
               ) : (
                 <div className="history-list">
-                  {renderableEvents.map((event, i) => {
+                  {sidebarEvents.map((event, i) => {
                     const isExpanded = expandedId === event.id;
                     const catIcon = {
                       'missiles': <Rocket size={16} />,

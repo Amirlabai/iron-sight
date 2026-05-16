@@ -443,20 +443,18 @@ export function TacticalProvider({ children }) {
 
       return mergedEvents;
     }
-    // If we are in the history tab, we should default to showing the history stream
-    // unless we are explicitly in another mode (like viewing a specific archive event).
-    if (activeTab === 'archive') return history;
-
     return liveEvents;
   };
 
   const renderableEvents = getRenderableEvents();
 
-
+  // Sidebar Logic: Show history stream in sidebar even if viewMode is 'live',
+  // but keep the map clean unless a specific event/timeframe is selected.
+  const sidebarEvents = (activeTab === 'archive' && viewMode === 'live') ? history : renderableEvents;
 
   const hasSimulation = (viewMode === 'live' ? liveEvents : renderableEvents).some(e => e.is_simulation);
-  const totalClusters = renderableEvents.reduce((acc, ev) => acc + (ev.clusters?.length || 0), 0);
-  const totalTargets = renderableEvents.reduce((acc, ev) => acc + (ev.clusters?.reduce((a, c) => a + (c.cities?.length || 0), 0) || 0), 0);
+  const totalClusters = sidebarEvents.reduce((acc, ev) => acc + (ev.clusters?.length || 0), 0);
+  const totalTargets = sidebarEvents.reduce((acc, ev) => acc + (ev.clusters?.reduce((a, c) => a + (c.cities?.length || 0), 0) || 0), 0);
   const tacticalColor = viewMode === 'sandbox' ? TACTICAL_BLUE : TACTICAL_RED;
   const highlightColor = viewMode === 'sandbox' ? HIGHLIGHT_BLUE : HIGHLIGHT_RED;
 
@@ -469,7 +467,7 @@ export function TacticalProvider({ children }) {
     setSandboxInput, setCitySearch, setIsSidebarExpanded, setExpandedRegions,
     setHistoryFilter, selectArchive, toggleCity, toggleRegion, toggleExpand,
     returnToLive, runSandboxAnalysis, handleTabChange, fetchHistory,
-    renderableEvents, hasSimulation, totalClusters, totalTargets,    timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setMapConfig,
+    renderableEvents, sidebarEvents, hasSimulation, totalClusters, totalTargets,    timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setMapConfig,
     tacticalColor, highlightColor,
   };
 
