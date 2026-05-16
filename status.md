@@ -100,6 +100,7 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] **MISSION**: City & Polygon Outlines (POLYGON_OUTLINES) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/03a60025-7f1e-46f3-9136-dbd6d342b469/walkthrough.md)
 - [x] **MISSION**: Jerusalem Clock Deployment (CLOCK_DEPLOYMENT)
 - [x] **MISSION**: Date Persistence Fix (DATE_HARDENING) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/68d2842d-2e41-49ba-8276-e9a4a0dce139/walkthrough.md)
+- [x] **MISSION**: Mobile UI Hardening & Legibility (MOBILE_UI_FIX)
 
 
 

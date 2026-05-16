@@ -58,13 +58,13 @@ export default function Sidebar() {
         style={{ touchAction: 'none', cursor: 'grab' }}
       >
         <button className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={() => handleTabChange('live')}>
-          <Activity size={18} /> LIVE
+          <Activity size={22} /> LIVE
         </button>
         <button className={`tab-btn ${activeTab === 'archive' ? 'active' : ''}`} onClick={() => handleTabChange('archive')}>
-          <History size={18} /> HISTORY
+          <History size={22} /> HISTORY
         </button>
         <button className={`tab-btn ${activeTab === 'sandbox' ? 'active' : ''}`} onClick={() => handleTabChange('sandbox')}>
-          <Shield size={18} /> SANDBOX
+          <Shield size={22} /> SANDBOX
         </button>
       </div>
 

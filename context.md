@@ -158,6 +158,10 @@ Transitioned to Development Alpha.
     - Implemented centralized `formatters.js` for `DD/MM/YYYY` history display.
     - Successfully restored 479 records from lifecycle logs; 91 legacy records moved to `2000-01-01` archive.
     - Fixed range-query logic in `mongo_manager.py` to support multi-day history filtering.
+- **Mobile UI Hardening & Legibility (v1.0.9 - Complete)**:
+    - Bumped font sizes (8px -> 12px) for critical mobile status and history data.
+    - Implemented `100dvh` for viewport stability across Firefox and mobile browsers.
+    - Added safe-area-inset padding and relative positioning for sidebar consistency.
 
 
 

@@ -63,7 +63,7 @@
     width: 300px;
     height: 100px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 13px;
     color: var(--text-sub);
 }
 
@@ -113,12 +113,12 @@
 }
 
 .clock-date {
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: 1px;
 }
 
 .clock-time {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 400;
     letter-spacing: 1px;
     font-variant-numeric: tabular-nums;
@@ -149,7 +149,7 @@
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border);
     border-radius: 20px;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
     letter-spacing: 1.5px;
     transition: all 0.3s ease;
@@ -197,7 +197,7 @@
     color: white;
     border: none;
     border-radius: 20px;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
     cursor: pointer;
     letter-spacing: 1.5px;
@@ -405,17 +405,17 @@
 }
 
 .area-label {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--text-sub);
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
     text-transform: uppercase;
 }
 
 .area-cities {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--text-main);
-    line-height: 1.4;
+    line-height: 1.5;
     opacity: 0.9;
 }
 
