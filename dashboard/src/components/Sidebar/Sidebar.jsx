@@ -166,14 +166,23 @@ export default function Sidebar() {
                   </button>
                 ))}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontSize: '9px', color: 'var(--text-sub)' }}>FROM:</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-sub)', fontWeight: '600' }}>FROM:</span>
                     <input
-                      type="text"
-                      placeholder="DD/MM/YYYY"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '9px', padding: '2px', width: '65px' }}
-                      value={dateToDisplay(timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : '')}
+                      type="date"
+                      style={{ 
+                        background: 'rgba(255,255,255,0.08)', 
+                        border: '1px solid var(--border)', 
+                        color: 'white', 
+                        fontSize: '11px', 
+                        padding: '4px 6px', 
+                        width: 'auto',
+                        minWidth: '105px',
+                        borderRadius: '4px',
+                        fontFamily: 'monospace'
+                      }}
+                      value={timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : ''}
                       onChange={(e) => {
-                          const isoDate = displayToDate(e.target.value);
+                          const isoDate = e.target.value;
                           const currentTo = timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : '';
                           const newVal = `range:${isoDate},${currentTo}`;
                           setTimeFrame(newVal);
@@ -181,14 +190,23 @@ export default function Sidebar() {
                           setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
                       }}
                     />
-                    <span style={{ fontSize: '9px', color: 'var(--text-sub)' }}>TO:</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-sub)', fontWeight: '600' }}>TO:</span>
                     <input
-                      type="text"
-                      placeholder="DD/MM/YYYY"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '9px', padding: '2px', width: '65px' }}
-                      value={dateToDisplay(timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : '')}
+                      type="date"
+                      style={{ 
+                        background: 'rgba(255,255,255,0.08)', 
+                        border: '1px solid var(--border)', 
+                        color: 'white', 
+                        fontSize: '11px', 
+                        padding: '4px 6px', 
+                        width: 'auto',
+                        minWidth: '105px',
+                        borderRadius: '4px',
+                        fontFamily: 'monospace'
+                      }}
+                      value={timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : ''}
                       onChange={(e) => {
-                          const isoDate = displayToDate(e.target.value);
+                          const isoDate = e.target.value;
                           const currentFrom = timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : '';
                           const newVal = `range:${currentFrom},${isoDate}`;
                           setTimeFrame(newVal);

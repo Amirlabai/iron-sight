@@ -99,14 +99,14 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] **MISSION**: Multi-Origin Tactical Zoom & Centering (MULTI_ORIGIN_ZOOM) - [.milestone/multi_origin_zoom.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/multi_origin_zoom.md)
 - [x] **MISSION**: City & Polygon Outlines (POLYGON_OUTLINES) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/03a60025-7f1e-46f3-9136-dbd6d342b469/walkthrough.md)
 - [x] **MISSION**: Jerusalem Clock Deployment (CLOCK_DEPLOYMENT)
-- [x] **MISSION**: Date Persistence Fix (DATE_HARDENING) - Standardized all 739 historical records to ISO-8601; applied 2000-01-01 fallback for legacy data.
+- [x] **MISSION**: Date Persistence Fix (DATE_HARDENING) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/68d2842d-2e41-49ba-8276-e9a4a0dce139/walkthrough.md)
 
 
 
 
 
 ---
-**Mission Status**: **HARDENED** | CONSOLE ANONYMIZED
+**Mission Status**: **HARDENED** | VERSION SYNC ACTIVE
 - Transitioned to ID-Driven Architecture: `active_events{}` dictionary with `last_update_time`-based inactivity timeout (5 min silence).
 - **Shared-City Merging**: Upgraded clustering from subset/superset to intersection-based. Multi-regional merges (e.g. Center/North) now require 50% intersection; same-region or Gaza alerts merge with 1 shared city.
 - **Unified Re-computation**: Merged events now strip accumulated trajectories and re-run ballistic analysis on the full city set for a single 'Master' trajectory.
