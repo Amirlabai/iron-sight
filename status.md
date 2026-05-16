@@ -99,7 +99,7 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] **MISSION**: Multi-Origin Tactical Zoom & Centering (MULTI_ORIGIN_ZOOM) - [.milestone/multi_origin_zoom.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/multi_origin_zoom.md)
 - [x] **MISSION**: City & Polygon Outlines (POLYGON_OUTLINES) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/03a60025-7f1e-46f3-9136-dbd6d342b469/walkthrough.md)
 - [x] **MISSION**: Jerusalem Clock Deployment (CLOCK_DEPLOYMENT)
-- [x] **MISSION**: Date Persistence Fix (DATE_HARDENING) - Resolved date loss in backend and synchronized ISO timestamps across DB/UI.
+- [x] **MISSION**: Date Persistence Fix (DATE_HARDENING) - Standardized all 739 historical records to ISO-8601; applied 2000-01-01 fallback for legacy data.
 
 
 

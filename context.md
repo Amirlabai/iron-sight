@@ -154,8 +154,9 @@ Transitioned to Development Alpha.
     - Transitioning from circular/diamond hulls to actual geographic silhouettes.
     - Maintaining drone-specific inflation factors.
 - **Date Persistence & UI Formatting (v1.0.8 - Complete)**:
-    - Standardized on ISO-8601 (`YYYY-MM-DDTHH:MM:SS`) for all event timestamps in MongoDB.
+    - Standardized all 739 historical records to ISO-8601 (`YYYY-MM-DDTHH:MM:SS`) in MongoDB.
     - Implemented centralized `formatters.js` for `DD/MM/YYYY` history display.
+    - Successfully restored 479 records from lifecycle logs; 91 legacy records moved to `2000-01-01` archive.
     - Fixed range-query logic in `mongo_manager.py` to support multi-day history filtering.
 
 
