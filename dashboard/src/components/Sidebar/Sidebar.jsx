@@ -38,11 +38,11 @@ export default function Sidebar() {
       drag="y"
       dragControls={dragControls}
       dragListener={false}
-      dragConstraints={{ top: 0, bottom: window.innerHeight * 0.7 - 60 }}
+      dragConstraints={{ top: 0, bottom: (window.innerHeight * 0.75) - 50 }}
       dragElastic={0.1}
       animate={{
         y: window.innerWidth <= 1024
-          ? (isSidebarExpanded ? 0 : window.innerHeight * 0.7 - 60)
+          ? (isSidebarExpanded ? 0 : (window.innerHeight * 0.75) - 50)
           : 0
       }}
       onDragEnd={(e, info) => {
@@ -50,7 +50,7 @@ export default function Sidebar() {
         else if (info.offset.y < -50) setIsSidebarExpanded(true);
       }}
       transition={{ type: "spring", damping: 30, stiffness: 350 }}
-      style={{ height: window.innerWidth <= 1024 ? "70%" : "100%" }}
+      style={{ height: window.innerWidth <= 1024 ? "75%" : "100%" }}
     >
       <div
         className="sidebar-tabs"

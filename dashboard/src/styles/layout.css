@@ -141,28 +141,43 @@ body {
         overflow: hidden;
         background: var(--bg-secondary);
         backdrop-filter: blur(20px);
+        height: 75% !important;
+        transform: translateY(0);
     }
 
     .premium-header h1 {
-        font-size: 18px;
+        font-size: 12px;
         letter-spacing: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .premium-header {
-        height: 60px;
-        padding: 0 15px;
+        height: 50px;
+        padding: 0 10px;
+    }
+
+    .status-section {
+        gap: 6px;
     }
 
     .status-pill {
-        padding: 8px 12px;
-        font-size: 9px;
-        gap: 6px;
+        padding: 2px 6px;
+        font-size: 8px;
+        gap: 3px;
     }
 
     .status-pill.online {
-        padding: 8px 12px;
-        font-size: 9px;
-        gap: 6px;
+        padding: 2px 6px;
+        font-size: 8px;
+        gap: 3px;
+    }
+    
+    .return-live-btn {
+        padding: 4px 8px;
+        font-size: 8px;
+        gap: 4px;
     }
 
     /* Tactical Clock Mobile */
@@ -180,11 +195,11 @@ body {
     }
 
     .clock-time {
-        font-size: 14px;
+        font-size: 11px;
         font-weight: 600;
         letter-spacing: 1px;
         font-variant-numeric: tabular-nums;
-        min-width: 60px;
+        min-width: 50px;
         text-align: center;
     }
 
@@ -196,7 +211,9 @@ body {
     }
 
     .tab-btn {
-        padding: 15px;
-        font-size: 12px;
+        flex: 1;
+        padding: 10px 5px;
+        font-size: 11px;
+        white-space: nowrap;
     }
 }
