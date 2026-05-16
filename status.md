@@ -110,6 +110,7 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] **MISSION**: Mobile UI Hardening (Condensed Header & Sidebar Restoration)
 - [x] **MISSION**: History Filter Hardening (WS Sync & Timeframe Fix)
 - [x] **MISSION**: SEO & Semantic Hardening (Metadata, H1 Hierarchy, Robots/Sitemap)
+- [x] **MISSION**: History Visibility Hardening (Default Stream Restoration)
 
 
 

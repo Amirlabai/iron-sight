@@ -168,6 +168,10 @@ Transitioned to Development Alpha.
     - Deployed `robots.txt` and `sitemap.xml` for search engine discovery.
     - Standardized canonical URL to `https://iron-sight-drab.vercel.app/`.
     - Enhanced accessibility via `aria-label` on tactical controls.
+- **History Visibility Hardening (v1.1.1 - Complete)**:
+    - Fixed default empty state in Archive tab by implementing a fallback to the global history stream.
+    - Hardened `returnToLive` logic to synchronize `activeTab` and `viewMode` state.
+    - Resolved tactical desync where selecting "All Time" hid historical records.
 
 
 

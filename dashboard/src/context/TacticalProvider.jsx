@@ -273,6 +273,7 @@ export function TacticalProvider({ children }) {
 
   const returnToLive = () => {
     setViewMode('live');
+    setActiveTab('live');
     setTimeFrame('all');
     setHistoryFilter('all');
     const newConfig = calculateBestMapConfig(liveEvents);
@@ -442,6 +443,10 @@ export function TacticalProvider({ children }) {
 
       return mergedEvents;
     }
+    // If we are in the history tab, we should default to showing the history stream
+    // unless we are explicitly in another mode (like viewing a specific archive event).
+    if (activeTab === 'archive') return history;
+
     return liveEvents;
   };
 
