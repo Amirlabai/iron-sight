@@ -1,16 +1,47 @@
-# React + Vite
+# IRON SIGHT | Tactical Dashboard (Frontend)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The frontend for **Iron Sight** is a high-performance, mobile-hardened React application designed for sub-second situational awareness. It prioritizes data density, visual clarity, and rapid tactical interaction.
 
-Currently, two official plugins are available:
+## 🛡️ Key Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Live Tactical Overlay**: Interactive map displaying real-time threat clusters, hulls, and launch trajectories.
+- **Strategic History Mode**: Toggle between "Live" and "Timeframe" modes to analyze historical salvos with smart polygon merging.
+- **Tactical Sidebar**:
+    - **Live Feed**: Chronological list of active threats with expandable city details.
+    - **Mission Stats**: Real-time counts of active clusters and target zones.
+    - **Control Panel**: Filter by threat category, timeframe, and cluster-merging preference.
+- **Mobile Hardening**: 
+    - Optimized 65px interaction zones for pull-up gestures.
+    - Condensed header with integrated Tactical Clock.
+    - "Return to Live" quick-reset logic.
+- **Audio Engine**: Directional alert sounds for different threat categories (Missiles, Drones, Infiltrations).
 
-## React Compiler
+## 🛠️ Technical Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Framework**: React 19 (Vite)
+- **Styling**: Vanilla CSS with a tactical glassmorphism design system.
+- **Mapping**: Leaflet + React-Leaflet.
+- **Motion**: Framer Motion for spring-based tactical transitions.
+- **Utilities**:
+    - `geoUtils.js`: Custom implementation of the Monotone Chain Convex Hull algorithm.
+    - `TacticalProvider.jsx`: The central brain managing WebSocket state, history fetching, and smart merging.
 
-## Expanding the ESLint configuration
+## 🚀 Getting Started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+2. **Environment Configuration**:
+   Create a `.env` file based on `.env.example`:
+   ```env
+   VITE_TACTICAL_API_URL=http://localhost:8080
+   VITE_WEBSOCKET_URL=ws://localhost:8080/ws
+   ```
+3. **Run Development Server**:
+   ```bash
+   npm run dev
+   ```
+
+---
+**Status**: **DEPLOYED** | **v1.0.0**

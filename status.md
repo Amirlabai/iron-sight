@@ -57,6 +57,13 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] MISSION: Pulse Normalization (Absolute Circularity)
 - [x] **Strategic Border Utility Suite**: Implemented `border_utils.py` for high-fidelity conversion between TXT and JSON geodata.
 - [x] **Reversed Tactical Geodata**: Generated reversed-coordinate `.txt` archives for `calculation_borders` and `tactical_borders`.
+- [x] Hardening Tactical History Filtering
+  - [x] Stabilize WebSocket sync logic to prevent state overwrites.
+  - [x] Ensure "Return to Live" resets all filter states.
+  - [x] Implement Smart Proximity Merging (12km) with Convex Hull generation.
+  - [x] Fix missing origin pins/highlights for drone/cluster-only data.
+  - [x] Filter out redundant internal/category-named origin pins.
+  - [x] Full Project Documentation Overhaul (Root, Backend, Dashboard READMEs).
 - [x] MISSION: Tactical Relay Filtering (type: newsFlash Logic)
 - [x] MISSION: WebSocket Active Salvo Persistence (Late-Joiner Synchronization)
 - [x] **MISSION**: Cluster-Based Iran Filtering (Dual-Tier Threshold 10/40)
