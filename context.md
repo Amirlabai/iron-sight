@@ -153,7 +153,10 @@ Transitioned to Development Alpha.
     - Implementing high-fidelity city and regional outlines using `cities.json` and `polygons.json`.
     - Transitioning from circular/diamond hulls to actual geographic silhouettes.
     - Maintaining drone-specific inflation factors.
-    - Plan: [implementation_plan.md](file:///C:/Users/amirl/.gemini/antigravity/brain/03a60025-7f1e-46f3-9136-dbd6d342b469/implementation_plan.md)
+- **Date Persistence & UI Formatting (v1.0.8 - Complete)**:
+    - Standardized on ISO-8601 (`YYYY-MM-DDTHH:MM:SS`) for all event timestamps in MongoDB.
+    - Implemented centralized `formatters.js` for `DD/MM/YYYY` history display.
+    - Fixed range-query logic in `mongo_manager.py` to support multi-day history filtering.
 
 
 

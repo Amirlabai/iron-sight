@@ -6,7 +6,7 @@ import {
   Rocket, Plane, Zap, Wind, Users, Waves
 } from 'lucide-react';
 import { useTactical } from '../../context/TacticalContext';
-import { formatTime } from '../../utils/formatters';
+import { formatTime, formatDateTime, dateToDisplay, displayToDate } from '../../utils/formatters';
 
 export default function Sidebar() {
   const {
@@ -168,12 +168,14 @@ export default function Sidebar() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span style={{ fontSize: '9px', color: 'var(--text-sub)' }}>FROM:</span>
                     <input
-                      type="date"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '9px', padding: '2px' }}
-                      value={timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : ''}
+                      type="text"
+                      placeholder="DD/MM/YYYY"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '9px', padding: '2px', width: '65px' }}
+                      value={dateToDisplay(timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : '')}
                       onChange={(e) => {
+                          const isoDate = displayToDate(e.target.value);
                           const currentTo = timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : '';
-                          const newVal = `range:${e.target.value},${currentTo}`;
+                          const newVal = `range:${isoDate},${currentTo}`;
                           setTimeFrame(newVal);
                           setViewMode('timeframe');
                           setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
@@ -181,12 +183,14 @@ export default function Sidebar() {
                     />
                     <span style={{ fontSize: '9px', color: 'var(--text-sub)' }}>TO:</span>
                     <input
-                      type="date"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '9px', padding: '2px' }}
-                      value={timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : ''}
+                      type="text"
+                      placeholder="DD/MM/YYYY"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '9px', padding: '2px', width: '65px' }}
+                      value={dateToDisplay(timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : '')}
                       onChange={(e) => {
+                          const isoDate = displayToDate(e.target.value);
                           const currentFrom = timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : '';
-                          const newVal = `range:${currentFrom},${e.target.value}`;
+                          const newVal = `range:${currentFrom},${isoDate}`;
                           setTimeFrame(newVal);
                           setViewMode('timeframe');
                           setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
@@ -258,7 +262,7 @@ export default function Sidebar() {
                           <div className="history-marker" style={{ background: event.visual_config?.color || 'var(--accent)' }}></div>
                           <div className="card-content">
                             <div className="history-meta">
-                              <span className="time">{formatTime(event.time)}</span>
+                              <span className="time">{formatDateTime(event.time)}</span>
                               <span className="category-tag">{catIcon} {event.category?.toUpperCase()}</span>
                             </div>
                             <div className="history-title">{event.title || 'Unknown Salvo'}</div>

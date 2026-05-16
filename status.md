@@ -98,7 +98,8 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] **MISSION**: Strategic Origin Filtering (NEWSFLASH_GUARD) - [.milestone/strategic_origin_filtering.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/strategic_origin_filtering.md)
 - [x] **MISSION**: Multi-Origin Tactical Zoom & Centering (MULTI_ORIGIN_ZOOM) - [.milestone/multi_origin_zoom.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.milestone/multi_origin_zoom.md)
 - [x] **MISSION**: City & Polygon Outlines (POLYGON_OUTLINES) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/03a60025-7f1e-46f3-9136-dbd6d342b469/walkthrough.md)
-- [x] **MISSION**: Tactical Jerusalem Clock (CLOCK_DEPLOYMENT) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/a17e089c-a94a-4242-82f9-d916f45d6e4e/walkthrough.md)
+- [x] **MISSION**: Jerusalem Clock Deployment (CLOCK_DEPLOYMENT)
+- [x] **MISSION**: Date Persistence Fix (DATE_HARDENING) - Resolved date loss in backend and synchronized ISO timestamps across DB/UI.
 
 
 

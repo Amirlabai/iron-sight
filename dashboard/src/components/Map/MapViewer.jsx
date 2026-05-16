@@ -1,5 +1,6 @@
 import React from 'react';
-import { MapContainer, TileLayer, Polygon, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_BOUNDARIES, STRATEGIC_METADATA } from '../../utils/constants';
 import { useTactical } from '../../context/TacticalContext';
@@ -67,6 +68,67 @@ export default function MapViewer() {
             className: 'israel-border-static'
           }}
         />
+
+        {/* Origin Highlights for Timeframe Mode (Unified) */}
+        {viewMode === 'timeframe' && (() => {
+          const uniqueOrigins = new Set();
+          renderableEvents.forEach(ev => {
+            ev.trajectories?.forEach(t => uniqueOrigins.add(t.origin));
+            ev.highlight_origins?.forEach(o => uniqueOrigins.add(o.name));
+          });
+          return Array.from(uniqueOrigins).map(origin => {
+            const boundary = TACTICAL_BOUNDARIES[origin];
+            const color = STRATEGIC_METADATA[origin]?.color || tacticalColor;
+            if (!boundary) return null;
+            return (
+              <React.Fragment key={`timeframe-origin-${origin}`}>
+                <Polygon positions={boundary} pathOptions={{ color, weight: 15, opacity: 0.05, fill: false, className: 'origin-threat-halo' }} />
+                <Polygon positions={boundary} pathOptions={{ fillColor: color, fillOpacity: 0.1, color, weight: 1, className: 'origin-threat-glow' }} />
+              </React.Fragment>
+            );
+          });
+        })()}
+
+        {/* Unified Origin Pins for Timeframe Mode */}
+        {viewMode === 'timeframe' && (() => {
+          const originData = {};
+          renderableEvents.forEach(ev => {
+            ev.trajectories?.forEach(t => {
+              if (!originData[t.origin]) {
+                originData[t.origin] = {
+                  coords: t.marker_coords || t.origin_coords || [31.0, 35.0],
+                  color: (ev.category && `var(--${ev.category})`) || ev.visual_config?.color || STRATEGIC_METADATA[t.origin]?.color || tacticalColor
+                };
+              }
+            });
+            ev.highlight_origins?.forEach(o => {
+              if (!originData[o.name]) {
+                originData[o.name] = {
+                  coords: o.coords || [31.0, 35.0],
+                  color: STRATEGIC_METADATA[o.name]?.color || tacticalColor
+                };
+              }
+            });
+          });
+          return Object.entries(originData).map(([origin, data]) => (
+            <Marker
+              key={`timeframe-pin-${origin}`}
+              position={data.coords}
+              icon={L.divIcon({
+                className: 'custom-origin-marker',
+                html: `
+                  <div class="origin-wrapper">
+                    <div class="origin-label" style="background: ${data.color}">ORIGIN: ${origin.toUpperCase()}</div>
+                    <div class="origin-pin" style="background: ${data.color}4D; box-shadow: 0 0 10px ${data.color}"></div>
+                  </div>
+                `,
+                iconSize: [100, 50], iconAnchor: [50, 25]
+              })}
+            >
+              <Popup>Launch Origin: {origin}</Popup>
+            </Marker>
+          ));
+        })()}
 
         {/* Render ALL active events simultaneously */}
         {renderableEvents.map((currentEvent, eventIdx) => (

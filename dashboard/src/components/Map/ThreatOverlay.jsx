@@ -161,7 +161,7 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
         return (
           <React.Fragment key={`${eventKey}-traj-${idx}`}>
             {/* Origin Country Highlight (Restored) */}
-            {boundary && (
+            {boundary && viewMode !== 'timeframe' && (
               <React.Fragment>
                 <Polygon positions={boundary}
                   pathOptions={{
@@ -189,27 +189,29 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                 />
               </React.Fragment>
             )}
-            <Marker
-              position={traj.marker_coords || traj.origin_coords || traj.target_coords || ISRAEL_CENTER}
-              icon={L.divIcon({
-                className: 'custom-origin-marker',
-                html: `
-                  <div class="origin-wrapper">
-                    <div class="origin-label" style="background: ${trajColor}">ORIGIN: ${traj.origin.toUpperCase()}</div>
-                    <div class="origin-pin" style="background: ${trajColor}4D; box-shadow: 0 0 10px ${trajColor}"></div>
-                  </div>
-                `,
-                iconSize: [100, 50], iconAnchor: [50, 25]
-              })}
-            >
-              <Popup>Launch Origin: {traj.origin}</Popup>
-            </Marker>
+            {viewMode !== 'timeframe' && (
+              <Marker
+                position={traj.marker_coords || traj.origin_coords || traj.target_coords || [31.0, 35.0]}
+                icon={L.divIcon({
+                  className: 'custom-origin-marker',
+                  html: `
+                    <div class="origin-wrapper">
+                      <div class="origin-label" style="background: ${trajColor}">ORIGIN: ${traj.origin.toUpperCase()}</div>
+                      <div class="origin-pin" style="background: ${trajColor}4D; box-shadow: 0 0 10px ${trajColor}"></div>
+                    </div>
+                  `,
+                  iconSize: [100, 50], iconAnchor: [50, 25]
+                })}
+              >
+                <Popup>Launch Origin: {traj.origin}</Popup>
+              </Marker>
+            )}
           </React.Fragment>
         );
       })}
 
       {/* Legacy Origin Highlights (Standalone) */}
-      {event.highlight_origins?.map((org, idx) => (
+      {viewMode !== 'timeframe' && event.highlight_origins?.map((org, idx) => (
         <React.Fragment key={`${eventKey}-highlight-${idx}`}>
           {TACTICAL_BOUNDARIES[org.name] ? (
             <React.Fragment>
