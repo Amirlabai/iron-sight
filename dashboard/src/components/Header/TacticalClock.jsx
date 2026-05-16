@@ -5,10 +5,19 @@ export default function TacticalClock() {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
+    let animationFrameId;
+    let lastTime = 0;
+
+    const tick = (currentTime) => {
+      if (currentTime - lastTime >= 1000) {
+        setTime(new Date());
+        lastTime = currentTime;
+      }
+      animationFrameId = requestAnimationFrame(tick);
+    };
+
+    animationFrameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
   const timeString = time.toLocaleTimeString('en-GB', {

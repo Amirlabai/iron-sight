@@ -30,7 +30,7 @@ function SplashScreen({ progress }) {
         {progress > 80 && <div className="terminal-line"><Zap size={14} /> SYSTEM READY. STANDING BY.</div>}
       </div>
       <div className="progress-bar-container">
-        <motion.div className="progress-bar" initial={{ width: 0 }} animate={{ width: `${progress}%` }} />
+        <motion.div className="progress-bar" initial={{ scaleX: 0 }} animate={{ scaleX: progress / 100 }} />
       </div>
       <h2 className="splash-title">IRON SIGHT <span>{__APP_VERSION__}</span></h2>
     </motion.div>
