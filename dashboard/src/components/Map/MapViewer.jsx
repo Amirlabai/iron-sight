@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Polygon, useMap, useMapEvents } from 'react-le
 import 'leaflet/dist/leaflet.css';
 import { ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_BOUNDARIES, STRATEGIC_METADATA } from '../../utils/constants';
 import { useTactical } from '../../context/TacticalContext';
+import { formatTime } from '../../utils/formatters';
 import ThreatOverlay from './ThreatOverlay';
 
 function MapController({ center, zoom }) {
@@ -35,7 +36,7 @@ export default function MapViewer() {
   return (
     <div className="map-wrapper">
       <div className="map-overlay-info">
-        {viewMode === 'archive' && <div className="archive-watermark">HISTORICAL DATA REWIND | {archiveEvent?.time}</div>}
+        {viewMode === 'archive' && <div className="archive-watermark">HISTORICAL DATA REWIND | {formatTime(archiveEvent?.time)}</div>}
         {viewMode === 'sandbox' && <div className="sandbox-watermark">DRY RUN ANALYSIS | Hypo-Salvo</div>}
         {hasSimulation && viewMode === 'live' && <div className="sandbox-watermark" style={{ color: '#ff9500', borderColor: '#ff9500' }}>SIMULATION EXERCISE ACTIVE</div>}
       </div>

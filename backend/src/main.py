@@ -223,7 +223,7 @@ async def main():
                                             if full_analysis:
                                                 full_analysis["id"] = alert_id
                                                 full_analysis["is_simulation"] = is_simulation
-                                                full_analysis["time"] = existing["data"].get("time", datetime.now(TIMEZONE).strftime("%H:%M:%S"))
+                                                full_analysis["time"] = existing["data"].get("time") or alert_payload.get("alertDate", "").replace(" ", "T") or datetime.now(TIMEZONE).isoformat()
                                                 existing["data"] = full_analysis
                                                 existing["end_time"] = None  # Reset any pending end
                                                 existing["last_update_time"] = now  # Reset inactivity timer
@@ -247,7 +247,7 @@ async def main():
                                         
                                         analysis["id"] = alert_id
                                         analysis["is_simulation"] = is_simulation
-                                        analysis["time"] = datetime.now(TIMEZONE).strftime("%H:%M:%S")
+                                        analysis["time"] = alert_payload.get("alertDate", "").replace(" ", "T") or datetime.now(TIMEZONE).isoformat()
                                         
                                         active_events[alert_id] = {
                                             "data": analysis,

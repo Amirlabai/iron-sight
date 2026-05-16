@@ -6,6 +6,7 @@ import {
   Rocket, Plane, Zap, Wind, Users, Waves
 } from 'lucide-react';
 import { useTactical } from '../../context/TacticalContext';
+import { formatTime } from '../../utils/formatters';
 
 export default function Sidebar() {
   const {
@@ -102,7 +103,7 @@ export default function Sidebar() {
                       >
                         <div className="alert-marker" style={{ background: alertColor, boxShadow: `0 0 10px ${alertColor}` }}></div>
                         <div className="alert-info">
-                          <h3 style={{ color: alertColor }}>{ev.title?.toUpperCase()} | {ev.time}</h3>
+                          <h3 style={{ color: alertColor }}>{ev.title?.toUpperCase()} | {formatTime(ev.time)}</h3>
                           <div className="regional-breakdown-mini">
                             {Object.entries(grouped).map(([area, cities]) => (
                               <div key={area} className="area-group-mini">
@@ -257,7 +258,7 @@ export default function Sidebar() {
                           <div className="history-marker" style={{ background: event.visual_config?.color || 'var(--accent)' }}></div>
                           <div className="card-content">
                             <div className="history-meta">
-                              <span className="time">{event.time}</span>
+                              <span className="time">{formatTime(event.time)}</span>
                               <span className="category-tag">{catIcon} {event.category?.toUpperCase()}</span>
                             </div>
                             <div className="history-title">{event.title || 'Unknown Salvo'}</div>
