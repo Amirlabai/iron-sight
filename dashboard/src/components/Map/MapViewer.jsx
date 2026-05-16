@@ -75,6 +75,8 @@ export default function MapViewer() {
           renderableEvents.forEach(ev => {
             ev.trajectories?.forEach(t => uniqueOrigins.add(t.origin));
             ev.highlight_origins?.forEach(o => uniqueOrigins.add(o.name));
+            // Also check cluster origin if trajectories are missing
+            if (ev.clusters?.[0]?.origin) uniqueOrigins.add(ev.clusters[0].origin);
           });
           return Array.from(uniqueOrigins).map(origin => {
             const boundary = TACTICAL_BOUNDARIES[origin];
@@ -109,6 +111,14 @@ export default function MapViewer() {
                 };
               }
             });
+            // Handle cluster-only origins for pins
+            if (ev.clusters?.[0]?.origin && !originData[ev.clusters[0].origin]) {
+              const origin = ev.clusters[0].origin;
+              originData[origin] = {
+                coords: ev.clusters[0].coords || [31.0, 35.0], // Fallback if no specific origin_coords
+                color: (ev.category && `var(--${ev.category})`) || ev.visual_config?.color || STRATEGIC_METADATA[origin]?.color || tacticalColor
+              };
+            }
           });
           return Object.entries(originData).map(([origin, data]) => (
             <Marker

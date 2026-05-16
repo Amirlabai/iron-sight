@@ -5,6 +5,7 @@ import {
   STRATEGIC_METADATA, TACTICAL_RED, TACTICAL_BLUE, HIGHLIGHT_RED, HIGHLIGHT_BLUE,
   SEEN_ALERTS, GLOBAL_LAST_PLAY_TIME, setGlobalLastPlayTime
 } from '../utils/constants';
+import { getConvexHull, getCentroid, getDistance } from '../utils/geoUtils';
 import missileSound from '../assets/sounds/missile_alert.mp3';
 import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
 
@@ -311,25 +312,124 @@ export function TacticalProvider({ children }) {
     if (viewMode === 'timeframe') {
       if (!mergeTimeFrameClusters) return history;
 
-      // Merge clusters of same type and origin
-      const mergedEventsMap = {};
-
+      const eventGroups = {}; // category_origin -> [events]
       history.forEach(ev => {
-        const key = `${ev.category}_${ev.trajectories?.[0]?.origin || 'unknown'}`;        if (!mergedEventsMap[key]) {
-          // Deep clone the first event to act as the base
-          mergedEventsMap[key] = JSON.parse(JSON.stringify(ev));
-          mergedEventsMap[key].id = `merged_${key}`;
-          mergedEventsMap[key].clusters = [];
-          mergedEventsMap[key].trajectories = ev.trajectories?.length ? [ev.trajectories[0]] : []; // Keep one trajectory for origin marker
-        }
-
-        // Accumulate clusters
-        if (ev.clusters) {
-          mergedEventsMap[key].clusters.push(...ev.clusters);
-        }
+        const category = ev.category || 'missiles';
+        const origin = ev.trajectories?.[0]?.origin || ev.clusters?.[0]?.origin || 'unknown';
+        const key = `${category}_${origin}`;
+        if (!eventGroups[key]) eventGroups[key] = [];
+        eventGroups[key].push(ev);
       });
 
-      return Object.values(mergedEventsMap);
+      const mergedEvents = [];
+
+      Object.entries(eventGroups).forEach(([key, events]) => {
+        const [category, origin] = key.split('_');
+        
+        // 1. Flatten all individual clusters from all events in this group
+        const allClusters = [];
+        events.forEach(ev => {
+          if (ev.clusters) allClusters.push(...ev.clusters);
+        });
+
+        if (allClusters.length === 0) return;
+
+        // 2. Group clusters by proximity (35km threshold) or shared cities
+        const superClusters = []; // Array of arrays of clusters
+        const visited = new Set();
+
+        for (let i = 0; i < allClusters.length; i++) {
+          if (visited.has(i)) continue;
+
+          const currentGroup = [];
+          const queue = [i];
+          visited.add(i);
+
+          while (queue.length > 0) {
+            const idx = queue.shift();
+            const c1 = allClusters[idx];
+            currentGroup.push(c1);
+
+            for (let j = 0; j < allClusters.length; j++) {
+              if (visited.has(j)) continue;
+              const c2 = allClusters[j];
+
+              // Check if c1 and c2 should merge
+              let shouldMerge = false;
+
+              // Proximity check (centroids)
+              if (c1.centroid && c2.centroid) {
+                const dist = getDistance(c1.centroid, c2.centroid);
+                if (dist < 35) shouldMerge = true;
+              }
+
+              // Shared city check
+              if (!shouldMerge && c1.cities && c2.cities) {
+                const names1 = new Set(c1.cities.map(c => typeof c === 'string' ? c : c.name));
+                const names2 = new Set(c2.cities.map(c => typeof c === 'string' ? c : c.name));
+                for (const name of names1) {
+                  if (names2.has(name)) {
+                    shouldMerge = true;
+                    break;
+                  }
+                }
+              }
+
+              if (shouldMerge) {
+                visited.add(j);
+                queue.push(j);
+              }
+            }
+          }
+          superClusters.push(currentGroup);
+        }
+
+        // 3. Create one "Super Event" per proximity island
+        superClusters.forEach((group, sIdx) => {
+          const baseEvent = JSON.parse(JSON.stringify(events[0]));
+          const superEvent = {
+            ...baseEvent,
+            id: `merged_${key}_${sIdx}`,
+            category,
+            all_cities: [],
+            clusters: [{
+              origin: origin,
+              cities: [],
+              hull: [],
+              centroid: null
+            }]
+          };
+
+          const masterCluster = superEvent.clusters[0];
+          const points = [];
+          const cityNames = new Set();
+
+          group.forEach(c => {
+            if (c.cities) {
+              c.cities.forEach(city => {
+                const name = typeof city === 'string' ? city : city.name;
+                if (!cityNames.has(name)) {
+                  masterCluster.cities.push(city);
+                  superEvent.all_cities.push(city);
+                  cityNames.add(name);
+                }
+                if (city.coords) points.push(city.coords);
+              });
+            }
+            if (c.hull) points.push(...c.hull);
+            if (c.centroid) points.push(c.centroid);
+          });
+
+          if (points.length > 0) {
+            masterCluster.hull = getConvexHull(points);
+            masterCluster.centroid = getCentroid(points);
+          }
+
+          mergedEvents.push(superEvent);
+        });
+      });
+
+      return mergedEvents;
     }
     return liveEvents;
   };
@@ -338,9 +438,9 @@ export function TacticalProvider({ children }) {
 
 
 
-  const hasSimulation = liveEvents.some(e => e.is_simulation);
-  const totalClusters = liveEvents.reduce((acc, ev) => acc + (ev.clusters?.length || 0), 0);
-  const totalTargets = liveEvents.reduce((acc, ev) => acc + (ev.clusters?.reduce((a, c) => a + (c.cities?.length || 0), 0) || 0), 0);
+  const hasSimulation = (viewMode === 'live' ? liveEvents : renderableEvents).some(e => e.is_simulation);
+  const totalClusters = renderableEvents.reduce((acc, ev) => acc + (ev.clusters?.length || 0), 0);
+  const totalTargets = renderableEvents.reduce((acc, ev) => acc + (ev.clusters?.reduce((a, c) => a + (c.cities?.length || 0), 0) || 0), 0);
   const tacticalColor = viewMode === 'sandbox' ? TACTICAL_BLUE : TACTICAL_RED;
   const highlightColor = viewMode === 'sandbox' ? HIGHLIGHT_BLUE : HIGHLIGHT_RED;
 
