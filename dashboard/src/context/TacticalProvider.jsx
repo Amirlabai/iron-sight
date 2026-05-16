@@ -272,6 +272,8 @@ export function TacticalProvider({ children }) {
 
   const returnToLive = () => {
     setViewMode('live');
+    setTimeFrame('all');
+    setHistoryFilter('all');
     const newConfig = calculateBestMapConfig(liveEvents);
     setMapConfig(newConfig);
   };

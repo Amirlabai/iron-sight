@@ -55,7 +55,7 @@ function AppShell() {
       <header className="premium-header">
         <div className="logo-section">
           <img src="/favicon.png" className={`logo-img ${liveEvents.length > 0 ? 'alert-pulse' : ''}`} alt="IRON SIGHT" />
-          <h1>IRON SIGHT <span>{viewMode === 'archive' ? 'ARCHIVE' : __APP_VERSION__}</span></h1>
+          <h1>IRON SIGHT <span>{viewMode === 'archive' ? 'ARCHIVE' : (viewMode === 'timeframe' ? 'TIMEFRAME' : __APP_VERSION__)}</span></h1>
         </div>
 
         <TacticalClock />
@@ -65,7 +65,7 @@ function AppShell() {
             {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
 
-          {viewMode === 'archive' && (
+          {(viewMode === 'archive' || viewMode === 'timeframe') && (
             <button className="return-live-btn" onClick={returnToLive}>
               <Radio size={16} /> RETURN TO LIVE
             </button>
