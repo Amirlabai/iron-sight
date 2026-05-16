@@ -143,6 +143,7 @@ body {
         overflow: hidden;
         background: var(--bg-secondary);
         backdrop-filter: blur(20px);
+        height: 78% !important;
     }
 
     .premium-header h1 {
@@ -151,8 +152,8 @@ body {
     }
 
     .premium-header {
-        height: 40px;
-        padding: 0 6px;
+        height: 45px;
+        padding: 0 10px;
     }
 
     .status-section {
