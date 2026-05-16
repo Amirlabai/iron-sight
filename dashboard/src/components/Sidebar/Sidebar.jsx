@@ -17,7 +17,10 @@ export default function Sidebar() {
     setIsSidebarExpanded, toggleCity, toggleRegion,
     toggleExpand, runSandboxAnalysis,
     totalClusters, totalTargets, setExpandedRegions,
-    historyFilter, setHistoryFilter, fetchHistory
+
+    historyFilter, setHistoryFilter, fetchHistory,
+    timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setViewMode, setMapConfig
+
   } = useTactical();
 
   const [expandedId, setExpandedId] = React.useState(null);
@@ -135,7 +138,71 @@ export default function Sidebar() {
                     <Icon size={14} />
                     <span>{label}</span>
                   </button>
+                ))}              </div>
+
+              <div className="timeframe-filters" style={{ padding: '0 15px 10px', display: 'flex', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                {[
+                  { id: 'all', label: 'All Time' },
+                  { id: '1', label: 'Last 1H' },
+                  { id: '12', label: 'Last 12H' },
+                  { id: '24', label: 'Last 24H' },
+                ].map(tf => (
+                  <button
+                    key={tf.id}
+                    className={`filter-tab ${timeFrame === tf.id ? 'active' : ''}`}
+                    style={{ fontSize: '9px', padding: '4px 8px' }}
+                    onClick={() => {
+                      setTimeFrame(tf.id);
+                      if (tf.id !== 'all') {
+                        setViewMode('timeframe');
+                        setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
+                      } else {
+                        setViewMode('live');
+                      }
+                    }}
+                  >
+                    {tf.label}
+                  </button>
                 ))}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '9px', color: 'var(--text-sub)' }}>FROM:</span>
+                    <input
+                      type="date"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '9px', padding: '2px' }}
+                      value={timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : ''}
+                      onChange={(e) => {
+                          const currentTo = timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : '';
+                          const newVal = `range:${e.target.value},${currentTo}`;
+                          setTimeFrame(newVal);
+                          setViewMode('timeframe');
+                          setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
+                      }}
+                    />
+                    <span style={{ fontSize: '9px', color: 'var(--text-sub)' }}>TO:</span>
+                    <input
+                      type="date"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', fontSize: '9px', padding: '2px' }}
+                      value={timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : ''}
+                      onChange={(e) => {
+                          const currentFrom = timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : '';
+                          const newVal = `range:${currentFrom},${e.target.value}`;
+                          setTimeFrame(newVal);
+                          setViewMode('timeframe');
+                          setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
+                      }}
+                    />
+                </div>
+
+                {timeFrame !== 'all' && (
+                  <label className="merge-toggle" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', color: 'var(--text-sub)', marginLeft: 'auto', cursor: 'pointer', width: '100%' }}>
+                    <input
+                      type="checkbox"
+                      checked={mergeTimeFrameClusters}
+                      onChange={(e) => setMergeTimeFrameClusters(e.target.checked)}
+                    />
+                    MERGE CLUSTERS
+                  </label>
+                )}
               </div>
 
               {history.length === 0 ? (

@@ -82,10 +82,16 @@ class WebSocketManager:
     async def history_handler(self, request):
         # Support both 'category' (new protocol) and 'type' (legacy)
         category = request.query.get("category") or request.query.get("type")
+        hours = request.query.get("hours")
+
+        limit = 50
+        if hours and hours != 'all':
+            limit = 1000 # Increase limit when searching by time
+
         if category:
-            history = await self.db.get_history(alert_type=category, limit=50)
+            history = await self.db.get_history(alert_type=category, limit=limit, hours=hours)
         else:
-            history = await self.db.get_consolidated_history(limit=50)
+            history = await self.db.get_consolidated_history(limit=limit, hours=hours)
         return web.json_response(history)
 
     async def cities_handler(self, request):

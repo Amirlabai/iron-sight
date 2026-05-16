@@ -133,6 +133,8 @@ export function TacticalProvider({ children }) {
   const [tacticalHealth, setTacticalHealth] = useState({ status: 'OPERATIONAL', source: 'SYNCING...' });
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('all');
+  const [timeFrame, setTimeFrame] = useState('all');
+  const [mergeTimeFrameClusters, setMergeTimeFrameClusters] = useState(false);
 
   useAudioEngine(liveEvents, isMuted);
   const ws = useRef(null);
@@ -191,11 +193,13 @@ export function TacticalProvider({ children }) {
     };
   }, [connect, isReady]);
 
-  const fetchHistory = useCallback(async (category = 'all') => {
+  const fetchHistory = useCallback(async (category = 'all', time = 'all') => {
     try {
-      const url = category === 'all'
-        ? `${TACTICAL_API_URL}/api/history`
-        : `${TACTICAL_API_URL}/api/history?category=${category}`;
+      const baseUrl = `${TACTICAL_API_URL}/api/history`;
+      const params = new URLSearchParams();
+      if (category !== 'all') params.append('category', category);
+      if (time !== 'all') params.append('hours', time);
+      const url = `${baseUrl}?${params.toString()}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -211,9 +215,9 @@ export function TacticalProvider({ children }) {
 
   useEffect(() => {
     if (isReady && historyFilter) {
-      fetchHistory(historyFilter);
+      fetchHistory(historyFilter, timeFrame);
     }
-  }, [historyFilter, isReady, fetchHistory]);
+  }, [historyFilter, timeFrame, isReady, fetchHistory]);
 
   const selectArchive = (event) => {
     setArchiveEvent(event);
@@ -290,13 +294,38 @@ export function TacticalProvider({ children }) {
     setActiveTab(tab);
     if (window.innerWidth <= 1024) { setIsSidebarExpanded(true); }
   };
+  const getRenderableEvents = () => {
+    if (viewMode === 'sandbox') return sandboxEvent ? [sandboxEvent] : [];
+    if (viewMode === 'archive') return archiveEvent ? [archiveEvent] : [];
+    if (viewMode === 'timeframe') {
+      if (!mergeTimeFrameClusters) return history;
 
-  // Derived State
-  const renderableEvents = viewMode === 'sandbox'
-    ? (sandboxEvent ? [sandboxEvent] : [])
-    : viewMode === 'archive'
-      ? (archiveEvent ? [archiveEvent] : [])
-      : liveEvents;
+      // Merge clusters of same type and origin
+      const mergedEventsMap = {};
+
+      history.forEach(ev => {
+        const key = `${ev.category}_${ev.trajectories?.[0]?.origin || 'unknown'}`;        if (!mergedEventsMap[key]) {
+          // Deep clone the first event to act as the base
+          mergedEventsMap[key] = JSON.parse(JSON.stringify(ev));
+          mergedEventsMap[key].id = `merged_${key}`;
+          mergedEventsMap[key].clusters = [];
+          mergedEventsMap[key].trajectories = ev.trajectories?.length ? [ev.trajectories[0]] : []; // Keep one trajectory for origin marker
+        }
+
+        // Accumulate clusters
+        if (ev.clusters) {
+          mergedEventsMap[key].clusters.push(...ev.clusters);
+        }
+      });
+
+      return Object.values(mergedEventsMap);
+    }
+    return liveEvents;
+  };
+
+  const renderableEvents = getRenderableEvents();
+
+
 
   const hasSimulation = liveEvents.some(e => e.is_simulation);
   const totalClusters = liveEvents.reduce((acc, ev) => acc + (ev.clusters?.length || 0), 0);
@@ -313,7 +342,7 @@ export function TacticalProvider({ children }) {
     setSandboxInput, setCitySearch, setIsSidebarExpanded, setExpandedRegions,
     setHistoryFilter, selectArchive, toggleCity, toggleRegion, toggleExpand,
     returnToLive, runSandboxAnalysis, handleTabChange, fetchHistory,
-    renderableEvents, hasSimulation, totalClusters, totalTargets,
+    renderableEvents, hasSimulation, totalClusters, totalTargets,    timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setMapConfig,
     tacticalColor, highlightColor,
   };
 
