@@ -120,24 +120,29 @@ export default function MapViewer() {
               };
             }
           });
-          return Object.entries(originData).map(([origin, data]) => (
-            <Marker
-              key={`timeframe-pin-${origin}`}
-              position={data.coords}
-              icon={L.divIcon({
-                className: 'custom-origin-marker',
-                html: `
-                  <div class="origin-wrapper">
-                    <div class="origin-label" style="background: ${data.color}">ORIGIN: ${origin.toUpperCase()}</div>
-                    <div class="origin-pin" style="background: ${data.color}4D; box-shadow: 0 0 10px ${data.color}"></div>
-                  </div>
-                `,
-                iconSize: [100, 50], iconAnchor: [50, 25]
-              })}
-            >
-              <Popup>Launch Origin: {origin}</Popup>
-            </Marker>
-          ));
+          return Object.entries(originData)
+            .filter(([origin]) => {
+              const internalTerms = ['Israel', 'terroristInfiltration', 'hostileAircraftIntrusion', 'missiles', 'earthQuake', 'unknown'];
+              return !internalTerms.includes(origin);
+            })
+            .map(([origin, data]) => (
+              <Marker
+                key={`timeframe-pin-${origin}`}
+                position={data.coords}
+                icon={L.divIcon({
+                  className: 'custom-origin-marker',
+                  html: `
+                    <div class="origin-wrapper">
+                      <div class="origin-label" style="background: ${data.color}">ORIGIN: ${origin.toUpperCase()}</div>
+                      <div class="origin-pin" style="background: ${data.color}4D; box-shadow: 0 0 10px ${data.color}"></div>
+                    </div>
+                  `,
+                  iconSize: [100, 50], iconAnchor: [50, 25]
+                })}
+              >
+                <Popup>Launch Origin: {origin}</Popup>
+              </Marker>
+            ));
         })()}
 
         {/* Render ALL active events simultaneously */}

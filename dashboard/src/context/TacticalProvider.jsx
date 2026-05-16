@@ -360,7 +360,7 @@ export function TacticalProvider({ children }) {
               // Proximity check (centroids)
               if (c1.centroid && c2.centroid) {
                 const dist = getDistance(c1.centroid, c2.centroid);
-                if (dist < 35) shouldMerge = true;
+                if (dist < 12) shouldMerge = true;
               }
 
               // Shared city check
@@ -387,10 +387,21 @@ export function TacticalProvider({ children }) {
         // 3. Create one "Super Event" per proximity island
         superClusters.forEach((group, sIdx) => {
           const baseEvent = JSON.parse(JSON.stringify(events[0]));
+          
+          // Calculate time range for the group
+          const times = group.map(c => new Date(c.time || baseEvent.time).getTime());
+          const minTime = new Date(Math.min(...times));
+          const maxTime = new Date(Math.max(...times));
+          const timeRangeStr = minTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + 
+                               ' - ' + 
+                               maxTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
           const superEvent = {
             ...baseEvent,
             id: `merged_${key}_${sIdx}`,
             category,
+            mergedCount: group.length,
+            timeRange: timeRangeStr,
             all_cities: [],
             clusters: [{
               origin: origin,

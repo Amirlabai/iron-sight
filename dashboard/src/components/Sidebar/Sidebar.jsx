@@ -232,7 +232,7 @@ export default function Sidebar() {
                 <div className="empty-state"><Clock size={48} color="#333" /><p>NO HISTORY RECORDED</p></div>
               ) : (
                 <div className="history-list">
-                  {(timeFrame === 'all' ? history : renderableEvents).map((event, i) => {
+                  {renderableEvents.map((event, i) => {
                     const isExpanded = expandedId === event.id;
                     const catIcon = {
                       'missiles': <Rocket size={16} />,
@@ -280,10 +280,11 @@ export default function Sidebar() {
                           <div className="history-marker" style={{ background: event.visual_config?.color || 'var(--accent)' }}></div>
                           <div className="card-content">
                             <div className="history-meta">
-                              <span className="time">{formatDateTime(event.time)}</span>
+                              <span className="time">{event.timeRange || formatDateTime(event.time)}</span>
                               <span className="category-tag">{catIcon} {event.category?.toUpperCase()}</span>
+                              {event.mergedCount > 1 && <span className="count-mini" style={{ background: 'var(--accent)', color: 'black', padding: '0 4px', borderRadius: '2px' }}>{event.mergedCount} EVENTS</span>}
                             </div>
-                            <div className="history-title">{event.title || 'Unknown Salvo'}</div>
+                            <div className="history-title">{event.mergedCount > 1 ? `CONSOLIDATED ${event.category?.toUpperCase()} SALVO` : (event.title || 'Unknown Salvo')}</div>
                             {!isExpanded && (
                               <div className="time">
                                 {Object.entries(grouped).map(([area, cities]) => (
