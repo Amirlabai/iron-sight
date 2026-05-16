@@ -143,44 +143,47 @@ body {
         overflow: hidden;
         background: var(--bg-secondary);
         backdrop-filter: blur(20px);
-        height: 75% !important;
-        transform: translateY(0);
-        padding-bottom: env(safe-area-inset-bottom, 20px);
     }
 
     .premium-header h1 {
-        font-size: 14px;
-        letter-spacing: 1px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-size: 6px;
+        letter-spacing: 0.5px;
     }
 
     .premium-header {
-        height: 50px;
-        padding: 0 10px;
+        height: 40px;
+        padding: 0 6px;
     }
 
     .status-section {
-        gap: 6px;
+        gap: 4px;
+    }
+
+    .logo-img {
+        width: 12px;
+        height: 12px;
+    }
+
+    .icon-btn {
+        padding: 4px;
     }
 
     .status-pill {
-        padding: 4px 10px;
-        font-size: 12px;
-        gap: 6px;
+        padding: 2px 8px;
+        font-size: 4px;
+        gap: 4px;
     }
 
     .status-pill.online {
-        padding: 4px 10px;
-        font-size: 12px;
-        gap: 6px;
+        padding: 2px 8px;
+        font-size: 4px;
+        gap: 4px;
     }
-    
+
     .return-live-btn {
-        padding: 6px 12px;
-        font-size: 11px;
-        gap: 6px;
+        padding: 4px 10px;
+        font-size: 4px;
+        gap: 5px;
     }
 
     /* Tactical Clock Mobile */
@@ -191,6 +194,7 @@ body {
         border: none;
         backdrop-filter: none;
         box-shadow: none;
+        gap: 4px;
     }
 
     .clock-date {
@@ -198,11 +202,11 @@ body {
     }
 
     .clock-time {
-        font-size: 14px;
-        font-weight: 600;
-        letter-spacing: 1.5px;
+        font-size: 8px;
+        font-weight: 400;
+        letter-spacing: 1px;
         font-variant-numeric: tabular-nums;
-        min-width: 65px;
+        min-width: 55px;
         text-align: center;
     }
 
@@ -214,9 +218,7 @@ body {
     }
 
     .tab-btn {
-        flex: 1;
-        padding: 16px 5px;
-        font-size: 14px;
-        white-space: nowrap;
+        padding: 12px 5px;
+        font-size: 12px;
     }
 }

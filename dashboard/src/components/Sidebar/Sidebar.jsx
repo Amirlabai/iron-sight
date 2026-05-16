@@ -38,18 +38,18 @@ export default function Sidebar() {
       drag="y"
       dragControls={dragControls}
       dragListener={false}
-      dragConstraints={{ top: 0, bottom: (window.innerHeight * 0.75) - 50 }}
+      dragConstraints={{ top: 0, bottom: (window.innerHeight * 0.75) - 65 }}
       dragElastic={0.1}
       animate={{
         y: window.innerWidth <= 1024
-          ? (isSidebarExpanded ? 0 : (window.innerHeight * 0.75) - 50)
+          ? (isSidebarExpanded ? 0 : (window.innerHeight * 0.75) - 65)
           : 0
       }}
       onDragEnd={(e, info) => {
         if (info.offset.y > 50) setIsSidebarExpanded(false);
         else if (info.offset.y < -50) setIsSidebarExpanded(true);
       }}
-      transition={{ type: "spring", damping: 30, stiffness: 350 }}
+      transition={{ type: "spring", damping: 40, stiffness: 600 }}
       style={{ height: window.innerWidth <= 1024 ? "75%" : "100%" }}
     >
       <div
@@ -58,13 +58,13 @@ export default function Sidebar() {
         style={{ touchAction: 'none', cursor: 'grab' }}
       >
         <button className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={() => handleTabChange('live')}>
-          <Activity size={22} /> LIVE
+          <Activity size={18} /> LIVE
         </button>
         <button className={`tab-btn ${activeTab === 'archive' ? 'active' : ''}`} onClick={() => handleTabChange('archive')}>
-          <History size={22} /> HISTORY
+          <History size={18} /> HISTORY
         </button>
         <button className={`tab-btn ${activeTab === 'sandbox' ? 'active' : ''}`} onClick={() => handleTabChange('sandbox')}>
-          <Shield size={22} /> SANDBOX
+          <Shield size={18} /> SANDBOX
         </button>
       </div>
 
@@ -166,54 +166,54 @@ export default function Sidebar() {
                   </button>
                 ))}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--text-sub)', fontWeight: '600' }}>FROM:</span>
-                    <input
-                      type="date"
-                      style={{ 
-                        background: 'rgba(255,255,255,0.08)', 
-                        border: '1px solid var(--border)', 
-                        color: 'white', 
-                        fontSize: '11px', 
-                        padding: '4px 6px', 
-                        width: 'auto',
-                        minWidth: '105px',
-                        borderRadius: '4px',
-                        fontFamily: 'monospace'
-                      }}
-                      value={timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : ''}
-                      onChange={(e) => {
-                          const isoDate = e.target.value;
-                          const currentTo = timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : '';
-                          const newVal = `range:${isoDate},${currentTo}`;
-                          setTimeFrame(newVal);
-                          setViewMode('timeframe');
-                          setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
-                      }}
-                    />
-                    <span style={{ fontSize: '10px', color: 'var(--text-sub)', fontWeight: '600' }}>TO:</span>
-                    <input
-                      type="date"
-                      style={{ 
-                        background: 'rgba(255,255,255,0.08)', 
-                        border: '1px solid var(--border)', 
-                        color: 'white', 
-                        fontSize: '11px', 
-                        padding: '4px 6px', 
-                        width: 'auto',
-                        minWidth: '105px',
-                        borderRadius: '4px',
-                        fontFamily: 'monospace'
-                      }}
-                      value={timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : ''}
-                      onChange={(e) => {
-                          const isoDate = e.target.value;
-                          const currentFrom = timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : '';
-                          const newVal = `range:${currentFrom},${isoDate}`;
-                          setTimeFrame(newVal);
-                          setViewMode('timeframe');
-                          setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
-                      }}
-                    />
+                  <span style={{ fontSize: '10px', color: 'var(--text-sub)', fontWeight: '600' }}>FROM:</span>
+                  <input
+                    type="date"
+                    style={{
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid var(--border)',
+                      color: 'white',
+                      fontSize: '11px',
+                      padding: '4px 6px',
+                      width: 'auto',
+                      minWidth: '105px',
+                      borderRadius: '4px',
+                      fontFamily: 'monospace'
+                    }}
+                    value={timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : ''}
+                    onChange={(e) => {
+                      const isoDate = e.target.value;
+                      const currentTo = timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : '';
+                      const newVal = `range:${isoDate},${currentTo}`;
+                      setTimeFrame(newVal);
+                      setViewMode('timeframe');
+                      setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
+                    }}
+                  />
+                  <span style={{ fontSize: '10px', color: 'var(--text-sub)', fontWeight: '600' }}>TO:</span>
+                  <input
+                    type="date"
+                    style={{
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid var(--border)',
+                      color: 'white',
+                      fontSize: '11px',
+                      padding: '4px 6px',
+                      width: 'auto',
+                      minWidth: '105px',
+                      borderRadius: '4px',
+                      fontFamily: 'monospace'
+                    }}
+                    value={timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : ''}
+                    onChange={(e) => {
+                      const isoDate = e.target.value;
+                      const currentFrom = timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : '';
+                      const newVal = `range:${currentFrom},${isoDate}`;
+                      setTimeFrame(newVal);
+                      setViewMode('timeframe');
+                      setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
+                    }}
+                  />
                 </div>
 
                 {timeFrame !== 'all' && (
