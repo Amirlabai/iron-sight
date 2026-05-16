@@ -179,7 +179,7 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
               </React.Fragment>
             )}
 
-            {traj.origin_coords && traj.target_coords && (
+            {traj.origin_coords && traj.target_coords && viewMode !== 'timeframe' && (
               <React.Fragment>
                 <Polyline positions={[traj.origin_coords, traj.target_coords]}
                   pathOptions={{ color: trajColor, weight: 10, opacity: 0.1, smoothFactor: 2.0, className: 'trajectory-halo' }}

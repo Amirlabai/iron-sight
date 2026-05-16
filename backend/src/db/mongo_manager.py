@@ -146,13 +146,35 @@ class MongoManager:
         except Exception as e:
             logger.error(f"LOG_EVENT_FAILURE: {event_id} {status} - {e}")
 
-    async def get_history(self, alert_type="missiles", limit=50):
+    async def get_history(self, alert_type="missiles", limit=50, hours=None):
         """Retrieve archive for a specific threat category."""
         collection = self.collections.get(alert_type)
         if collection is None: return []
-        
         try:
-            cursor = collection.find().sort("_id", -1).limit(limit)
+            query = {}
+            if hours and hours != 'all':
+                from datetime import datetime, timedelta, timezone
+                if hours.startswith("range:"):
+                    # Format: range:YYYY-MM-DD,YYYY-MM-DD
+                    dates = hours.replace("range:", "").split(",")
+                    if len(dates) == 2:
+                        from_date, to_date = dates[0], dates[1]
+                        time_query = {}
+                        if from_date:
+                            time_query["$gte"] = f"{from_date}T00:00:00+00:00"
+                        if to_date:
+                            time_query["$lte"] = f"{to_date}T23:59:59+00:00"
+                        if time_query:
+                            query["time"] = time_query
+                else:
+                    try:
+                        h = int(hours)
+                        cutoff = datetime.now(timezone.utc) - timedelta(hours=h)
+                        query["time"] = {"$gte": cutoff.isoformat()}
+                    except ValueError:
+                        pass
+
+            cursor = collection.find(query).sort("_id", -1).limit(limit)
             history = await cursor.to_list(length=limit)
             # Remove MongoDB _id for clean JSON serialization
             for item in history:
@@ -174,12 +196,12 @@ class MongoManager:
             logger.error(f"DB_FETCH_FAILURE for alert {alert_id}: {e}")
             return None
 
-    async def get_consolidated_history(self, limit=50):
+    async def get_consolidated_history(self, limit=50, hours=None):
         """Retrieve archive across all tactical categories, unified and sorted."""
         import asyncio
         try:
             # Parallel fetch from all collections
-            tasks = [self.get_history(alert_type, limit=limit) for alert_type in self.collections]
+            tasks = [self.get_history(alert_type, limit=limit, hours=hours) for alert_type in self.collections]
             results = await asyncio.gather(*tasks)
             
             # Combine all results
