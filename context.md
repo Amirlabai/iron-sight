@@ -162,6 +162,12 @@ Transitioned to Development Alpha.
     - Bumped font sizes (8px -> 12px) for critical mobile status and history data.
     - Implemented `100dvh` for viewport stability across Firefox and mobile browsers.
     - Added safe-area-inset padding and relative positioning for sidebar consistency.
+- **SEO & Semantic Hardening (v1.1.0 - Complete)**:
+    - Resolved H1 tag duplication between SplashScreen and main Header.
+    - Implemented Open Graph and Twitter Card metadata for strategic social visibility.
+    - Deployed `robots.txt` and `sitemap.xml` for search engine discovery.
+    - Standardized canonical URL to `https://iron-sight-drab.vercel.app/`.
+    - Enhanced accessibility via `aria-label` on tactical controls.
 
 
 

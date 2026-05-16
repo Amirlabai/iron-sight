@@ -32,7 +32,7 @@ function SplashScreen({ progress }) {
       <div className="progress-bar-container">
         <motion.div className="progress-bar" initial={{ width: 0 }} animate={{ width: `${progress}%` }} />
       </div>
-      <h1 className="splash-title">IRON SIGHT <span>{__APP_VERSION__}</span></h1>
+      <h2 className="splash-title">IRON SIGHT <span>{__APP_VERSION__}</span></h2>
     </motion.div>
   );
 }
@@ -55,18 +55,19 @@ function AppShell() {
       <header className="premium-header">
         <div className="logo-section">
           <img src="/favicon.png" className={`logo-img ${liveEvents.length > 0 ? 'alert-pulse' : ''}`} alt="IRON SIGHT" />
-          <h1>IRON SIGHT <span>{viewMode === 'archive' ? 'ARCHIVE' : (viewMode === 'timeframe' ? 'TIMEFRAME' : __APP_VERSION__)}</span></h1>
+          <h1>IRON SIGHT</h1>
+          <span className="version-badge">{viewMode === 'archive' ? 'ARCHIVE' : (viewMode === 'timeframe' ? 'TIMEFRAME' : __APP_VERSION__)}</span>
         </div>
 
         <TacticalClock />
 
         <div className="status-section">
-          <button className="icon-btn" onClick={() => setIsMuted(!isMuted)}>
+          <button className="icon-btn" onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? "Unmute Tactical Audio" : "Mute Tactical Audio"}>
             {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
 
           {(viewMode === 'archive' || viewMode === 'timeframe') && (
-            <button className="return-live-btn" onClick={returnToLive}>
+            <button className="return-live-btn" onClick={returnToLive} aria-label="Return to Live Tactical View">
               <Radio size={16} /> RETURN TO LIVE
             </button>
           )}

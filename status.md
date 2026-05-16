@@ -109,6 +109,7 @@ Status: **ACTIVE** - Resolving visual trajectory redundancy.
 - [x] **MISSION**: Date Persistence Fix (DATE_HARDENING) - [walkthrough.md](file:///C:/Users/amirl/.gemini/antigravity/brain/68d2842d-2e41-49ba-8276-e9a4a0dce139/walkthrough.md)
 - [x] **MISSION**: Mobile UI Hardening (Condensed Header & Sidebar Restoration)
 - [x] **MISSION**: History Filter Hardening (WS Sync & Timeframe Fix)
+- [x] **MISSION**: SEO & Semantic Hardening (Metadata, H1 Hierarchy, Robots/Sitemap)
 
 
 
