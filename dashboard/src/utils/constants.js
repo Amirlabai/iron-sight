@@ -41,6 +41,18 @@ export const TACTICAL_BLUE = '#4d94ff';
 export const HIGHLIGHT_RED = '#ff0000';
 export const HIGHLIGHT_BLUE = '#0066ff';
 
+/** Category urgency colors — aligned with :root CSS vars */
+export const CATEGORY_COLORS = {
+  missiles: '#ff3b30',
+  hostileAircraftIntrusion: '#ff9500',
+  terroristInfiltration: '#b518ff',
+  earthQuake: '#4cd964',
+  newsFlash: 'rgba(255,255,255,0.35)',
+};
+
+export const categoryTint = (color, percent = 8) =>
+  `color-mix(in srgb, ${color} ${percent}%, transparent)`;
+
 // Audio Singleton State (module-level globals)
 export const SEEN_ALERTS = new Set();
 export let GLOBAL_LAST_PLAY_TIME = 0;

@@ -67,7 +67,7 @@ function AppShell() {
           </button>
 
           {(viewMode === 'archive' || viewMode === 'timeframe') && (
-            <button className="return-live-btn" onClick={returnToLive} aria-label="Return to Live Tactical View">
+            <button className="return-live-btn header-return-live-btn" onClick={returnToLive} aria-label="Return to Live Tactical View">
               <Radio size={16} /> RETURN TO LIVE
             </button>
           )}

@@ -148,3 +148,51 @@
     animation: simple-pulse 2s infinite;
     flex-shrink: 0;
 }
+
+/* Return-to-Live sidebar dot — transform/opacity only */
+@keyframes return-live-pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.4;
+        transform: scale(0.7);
+    }
+}
+
+.return-to-live-btn.sidebar-return-live::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #fff;
+    margin-right: 8px;
+    animation: return-live-pulse 1.4s ease-in-out infinite;
+    will-change: transform, opacity;
+}
+
+/* History chevron — CSS transition (compositor-friendly) */
+.history-card-chevron {
+    display: inline-block;
+    margin-left: auto;
+    opacity: 0.6;
+    font-size: 12px;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    transform: rotate(0deg);
+}
+
+.history-card-header[aria-expanded="true"] .history-card-chevron {
+    transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

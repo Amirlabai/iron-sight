@@ -67,6 +67,7 @@
             height: 10px;
             border-radius: 50%;
             animation: iconPulse 1.5s ease-in-out infinite;
+            will-change: transform, opacity;
         }
 
         @keyframes iconPulse {
@@ -94,6 +95,22 @@
 
         .alert-icon-close:hover {
             color: #ff4d4d;
+        }
+
+        @media (max-width: 768px) {
+            .active-alert-icon {
+                min-height: 44px;
+                align-items: center;
+            }
+
+            .alert-icon-close,
+            .btn-fire,
+            .btn-end {
+                min-width: 44px;
+                min-height: 36px;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+            }
         }
 
         /* --- Bottom Bar Control Panel --- */
