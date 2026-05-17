@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { TacticalContext } from './TacticalContext';
 import {
-  ISRAEL_CENTER, DEFAULT_ZOOM, IS_PROD, WEBSOCKET_URL, TACTICAL_API_URL,
-  STRATEGIC_METADATA, TACTICAL_RED, TACTICAL_BLUE, HIGHLIGHT_RED, HIGHLIGHT_BLUE,
+  ISRAEL_CENTER, getDefaultZoom, IS_PROD, WEBSOCKET_URL, TACTICAL_API_URL,
+  TACTICAL_RED, TACTICAL_BLUE, HIGHLIGHT_RED, HIGHLIGHT_BLUE,
   SEEN_ALERTS, GLOBAL_LAST_PLAY_TIME, setGlobalLastPlayTime
 } from '../utils/constants';
+import {
+  calculateBestMapConfig,
+  calculateArchiveMapConfig,
+  calculateTimeframeMapConfig,
+} from '../utils/mapGeometry';
 import { getConvexHull, getCentroid, getDistance } from '../utils/geoUtils';
 import missileSound from '../assets/sounds/missile_alert.mp3';
 import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
@@ -56,70 +61,17 @@ const useAudioEngine = (liveEvents, isMuted) => {
   }, [liveEvents, isMuted]);
 };
 
-// --- Tactical Map Logic ---
-const calculateBestMapConfig = (events) => {
-  if (!events || events.length === 0) return { center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM };
-
-  // Collect all trajectories across all events
-  const allTrajectories = events.flatMap(e => e.trajectories || []);
-
-  if (allTrajectories.length > 0) {
-    // Detect unique origins across ALL threats (normalize "North Iran" -> "Iran")
-    const allOrigins = [
-      ...allTrajectories.map(t => t.origin),
-      ...events.flatMap(e => e.clusters || []).map(c => c.origin)
-    ];
-
-    const uniqueOrigins = new Set(
-      allOrigins
-        .filter(o => o && o !== 'Unknown' && o !== 'newsFlash')
-        .map(o => o === 'North Iran' ? 'Iran' : o)
-    );
-
-    // Find the trajectory with the LOWEST zoom level (most "strategic"/wide)
-    let bestTraj = allTrajectories[0];
-    let minZoom = STRATEGIC_METADATA[bestTraj.origin]?.zoom || DEFAULT_ZOOM;
-
-    for (const traj of allTrajectories) {
-      const z = STRATEGIC_METADATA[traj.origin]?.zoom || DEFAULT_ZOOM;
-      if (z < minZoom) {
-        minZoom = z;
-        bestTraj = traj;
-      }
-    }
-
-    // Multi-origin: snap to Israel center with widest strategic view
-    if (uniqueOrigins.size > 1) {
-      return {
-        center: ISRAEL_CENTER,
-        zoom: DEFAULT_ZOOM
-      };
-    }
-
-    return {
-      center: [
-        (bestTraj.origin_coords[0] + bestTraj.target_coords[0]) / 2,
-        (bestTraj.origin_coords[1] + bestTraj.target_coords[1]) / 2
-      ],
-      zoom: window.innerWidth < 768 ? minZoom - 1 : minZoom
-    };
-  }
-
-  // Fallback to center of first event if no trajectories but has centers (e.g. earthquakes)
-  const withCenter = events.find(e => e.center);
-  if (withCenter) {
-    return { center: withCenter.center, zoom: withCenter.zoom_level || DEFAULT_ZOOM };
-  }
-
-  return { center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM };
-};
-
 export function TacticalProvider({ children }) {
   const [liveEvents, setLiveEvents] = useState([]);
   const [history, setHistory] = useState([]);
   const [viewMode, setViewMode] = useState('live');
   const [archiveEvent, setArchiveEvent] = useState(null);
-  const [mapConfig, setMapConfig] = useState({ center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM });
+  const [mapConfig, setMapConfig] = useState({
+    center: ISRAEL_CENTER,
+    zoom: getDefaultZoom(),
+    bounds: null,
+    maxZoom: undefined,
+  });
   const [isConnected, setIsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState('live');
   const [isReady, setIsReady] = useState(false);
@@ -178,7 +130,9 @@ export function TacticalProvider({ children }) {
         });
       } else if (data.type === 'reset') {
         setLiveEvents([]);
-        if (viewMode === 'live') { setMapConfig({ center: ISRAEL_CENTER, zoom: DEFAULT_ZOOM }); }
+        if (viewMode === 'live') {
+          setMapConfig({ center: ISRAEL_CENTER, zoom: getDefaultZoom(), bounds: null, maxZoom: undefined });
+        }
       } else if (data.type === 'health_status') {
         setTacticalHealth({ status: data.status, source: data.upstream_source || 'OPERATIONAL' });
       }
@@ -218,6 +172,9 @@ export function TacticalProvider({ children }) {
         setHistory([]);
       }
 
+      if (viewModeRef.current === 'timeframe') {
+        setMapConfig(calculateTimeframeMapConfig());
+      }
     } catch (err) {
       if (!IS_PROD) console.error("HISTORY_FETCH_FAILED", err);
     }
@@ -232,15 +189,7 @@ export function TacticalProvider({ children }) {
   const selectArchive = (event) => {
     setArchiveEvent(event);
     setViewMode('archive');
-
-    // Zoom/Center Synchronization
-    const dbZoom = event.zoom_level || event.trajectories?.[0]?.zoom;
-    const meta = event.trajectories?.[0] ? (STRATEGIC_METADATA[event.trajectories[0].origin] || {}) : {};
-
-    setMapConfig({
-      center: event.center || ISRAEL_CENTER,
-      zoom: dbZoom || meta.zoom || 8
-    });
+    setMapConfig(calculateArchiveMapConfig(event));
   };
 
   const toggleCity = (city) => {
@@ -294,7 +243,12 @@ export function TacticalProvider({ children }) {
         const data = await resp.json();
         setSandboxEvent(data);
         setViewMode('sandbox');
-        setMapConfig({ center: data.center, zoom: data.zoom_level || 8 });
+        setMapConfig({
+          center: data.center,
+          zoom: data.zoom_level || 8,
+          bounds: null,
+          maxZoom: undefined,
+        });
       }
     } catch (err) {
       if (!IS_PROD) console.error("SANDBOX_ANALYSIS_FAILED:", err);
@@ -450,7 +404,10 @@ export function TacticalProvider({ children }) {
 
   // Sidebar Logic: Show history stream in sidebar even if viewMode is 'live',
   // but keep the map clean unless a specific event/timeframe is selected.
-  const sidebarEvents = (activeTab === 'archive' && viewMode === 'live') ? history : renderableEvents;
+  const sidebarEvents =
+    activeTab === 'archive' && (viewMode === 'live' || viewMode === 'archive')
+      ? history
+      : renderableEvents;
 
   const hasSimulation = (viewMode === 'live' ? liveEvents : renderableEvents).some(e => e.is_simulation);
   const totalClusters = sidebarEvents.reduce((acc, ev) => acc + (ev.clusters?.length || 0), 0);

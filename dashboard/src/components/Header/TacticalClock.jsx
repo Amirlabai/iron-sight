@@ -36,8 +36,9 @@ export default function TacticalClock() {
   }).replace(/\//g, '.');
 
   return (
-    <motion.div 
+    <motion.div
       className="tactical-clock"
+      aria-label={`Jerusalem time ${dateString} ${timeString}`}
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}

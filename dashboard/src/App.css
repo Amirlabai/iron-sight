@@ -115,18 +115,83 @@
     opacity: 0.8;
 }
 
-.clock-date {
-    font-size: 12px;
-    letter-spacing: 1px;
+.clock-date,
+.clock-time {
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+    text-align: left;
 }
 
 .clock-time {
-    font-size: 14px;
-    font-weight: 400;
-    letter-spacing: 1px;
-    font-variant-numeric: tabular-nums;
-    min-width: 65px;
-    text-align: center;
+    min-width: unset;
+}
+
+@media (min-width: 1025px) {
+    .premium-header {
+        display: block;
+        height: 80px;
+        padding: 0 40px;
+    }
+
+    .header-bar {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+        min-height: 80px;
+        gap: 12px;
+    }
+
+    .logo-section {
+        flex: 0 0 auto;
+        gap: 15px;
+        min-width: 0;
+    }
+
+    .tactical-clock {
+        flex: 1 1 auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: static;
+        top: auto;
+        left: auto;
+        right: auto;
+        margin: 0;
+        transform: none;
+        flex-direction: row;
+        gap: 12px;
+        padding: 0;
+        min-width: 0;
+        background: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        pointer-events: auto;
+        opacity: 0.8;
+        z-index: 1;
+    }
+
+    .status-section {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        min-width: 0;
+    }
+
+    .clock-date,
+    .clock-time {
+        display: inline;
+        width: auto;
+        font-size: 16px;
+        line-height: 1.25;
+        letter-spacing: 0.5px;
+        text-align: left;
+    }
 }
 
 .icon-btn {
@@ -921,7 +986,7 @@
         letter-spacing: 1px;
         border: none;
         cursor: pointer;
-        z-index: 2500;
+        z-index: 2550;
         border-radius: 0;
         box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
         pointer-events: auto;
