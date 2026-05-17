@@ -6,6 +6,8 @@
 
 Review fixes **shipped** (`0b9dd67`). Pass #2 follow-ups appended in [REVIEW-STATUS-SIGNAL-FLARE.md](REVIEW-STATUS-SIGNAL-FLARE.md#pass-2--post-ship-review-0b9dd67).
 
+**Mobile wizard freeze:** save step could hang on `serviceWorker.ready` / push subscribe; dashboard now uses fetch/SW timeouts and always clears "Saving…".
+
 | Area | State |
 |------|--------|
 | Async web push | `asyncio.to_thread` in `push_manager.py` |

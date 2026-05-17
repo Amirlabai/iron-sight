@@ -4,15 +4,17 @@ import { fileURLToPath } from 'node:url';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 
+const assetMock = path.resolve(dir, 'src/test-utils/asset-mock.js');
+
 export default defineConfig({
   resolve: {
-    alias: {
-      leaflet: path.resolve(dir, 'src/test-utils/leaflet-mock.js'),
-      'leaflet/dist/images/marker-icon.png': path.resolve(dir, 'src/test-utils/asset-mock.js'),
-      'leaflet/dist/images/marker-shadow.png': path.resolve(dir, 'src/test-utils/asset-mock.js'),
-    },
+    alias: [
+      { find: 'leaflet', replacement: path.resolve(dir, 'src/test-utils/leaflet-mock.js') },
+      { find: /leaflet\/dist\/images\/.*\.png$/, replacement: assetMock },
+    ],
   },
   test: {
     environment: 'node',
+    setupFiles: ['./src/test-utils/vitest-setup.js'],
   },
 });

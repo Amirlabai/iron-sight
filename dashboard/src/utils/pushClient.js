@@ -1,6 +1,26 @@
 import { TACTICAL_API_URL } from './constants';
 
 const PUSH_TOKEN_HEADER = 'X-Push-Client-Token';
+const SW_READY_MS = 12000;
+const FETCH_MS = 15000;
+
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const res = await withTimeout(
+    fetch(url, options),
+    FETCH_MS,
+    'Request timed out — check connection and try again'
+  );
+  return res;
+}
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -21,7 +41,7 @@ export async function fetchVapidPublicKey() {
   const envKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
   if (envKey) return envKey;
 
-  const res = await fetch(`${TACTICAL_API_URL}/api/push/vapid-public-key`);
+  const res = await fetchWithTimeout(`${TACTICAL_API_URL}/api/push/vapid-public-key`);
   if (!res.ok) throw new Error('VAPID key unavailable');
   const data = await res.json();
   return data.publicKey;
@@ -29,7 +49,11 @@ export async function fetchVapidPublicKey() {
 
 export async function getServiceWorkerRegistration() {
   if (!('serviceWorker' in navigator)) throw new Error('Service worker not supported');
-  return navigator.serviceWorker.ready;
+  return withTimeout(
+    navigator.serviceWorker.ready,
+    SW_READY_MS,
+    'Service worker not ready — reload the page or use the installed app'
+  );
 }
 
 export async function subscribeToPush(vapidPublicKey) {
@@ -63,7 +87,7 @@ export async function unsubscribeFromPush(endpoint, clientToken) {
 }
 
 export async function syncPushSubscription({ subscription, scope, radiusKm, location }) {
-  const res = await fetch(`${TACTICAL_API_URL}/api/push/subscribe`, {
+  const res = await fetchWithTimeout(`${TACTICAL_API_URL}/api/push/subscribe`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

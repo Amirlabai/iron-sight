@@ -57,14 +57,21 @@ export default function AlertPreferencesWizard({
     setSaveError('');
     const effectiveScope =
       (scope === 'radius' || scope === 'exact') && !geoGranted ? 'all' : scope;
-    const result = await completeOnboarding({ scope: effectiveScope, radiusKm });
-    setBusy(false);
-    if (result && !result.ok) {
-      const msg =
-        result.reason === 'push_unavailable'
-          ? 'Push service unavailable. Check server config or save again later.'
-          : result.reason || 'Could not register for background alerts.';
-      setSaveError(msg);
+    try {
+      const result = await completeOnboarding({ scope: effectiveScope, radiusKm });
+      if (result && !result.ok) {
+        const msg =
+          result.reason === 'push_unavailable'
+            ? 'Push service unavailable. Check server config or save again later.'
+            : result.reason === 'notifications_denied'
+              ? 'Notifications are off — enable them in system settings, then try again.'
+              : result.reason || 'Could not register for background alerts.';
+        setSaveError(msg);
+      }
+    } catch (err) {
+      setSaveError(err?.message || 'Save failed. Try again.');
+    } finally {
+      setBusy(false);
     }
   };
 

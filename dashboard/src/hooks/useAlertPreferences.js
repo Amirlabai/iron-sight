@@ -151,19 +151,21 @@ export function useAlertPreferences() {
         loc = await requestGeolocation();
       }
 
+      const basePatch = {
+        scope,
+        radiusKm,
+        location: loc,
+        wizardDismissed: true,
+      };
+
       if (!skipPush && prefsRef.current.notifyPermission === 'granted') {
         const result = await registerPush({ scope, radiusKm, location: loc });
         if (!result.ok) {
+          setPrefs({ ...basePatch, complete: false });
           return result;
         }
       } else {
-        setPrefs({
-          scope,
-          radiusKm,
-          location: loc,
-          complete: true,
-          wizardDismissed: true,
-        });
+        setPrefs({ ...basePatch, complete: true });
       }
       closeWizard();
       return { ok: true };
