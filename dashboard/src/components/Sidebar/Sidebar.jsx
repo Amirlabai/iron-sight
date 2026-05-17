@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useTactical } from '../../context/TacticalContext';
 import { formatTime, formatDateTime, dateToDisplay, displayToDate } from '../../utils/formatters';
+import { CATEGORY_COLORS, categoryTint } from '../../utils/constants';
 
 export default function Sidebar() {
   const {
@@ -21,7 +22,7 @@ export default function Sidebar() {
 
     historyFilter, setHistoryFilter, fetchHistory,
     timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setViewMode, setMapConfig,
-    renderableEvents, sidebarEvents
+    renderableEvents, sidebarEvents, returnToLive
   } = useTactical();
 
   const [expandedId, setExpandedId] = React.useState(null);
@@ -53,10 +54,13 @@ export default function Sidebar() {
       style={{ height: window.innerWidth <= 1024 ? "75%" : "100%" }}
     >
       <div
-        className="sidebar-tabs"
+        className="sidebar-drag-zone"
         onPointerDown={(e) => dragControls.start(e)}
         style={{ touchAction: 'none', cursor: 'grab' }}
       >
+        <div className="sidebar-drag-handle" aria-hidden="true" />
+      </div>
+      <div className="sidebar-tabs">
         <button className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={() => handleTabChange('live')}>
           <Activity size={18} /> LIVE
         </button>
@@ -85,7 +89,9 @@ export default function Sidebar() {
               ) : (
                 <div className="alerts-list">
                   {liveEvents.map((ev, evIdx) => {
+                    const categoryColor = CATEGORY_COLORS[ev.category] || ev.visual_config?.color || '#ff944d';
                     const alertColor = (ev.category && `var(--${ev.category})`) || ev.visual_config?.color || '#ff944d';
+                    const isGhost = ev.category === 'newsFlash';
                     const grouped = (ev.all_cities || []).reduce((acc, city) => {
                       const area = city.area || 'Other';
                       if (!acc[area]) acc[area] = [];
@@ -98,8 +104,11 @@ export default function Sidebar() {
                         key={ev.id || evIdx}
                         initial={{ x: 20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
-                        className="alert-item live-active"
-                        style={{ borderLeftColor: alertColor }}
+                        className={`alert-item live-active live-event-card${isGhost ? ' ghost-card' : ''}`}
+                        style={{
+                          borderLeftColor: categoryColor,
+                          background: categoryTint(categoryColor),
+                        }}
                       >
                         <div className="alert-marker" style={{ background: alertColor, boxShadow: `0 0 10px ${alertColor}` }}></div>
                         <div className="alert-info">
@@ -141,7 +150,7 @@ export default function Sidebar() {
                   </button>
                 ))}              </div>
 
-              <div className="timeframe-filters" style={{ padding: '0 15px 10px', display: 'flex', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="timeframe-filters">
                 {[
                   { id: 'all', label: 'All Time' },
                   { id: '1', label: 'Last 1H' },
@@ -150,8 +159,7 @@ export default function Sidebar() {
                 ].map(tf => (
                   <button
                     key={tf.id}
-                    className={`filter-tab ${timeFrame === tf.id ? 'active' : ''}`}
-                    style={{ fontSize: '9px', padding: '4px 8px' }}
+                    className={`filter-tab${tf.id === 'all' ? ' filter-all-time' : ''} ${timeFrame === tf.id ? 'active' : ''}`}
                     onClick={() => {
                       setTimeFrame(tf.id);
                       if (tf.id !== 'all') {
@@ -271,13 +279,27 @@ export default function Sidebar() {
                       <motion.div
                         key={event.id || `hist-${i}`}
                         className={`history-card ${archiveEvent?.id === event.id && viewMode === 'archive' ? 'selected' : ''} ${isExpanded ? 'active' : ''}`}
-                        onClick={() => {
-                          selectArchive(event);
-                          setExpandedId(isExpanded ? null : event.id);
-                        }}
+                        onClick={() => selectArchive(event)}
                       >
                         <div className="card-main">
-                          <div className="history-marker" style={{ background: event.visual_config?.color || 'var(--accent)' }}></div>
+                          <div
+                            className="history-card-header"
+                            role="button"
+                            tabIndex={0}
+                            aria-expanded={isExpanded}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedId(isExpanded ? null : event.id);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setExpandedId(isExpanded ? null : event.id);
+                              }
+                            }}
+                          >
+                          <div className="history-marker" style={{ background: event.visual_config?.color || 'var(--accent)' }} />
                           <div className="card-content">
                             <div className="history-meta">
                               <span className="time">{event.timeRange || formatDateTime(event.time)}</span>
@@ -296,7 +318,8 @@ export default function Sidebar() {
                               </div>
                             )}
                           </div>
-                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                            <span className="history-card-chevron" aria-hidden="true">▾</span>
+                          </div>
                         </div>
 
                         <AnimatePresence>
@@ -328,6 +351,17 @@ export default function Sidebar() {
                     );
                   })}
                 </div>
+              )}
+
+              {(viewMode === 'archive' || viewMode === 'timeframe') && activeTab === 'archive' && (
+                <button
+                  type="button"
+                  className="return-to-live-btn sidebar-return-live"
+                  onClick={returnToLive}
+                  aria-label="Return to Live Tactical View"
+                >
+                  RETURN TO LIVE
+                </button>
               )}
             </motion.div>
           ) : (

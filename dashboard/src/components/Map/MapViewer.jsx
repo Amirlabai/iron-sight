@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_BOUNDARIES, STRATEGIC_METADATA } from '../../utils/constants';
@@ -52,6 +52,7 @@ export default function MapViewer() {
         <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png" />
 
         <MapController center={mapConfig.center} zoom={mapConfig.zoom} />
+        <ZoomControl position="bottomright" />
         <MapClickHandler onMapClick={() => { if (window.innerWidth <= 1024) setIsSidebarExpanded(false); }} />
 
         {/* Israel Base Layer */}

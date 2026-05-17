@@ -130,6 +130,15 @@ body {
     padding: 25px;
 }
 
+/* --- Sidebar drag handle (mobile) --- */
+.sidebar-drag-handle {
+    display: none;
+}
+
+.sidebar-drag-zone {
+    display: none;
+}
+
 /* --- Mobile Adaptability --- */
 @media (max-width: 1024px) {
     .sidebar {
@@ -144,6 +153,30 @@ body {
         background: var(--bg-secondary);
         backdrop-filter: blur(20px);
         height: 78% !important;
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+
+    .sidebar-drag-zone {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        flex-shrink: 0;
+        width: 100%;
+    }
+
+    .sidebar-drag-handle {
+        display: block;
+        width: 40px;
+        height: 4px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.25);
+        margin: 10px auto 6px;
+        flex-shrink: 0;
+    }
+
+    .premium-header {
+        padding-top: max(8px, env(safe-area-inset-top));
     }
 
     .premium-header h1 {
@@ -153,7 +186,21 @@ body {
 
     .premium-header {
         height: 45px;
-        padding: 0 10px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .tactical-clock {
+        flex-shrink: 0;
+    }
+
+    .header-return-live-btn {
+        display: none;
+    }
+
+    .leaflet-bottom.leaflet-right {
+        margin-bottom: max(160px, calc(65px + env(safe-area-inset-bottom)));
+        margin-right: max(12px, env(safe-area-inset-right));
     }
 
     .status-section {
@@ -181,7 +228,7 @@ body {
         gap: 4px;
     }
 
-    .return-live-btn {
+    .return-live-btn.header-return-live-btn {
         padding: 4px 10px;
         font-size: 4px;
         gap: 5px;
@@ -221,5 +268,21 @@ body {
     .tab-btn {
         padding: 12px 5px;
         font-size: 12px;
+    }
+}
+
+@media (max-width: 768px) {
+    .clock-time {
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .leaflet-control-zoom a {
+        width: 44px !important;
+        height: 44px !important;
+        line-height: 44px !important;
+        font-size: 20px !important;
     }
 }
