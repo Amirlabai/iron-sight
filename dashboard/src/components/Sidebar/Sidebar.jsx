@@ -22,7 +22,7 @@ export default function Sidebar() {
 
     historyFilter, setHistoryFilter, fetchHistory,
     timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setViewMode, setMapConfig,
-    renderableEvents, sidebarEvents, returnToLive
+    renderableEvents, sidebarEvents
   } = useTactical();
 
   const [expandedId, setExpandedId] = React.useState(null);
@@ -289,12 +289,14 @@ export default function Sidebar() {
                             aria-expanded={isExpanded}
                             onClick={(e) => {
                               e.stopPropagation();
+                              selectArchive(event);
                               setExpandedId(isExpanded ? null : event.id);
                             }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                selectArchive(event);
                                 setExpandedId(isExpanded ? null : event.id);
                               }
                             }}
@@ -351,17 +353,6 @@ export default function Sidebar() {
                     );
                   })}
                 </div>
-              )}
-
-              {(viewMode === 'archive' || viewMode === 'timeframe') && activeTab === 'archive' && (
-                <button
-                  type="button"
-                  className="return-to-live-btn sidebar-return-live"
-                  onClick={returnToLive}
-                  aria-label="Return to Live Tactical View"
-                >
-                  RETURN TO LIVE
-                </button>
               )}
             </motion.div>
           ) : (

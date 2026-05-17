@@ -102,6 +102,17 @@ function AppShell() {
         <Sidebar />
       </main>
 
+      {(viewMode === 'archive' || viewMode === 'timeframe') && (
+        <button
+          type="button"
+          className="return-to-live-btn sidebar-return-live"
+          onClick={returnToLive}
+          aria-label="Return to Live Tactical View"
+        >
+          RETURN TO LIVE
+        </button>
+      )}
+
       <Analytics />
 
       {/* Tactical SVG Filters */}

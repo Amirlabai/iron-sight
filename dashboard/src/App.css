@@ -901,12 +901,17 @@
 }
 
 @media (max-width: 1024px) {
+    .return-live-btn.header-return-live-btn {
+        display: none !important;
+    }
+
     .return-to-live-btn.sidebar-return-live {
         display: flex;
         align-items: center;
         justify-content: center;
-        position: sticky;
-        bottom: 0;
+        position: fixed;
+        left: 0;
+        right: 0;
         width: 100%;
         height: 48px;
         background: #ff3b30;
@@ -916,26 +921,24 @@
         letter-spacing: 1px;
         border: none;
         cursor: pointer;
-        flex-shrink: 0;
-        z-index: 10;
+        z-index: 2500;
         border-radius: 0;
-        box-shadow: none;
+        box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+        pointer-events: auto;
+    }
+
+    /* Collapsed sheet peek (~65px) + safe area */
+    .dashboard-container.sidebar-collapsed .return-to-live-btn.sidebar-return-live {
+        bottom: max(77px, calc(65px + env(safe-area-inset-bottom) + 12px));
+    }
+
+    /* Expanded sheet — dock near bottom; drag handle stays at panel top */
+    .dashboard-container.sidebar-expanded .return-to-live-btn.sidebar-return-live {
+        bottom: max(12px, calc(env(safe-area-inset-bottom) + 8px));
     }
 
     .return-to-live-btn.sidebar-return-live:active {
         opacity: 0.85;
-    }
-
-    .archive-panel {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        flex: 1;
-    }
-
-    .archive-panel .history-list {
-        flex: 1;
-        overflow-y: auto;
     }
 }
 

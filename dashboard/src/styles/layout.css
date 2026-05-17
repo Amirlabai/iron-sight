@@ -180,7 +180,7 @@ body {
     }
 
     .premium-header h1 {
-        font-size: 6px;
+        font-size: 10px;
         letter-spacing: 0.5px;
     }
 
@@ -194,13 +194,19 @@ body {
         flex-shrink: 0;
     }
 
-    .header-return-live-btn {
-        display: none;
+    .leaflet-bottom.leaflet-right {
+        margin-bottom: max(180px, calc(65px + 48px + 16px + env(safe-area-inset-bottom)));
+        margin-right: max(12px, env(safe-area-inset-right));
     }
 
-    .leaflet-bottom.leaflet-right {
-        margin-bottom: max(160px, calc(65px + env(safe-area-inset-bottom)));
-        margin-right: max(12px, env(safe-area-inset-right));
+    .dashboard-container.archive .leaflet-bottom.leaflet-right,
+    .dashboard-container.timeframe .leaflet-bottom.leaflet-right {
+        margin-bottom: max(129px, calc(77px + 48px + env(safe-area-inset-bottom)));
+    }
+
+    .dashboard-container.archive.sidebar-expanded .leaflet-bottom.leaflet-right,
+    .dashboard-container.timeframe.sidebar-expanded .leaflet-bottom.leaflet-right {
+        margin-bottom: max(68px, calc(48px + 20px + env(safe-area-inset-bottom)));
     }
 
     .status-section {
@@ -226,12 +232,6 @@ body {
         padding: 2px 8px;
         font-size: 4px;
         gap: 4px;
-    }
-
-    .return-live-btn.header-return-live-btn {
-        padding: 4px 10px;
-        font-size: 4px;
-        gap: 5px;
     }
 
     /* Tactical Clock Mobile */
