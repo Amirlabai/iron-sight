@@ -49,6 +49,27 @@ This document defines the mandatory UI design standards and color palettes for t
 *   **Mission Archive**: Historical rewind list with date/time metadata.
 *   **Tactical Sandbox**: Multi-region city picker for hypothetical threat analysis.
 
+### **E. MOBILE BOTTOM SHEET (≤1024px) — MANDATORY**
+
+Full contract: [MOBILE_SHELL_SPEC.md](./MOBILE_SHELL_SPEC.md). Summary:
+
+| State | What user sees |
+|--------|----------------|
+| **Collapsed** | Drag pill strip only (no tab labels). Pull up to expand. |
+| **Expanded** | Tabs (LIVE / HISTORY / SANDBOX) + panel content. |
+
+*   **Peek measurement:** `.sidebar-drag-zone` height only (not tabs).
+*   **Collapse offset:** measured `sidebarHeight - peekHeight`, not viewport × 0.78.
+*   **Drag:** `useMotionValue(y)` — never `animate={{ y }}` on the draggable aside.
+*   **Tab tap:** switches panel only; does not force-expand the sheet.
+*   **Handle:** ~40px pill (`::after`), safe-area on drag zone; sheet flush to viewport bottom (`position: fixed`).
+
+### **F. MOBILE HEADER (≤1024px)**
+
+*   **Bar:** single 45px row — logo + status (sizes unchanged from mobile tokens).
+*   **Clock:** absolute below bar, over map — **not** a second row inside the bar.
+*   **Desktop (≥1025px):** clock centered between logo and mute/status in one row.
+
 ---
 
 ## 4. TYPOGRAPHY
@@ -59,4 +80,6 @@ This document defines the mandatory UI design standards and color palettes for t
 
 ## 5. UI DYNAMICS
 *   **Pulse Animation**: 1s duration, 5 cycles, `forwards` fill termination.
-*   **Map Fly-to**: 1.5s duration for strategic re-centering.
+*   **Map Fly-to**: `0.6s` `flyTo`, `0.8s` `fitBounds` (see `MapViewer.jsx`). Skip when bounds unchanged.
+*   **Splash exit:** opacity fade ~0.45s only (no scale).
+*   **Boot:** map/header/sidebar mount after `isReady` (see MOBILE_SHELL_SPEC).

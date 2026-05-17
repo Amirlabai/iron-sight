@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { TacticalContext } from './TacticalContext';
 import {
   ISRAEL_CENTER, getDefaultZoom, IS_PROD, WEBSOCKET_URL, TACTICAL_API_URL,
@@ -109,15 +109,10 @@ export function TacticalProvider({ children }) {
           setHistory(data.data);
         }
         setLoadingProgress(100);
-        setTimeout(() => setIsReady(true), 1500);
+        setIsReady(true);
       } else if (data.type === 'multi_alert') {
         const events = data.events || [];
         setLiveEvents(events);
-
-        if (viewModeRef.current === 'archive' && events.length > 0) {
-          setViewMode('live');
-          setActiveTab('live');
-        }
 
         const newConfig = calculateBestMapConfig(events);
         setMapConfig(prev => {
@@ -155,7 +150,7 @@ export function TacticalProvider({ children }) {
       ws.current?.close();
       clearTimeout(missionTimer);
     };
-  }, [connect, isReady]);
+  }, [connect]);
 
   const fetchHistory = useCallback(async (category = 'all', time = 'all') => {
     try {
@@ -259,9 +254,9 @@ export function TacticalProvider({ children }) {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    if (window.innerWidth <= 1024) { setIsSidebarExpanded(true); }
   };
-  const getRenderableEvents = () => {
+
+  const renderableEvents = useMemo(() => {
     if (viewMode === 'sandbox') return sandboxEvent ? [sandboxEvent] : [];
     if (viewMode === 'archive') return archiveEvent ? [archiveEvent] : [];
     if (viewMode === 'timeframe') {
@@ -398,9 +393,7 @@ export function TacticalProvider({ children }) {
       return mergedEvents;
     }
     return liveEvents;
-  };
-
-  const renderableEvents = getRenderableEvents();
+  }, [viewMode, liveEvents, history, archiveEvent, sandboxEvent, mergeTimeFrameClusters]);
 
   // Sidebar Logic: Show history stream in sidebar even if viewMode is 'live',
   // but keep the map clean unless a specific event/timeframe is selected.

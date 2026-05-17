@@ -1,5 +1,5 @@
 /* --- IRON SIGHT: Layout Foundation (FE-MODULAR-S1) --- */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&family=JetBrains+Mono:wght@400&display=swap');
+/* Fonts loaded via index.html preconnect + stylesheet */
 
 :root {
     --bg-primary: #0a0a0c;
@@ -147,57 +147,73 @@ body {
     display: none;
 }
 
-/* --- Mobile Adaptability --- */
+/* --- Mobile Adaptability (see .context/MOBILE_SHELL_SPEC.md) --- */
 @media (max-width: 1024px) {
+    :root {
+        --mobile-sheet-peek: 44px;
+    }
+
     .sidebar {
         width: 100%;
-        position: absolute;
+        position: fixed;
         bottom: 0;
         left: 0;
+        right: 0;
         z-index: 2600;
         display: flex;
         flex-direction: column;
         border-left: none;
-        border-top: 1px solid var(--border);
+        border-top: 2px solid rgba(255, 255, 255, 0.14);
         overflow: hidden;
-        background: var(--bg-secondary);
-        backdrop-filter: blur(20px);
-        height: 78% !important;
-        padding-bottom: max(12px, env(safe-area-inset-bottom));
+        background: rgba(20, 20, 22, 0.97);
+        backdrop-filter: none;
+        padding-bottom: 0;
+        margin: 0;
+        box-sizing: border-box;
     }
 
-    .tab-content {
-        order: 1;
-        flex: 1;
-        min-height: 0;
-    }
-
-    .sidebar-tabs {
-        order: 2;
-    }
-
+    /* Peek strip: pill only; safe-area padding keeps handle flush above home indicator */
     .sidebar-drag-zone {
-        order: 3;
-        flex-shrink: 0;
-    }
-
-    .sidebar-drag-zone {
+        order: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        min-height: 44px;
         flex-shrink: 0;
         width: 100%;
+        min-height: 0;
+        padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+        background: rgba(20, 20, 22, 0.97);
+        border: none;
+        cursor: grab;
+        touch-action: none;
+        position: relative;
+        z-index: 2;
+    }
+
+    .sidebar-drag-zone::after {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 5px;
+        border-radius: 999px;
+        background: rgba(220, 220, 228, 0.85);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+        flex-shrink: 0;
     }
 
     .sidebar-drag-handle {
-        display: block;
-        width: 40px;
-        height: 4px;
-        border-radius: 2px;
-        background: rgba(255, 255, 255, 0.25);
-        margin: 10px auto 6px;
+        display: none;
+    }
+
+    .sidebar-tabs {
+        order: 1;
         flex-shrink: 0;
+    }
+
+    .tab-content {
+        order: 2;
+        flex: 1;
+        min-height: 0;
     }
 
     .premium-header {
@@ -205,6 +221,8 @@ body {
         align-items: stretch;
         height: auto;
         min-height: 0;
+        background: rgba(10, 10, 12, 0.97);
+        backdrop-filter: none;
         padding-top: max(8px, env(safe-area-inset-top));
         padding-left: 10px;
         padding-right: 10px;
@@ -220,6 +238,7 @@ body {
 
     .header-bar {
         display: flex;
+        flex-wrap: nowrap;
         align-items: center;
         justify-content: space-between;
         height: 45px;
@@ -251,6 +270,9 @@ body {
         transform: none;
         margin-top: 6px;
         z-index: 1100;
+        flex: none;
+        order: unset;
+        width: auto;
         flex-direction: column;
         align-items: flex-start;
         gap: 2px;
@@ -346,7 +368,7 @@ body {
     }
 
     .tab-btn {
-        padding: 12px 5px;
+        padding: 10px 6px;
         font-size: 12px;
     }
 }

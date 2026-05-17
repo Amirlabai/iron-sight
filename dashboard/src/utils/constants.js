@@ -1,4 +1,5 @@
 // --- IRON SIGHT: Tactical Constants (FE-MODULAR-S1) ---
+// Mobile shell semantics: see .context/MOBILE_SHELL_SPEC.md before changing breakpoints/peek.
 import TACTICAL_GEOJSON from '../assets/countries.json';
 import L from 'leaflet';
 import leafletIcon from 'leaflet/dist/images/marker-icon.png';
@@ -8,7 +9,8 @@ import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 export const ISRAEL_CENTER = [31.7683, 35.2137];
 export const MOBILE_LAYOUT_BREAKPOINT = 1024;
 export const MOBILE_SIDEBAR_HEIGHT_RATIO = 0.78;
-export const MOBILE_SIDEBAR_PEEK_PX = 80;
+/** Collapsed bottom-sheet peek — drag handle only (tabs hidden until expanded). */
+export const MOBILE_SIDEBAR_PEEK_PX = 44;
 
 /** Live/idle map zoom — aligned to mobile shell breakpoint (no zoom 6). */
 export const getDefaultZoom = () => 8;

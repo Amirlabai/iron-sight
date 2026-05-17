@@ -138,6 +138,7 @@
 
     .header-bar {
         display: flex;
+        flex-wrap: nowrap;
         align-items: center;
         width: 100%;
         height: 100%;
@@ -153,6 +154,8 @@
 
     .tactical-clock {
         flex: 1 1 auto;
+        order: 0;
+        width: auto;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -288,6 +291,12 @@
     font-size: 11px;
     letter-spacing: 1px;
     backdrop-filter: blur(5px);
+    animation: watermarkFadeIn 0.2s ease-out;
+}
+
+@keyframes watermarkFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .archive-watermark {
@@ -990,16 +999,19 @@
         border-radius: 0;
         box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
         pointer-events: auto;
+        bottom: calc(var(--mobile-sheet-peek, 80px) + env(safe-area-inset-bottom) + 8px);
+        animation: returnLiveFadeIn 0.25s ease-out;
     }
 
-    /* Collapsed sheet peek (~65px) + safe area */
-    .dashboard-container.sidebar-collapsed .return-to-live-btn.sidebar-return-live {
-        bottom: max(77px, calc(65px + env(safe-area-inset-bottom) + 12px));
-    }
-
-    /* Expanded sheet — dock near bottom; drag handle stays at panel top */
-    .dashboard-container.sidebar-expanded .return-to-live-btn.sidebar-return-live {
-        bottom: max(12px, calc(env(safe-area-inset-bottom) + 8px));
+    @keyframes returnLiveFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .return-to-live-btn.sidebar-return-live:active {

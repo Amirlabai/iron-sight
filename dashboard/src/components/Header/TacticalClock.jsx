@@ -5,19 +5,8 @@ export default function TacticalClock() {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
-    let animationFrameId;
-    let lastTime = 0;
-
-    const tick = (currentTime) => {
-      if (currentTime - lastTime >= 1000) {
-        setTime(new Date());
-        lastTime = currentTime;
-      }
-      animationFrameId = requestAnimationFrame(tick);
-    };
-
-    animationFrameId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animationFrameId);
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
   }, []);
 
   const timeString = time.toLocaleTimeString('en-GB', {
@@ -39,9 +28,8 @@ export default function TacticalClock() {
     <motion.div
       className="tactical-clock"
       aria-label={`Jerusalem time ${dateString} ${timeString}`}
-      initial={{ opacity: 0, y: -10 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
     >
       <div className="clock-date">{dateString}</div>
       <div className="clock-time">{timeString}</div>

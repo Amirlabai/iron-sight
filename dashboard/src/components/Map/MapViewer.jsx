@@ -8,10 +8,25 @@ import { useTactical } from '../../context/TacticalContext';
 import { formatTime } from '../../utils/formatters';
 import ThreatOverlay from './ThreatOverlay';
 
+function refitMap(map, { center, zoom, bounds, maxZoom }) {
+  if (bounds?.length >= 2) {
+    const latLngBounds = L.latLngBounds(bounds.map(([lat, lng]) => [lat, lng]));
+    map.fitBounds(latLngBounds, {
+      ...getFitPadding(),
+      maxZoom: maxZoom ?? (window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT ? 10 : 12),
+      duration: 0,
+    });
+    return;
+  }
+  map.flyTo(center, zoom, { duration: 0 });
+}
+
 function MapController({ center, zoom, bounds, maxZoom }) {
   const map = useMap();
   const prevRef = React.useRef('');
   const bKey = boundsKey(bounds);
+  const configRef = React.useRef({ center, zoom, bounds, maxZoom });
+  configRef.current = { center, zoom, bounds, maxZoom };
 
   React.useEffect(() => {
     const key = bounds?.length >= 2
@@ -26,13 +41,26 @@ function MapController({ center, zoom, bounds, maxZoom }) {
       map.fitBounds(latLngBounds, {
         ...getFitPadding(),
         maxZoom: maxZoom ?? (window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT ? 10 : 12),
-        duration: 1.5,
+        duration: 0.8,
       });
       return;
     }
 
-    map.flyTo(center, zoom, { duration: 1.5 });
+    map.flyTo(center, zoom, { duration: 0.6 });
   }, [center, zoom, bounds, bKey, maxZoom, map]);
+
+  React.useEffect(() => {
+    const onResize = () => {
+      map.invalidateSize();
+      refitMap(map, configRef.current);
+    };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, [map]);
 
   return null;
 }
