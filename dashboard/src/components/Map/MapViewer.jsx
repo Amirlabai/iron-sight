@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap, useMapEvents, 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_BOUNDARIES, STRATEGIC_METADATA, MOBILE_LAYOUT_BREAKPOINT } from '../../utils/constants';
-import { getFitPadding, boundsKey } from '../../utils/mapGeometry';
+import { getFitPadding, boundsKey, resolveOriginPinCoords } from '../../utils/mapGeometry';
 import { useTactical } from '../../context/TacticalContext';
 import { formatTime } from '../../utils/formatters';
 import ThreatOverlay from './ThreatOverlay';
@@ -148,25 +148,31 @@ export default function MapViewer() {
           renderableEvents.forEach(ev => {
             ev.trajectories?.forEach(t => {
               if (!originData[t.origin]) {
+                const coords = resolveOriginPinCoords(t.origin, t);
+                if (!coords) return;
                 originData[t.origin] = {
-                  coords: t.marker_coords || t.origin_coords || [31.0, 35.0],
+                  coords,
                   color: (ev.category && `var(--${ev.category})`) || ev.visual_config?.color || STRATEGIC_METADATA[t.origin]?.color || tacticalColor
                 };
               }
             });
             ev.highlight_origins?.forEach(o => {
               if (!originData[o.name]) {
+                const coords = resolveOriginPinCoords(o.name, { marker_coords: o.coords, origin_coords: o.coords });
+                if (!coords) return;
                 originData[o.name] = {
-                  coords: o.coords || [31.0, 35.0],
+                  coords,
                   color: STRATEGIC_METADATA[o.name]?.color || tacticalColor
                 };
               }
             });
-            // Handle cluster-only origins for pins
             if (ev.clusters?.[0]?.origin && !originData[ev.clusters[0].origin]) {
               const origin = ev.clusters[0].origin;
+              const traj = ev.trajectories?.find(tr => tr.origin === origin);
+              const coords = resolveOriginPinCoords(origin, traj);
+              if (!coords) return;
               originData[origin] = {
-                coords: ev.clusters[0].coords || [31.0, 35.0], // Fallback if no specific origin_coords
+                coords,
                 color: (ev.category && `var(--${ev.category})`) || ev.visual_config?.color || STRATEGIC_METADATA[origin]?.color || tacticalColor
               };
             }

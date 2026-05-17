@@ -29,6 +29,21 @@ function centroidOf(points) {
   return [lat, lng];
 }
 
+/** Pin on map for external launch origin — not border entry inside Israel. */
+export function resolveOriginPinCoords(origin, trajectory = null) {
+  if (trajectory?.marker_coords?.length >= 2) {
+    return trajectory.marker_coords;
+  }
+  const boundary = TACTICAL_BOUNDARIES[origin];
+  if (boundary?.length >= 2) {
+    return centroidOf(boundary);
+  }
+  if (trajectory?.origin_coords?.length >= 2) {
+    return trajectory.origin_coords;
+  }
+  return null;
+}
+
 /** Collect [lat, lng] from threat footprint geometry */
 export function getEventTargetPoints(event) {
   if (!event) return [];

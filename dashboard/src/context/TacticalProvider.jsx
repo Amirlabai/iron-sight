@@ -9,6 +9,7 @@ import {
   calculateBestMapConfig,
   calculateArchiveMapConfig,
   calculateTimeframeMapConfig,
+  resolveOriginPinCoords,
 } from '../utils/mapGeometry';
 import { getConvexHull, getCentroid, getDistance } from '../utils/geoUtils';
 import missileSound from '../assets/sounds/missile_alert.mp3';
@@ -274,7 +275,9 @@ export function TacticalProvider({ children }) {
       const mergedEvents = [];
 
       Object.entries(eventGroups).forEach(([key, events]) => {
-        const [category, origin] = key.split('_');
+        const sep = key.indexOf('_');
+        const category = key.slice(0, sep);
+        const origin = key.slice(sep + 1);
         
         // 1. Flatten all individual clusters from all events in this group
         const allClusters = [];
@@ -384,6 +387,22 @@ export function TacticalProvider({ children }) {
           if (points.length > 0) {
             masterCluster.hull = getConvexHull(points);
             masterCluster.centroid = getCentroid(points);
+          }
+
+          const trajSample = events
+            .flatMap(e => e.trajectories || [])
+            .find(t => t.origin === origin);
+          if (trajSample) {
+            superEvent.trajectories = [trajSample];
+          } else {
+            const pinCoords = resolveOriginPinCoords(origin);
+            if (pinCoords) {
+              superEvent.trajectories = [{
+                origin,
+                marker_coords: pinCoords,
+                origin_coords: pinCoords,
+              }];
+            }
           }
 
           mergedEvents.push(superEvent);

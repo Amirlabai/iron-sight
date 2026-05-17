@@ -151,6 +151,8 @@ body {
 @media (max-width: 1024px) {
     :root {
         --mobile-sheet-peek: 44px;
+        --z-mobile-sheet: 2600;
+        --z-return-live: 2700;
     }
 
     .sidebar {
@@ -159,7 +161,7 @@ body {
         bottom: 0;
         left: 0;
         right: 0;
-        z-index: 2600;
+        z-index: var(--z-mobile-sheet);
         display: flex;
         flex-direction: column;
         border-left: none;
