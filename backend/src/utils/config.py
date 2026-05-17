@@ -43,3 +43,9 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 # --- Relay Configuration ---
 RELAY_URL = os.getenv("RELAY_URL")
 RELAY_AUTH_KEY = os.getenv("RELAY_AUTH_KEY")
+
+# --- Web Push (VAPID) ---
+VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY")
+VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY")
+VAPID_CLAIMS_EMAIL = os.getenv("VAPID_CLAIMS_EMAIL", "mailto:ops@iron-sight.local")
+COLLECTION_PUSH = "push_subscriptions"

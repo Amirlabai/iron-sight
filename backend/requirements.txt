@@ -7,3 +7,5 @@ python-dotenv
 aiohttp-cors
 numpy
 scipy
+pywebpush==2.3.0
+pytest>=8.0.0

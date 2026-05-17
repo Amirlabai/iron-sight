@@ -6,12 +6,13 @@ import os
 import time
 import numpy as np
 from datetime import datetime
-from src.utils.config import POLL_INTERVAL, RELAY_URL, RELAY_AUTH_KEY, TIMEZONE
+from src.utils.config import POLL_INTERVAL, RELAY_URL, RELAY_AUTH_KEY, TIMEZONE, VAPID_CLAIMS_EMAIL
 from src.db.mongo_manager import MongoManager
 from src.data.data_manager import LamasDataManager
 from src.core.engine import TrackingEngine
 from src.core.threat_processor import ThreatProcessor
 from src.api.ws_manager import WebSocketManager
+from src.services.push_manager import PushManager
 from src.utils.cluster_utils import build_merged_payloads, get_cluster_groups, group_events, merge_event_group
 
 # Global Logging Setup
@@ -32,13 +33,17 @@ INACTIVITY_TIMEOUT = 1200  # 20 minutes of silence
 
 async def main():
     logger.info(f"IRON SIGHT TACTICAL OPERATING SYSTEM (v{VERSION}) - INITIALIZING")
-    
+    if VAPID_CLAIMS_EMAIL == "mailto:ops@iron-sight.local":
+        logger.warning("VAPID_CLAIMS_EMAIL is default placeholder — set a real contact in production.")
+
     # Initialize Core Components
     db = MongoManager()
+    await db.ensure_push_indexes()
     dm = LamasDataManager()
     engine = TrackingEngine(dm, db)
     processor = ThreatProcessor(engine)
-    ws = WebSocketManager(db, engine, VERSION)
+    push_manager = PushManager(db)
+    ws = WebSocketManager(db, engine, VERSION, push_manager)
     
     await ws.start()
     await dm.load()
@@ -112,7 +117,7 @@ async def main():
                 # If events were purged, broadcast updated state
                 if events_changed:
                     ws.active_events = active_events
-                    await _broadcast_multi_alert(ws, active_events, engine)
+                    await _broadcast_multi_alert(ws, active_events, engine, push_manager)
                     if not active_events:
                         await ws.broadcast({"type": "reset"})
 
@@ -128,6 +133,7 @@ async def main():
                             
                             # Pre-scan: detect if any alert in this batch is a newsFlash
                             has_newsflash_in_batch = any(a.get('type') == 'newsFlash' for a in alerts)
+                            relay_batch_changed = False
 
                             for alert_payload in alerts:
                                 a_type = str(alert_payload.get('type', ''))
@@ -163,6 +169,8 @@ async def main():
                                             active_events[eid]["end_time"] = now
                                             logger.info(f"GRANULAR_END_SIGNAL: {eid} terminated based on region match in newsFlash.")
                                             await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
+                                        if ended_ids:
+                                            relay_batch_changed = True
                                             
                                     if not ended_ids:
                                         if alert_id and alert_id in active_events:
@@ -176,6 +184,7 @@ async def main():
                                                     await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
                                             if active_events:
                                                 logger.info(f"END_SIGNAL_BROADCAST: All {len(active_events)} active events marked for termination.")
+                                    relay_batch_changed = True
                                     continue
 
                                 # --- Multi-Threat Processing ---
@@ -206,6 +215,7 @@ async def main():
                                                     gv["end_time"] = now
                                                     logger.info(f"NEWSFLASH_SUPERSEDED: {gid} terminated by incoming missile alert {alert_id}")
                                                     await db.log_event(gid, "newsFlash", "SUPERSEDED", gv["data"])
+                                                    relay_batch_changed = True
 
                                     if alert_id in active_events:
                                         # Rolling update: merge new cities into existing event
@@ -242,6 +252,7 @@ async def main():
                                                 total_cities = len(full_analysis.get("all_cities", []))
                                                 logger.info(f"ROLLING_UPDATE: {alert_id} ({a_type}) - +{len(new_cities)} new cities. Total: {total_cities}")
                                                 await db.log_event(alert_id, a_type, "UPDATED", full_analysis)
+                                                relay_batch_changed = True
                                     else:
                                         # New event
                                         
@@ -260,10 +271,11 @@ async def main():
                                         city_count = len(analysis.get("all_cities", []))
                                         logger.info(f"DETECTION_SIGNAL: {alert_id} ({a_type}) - {city_count} cities detected. Active events: {len(active_events)}")
                                         await db.log_event(alert_id, a_type, "DETECTED", analysis)
+                                        relay_batch_changed = True
 
-                                    # Broadcast updated multi-alert state
-                                    ws.active_events = active_events
-                                    await _broadcast_multi_alert(ws, active_events, engine)
+                            if relay_batch_changed:
+                                ws.active_events = active_events
+                                await _broadcast_multi_alert(ws, active_events, engine, push_manager)
                             
                         await ws.broadcast({
                             "type": "health_status", 
@@ -283,7 +295,7 @@ async def main():
             await asyncio.sleep(POLL_INTERVAL)
 
 
-async def _broadcast_multi_alert(ws, active_events, engine):
+async def _broadcast_multi_alert(ws, active_events, engine, push_manager=None):
     """Push the full active events array to all connected clients."""
     events_list = await build_merged_payloads(active_events, engine, threshold_km=15)
     
@@ -291,6 +303,9 @@ async def _broadcast_multi_alert(ws, active_events, engine):
         "type": "multi_alert",
         "events": events_list
     })
+
+    if push_manager and events_list:
+        await push_manager.notify_matching_subscriptions(events_list)
 
 
 if __name__ == "__main__":

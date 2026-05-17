@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Zap, Volume2, VolumeX, Radio, RotateCcw, Terminal, Shield } from 'lucide-react';
+import { Activity, Zap, Volume2, VolumeX, Radio, RotateCcw, Terminal, Shield, Bell } from 'lucide-react';
+import AlertPreferencesWizard from './components/Onboarding/AlertPreferencesWizard';
 import { Analytics } from '@vercel/analytics/react';
 import { TacticalProvider } from './context/TacticalProvider';
 import { useTactical } from './context/TacticalContext';
@@ -43,8 +44,20 @@ function AppShell() {
     isReady, loadingProgress, liveEvents, viewMode,
     isConnected, isMuted, setIsMuted, tacticalHealth,
     returnToLive, setViewMode, setSandboxEvent,
-    isSidebarExpanded
+    isSidebarExpanded,
+    alertPrefs,
+    alertPrefsApi,
   } = useTactical();
+
+  const {
+    showWizard,
+    openWizard,
+    closeWizard,
+    skipOnboarding,
+    requestNotificationPermission,
+    requestGeolocation,
+    completeOnboarding,
+  } = alertPrefsApi;
 
   return (
     <div className={`dashboard-container ${viewMode} ${isSidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
@@ -65,6 +78,14 @@ function AppShell() {
           <TacticalClock />
 
           <div className="status-section">
+          <button
+            type="button"
+            className={`icon-btn ${alertPrefs.scope !== 'all' ? 'icon-btn-active' : ''}`}
+            onClick={openWizard}
+            aria-label="Alert notification preferences"
+          >
+            <Bell size={20} />
+          </button>
           <button className="icon-btn" onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? "Unmute Tactical Audio" : "Mute Tactical Audio"}>
             {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
@@ -100,6 +121,20 @@ function AppShell() {
           </div>
         </div>
       </header>
+
+      <AnimatePresence>
+        {showWizard && (
+          <AlertPreferencesWizard
+            key="alert-prefs-wizard"
+            prefs={alertPrefs}
+            onClose={closeWizard}
+            onSkip={skipOnboarding}
+            requestNotificationPermission={requestNotificationPermission}
+            requestGeolocation={requestGeolocation}
+            completeOnboarding={completeOnboarding}
+          />
+        )}
+      </AnimatePresence>
 
       <main className="main-content">
         <MapViewer />

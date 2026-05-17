@@ -1163,3 +1163,204 @@
     padding-top: 10px;
     text-align: right;
 }
+
+/* Alert preferences onboarding */
+.alert-prefs-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(6px);
+}
+
+.alert-prefs-modal {
+    position: relative;
+    width: min(420px, 100%);
+    max-height: 90dvh;
+    overflow-y: auto;
+    padding: 28px 24px;
+    background: linear-gradient(165deg, #141418 0%, #0a0a0c 100%);
+    border: 1px solid rgba(255, 149, 0, 0.25);
+    border-radius: 12px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+    text-align: center;
+}
+
+.alert-prefs-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    border: none;
+    color: var(--text-sub);
+    cursor: pointer;
+    padding: 6px;
+}
+
+.alert-prefs-close:hover {
+    color: var(--text-main);
+}
+
+.alert-prefs-steps {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.alert-prefs-step-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.alert-prefs-step-dot.active {
+    background: #ff9500;
+    box-shadow: 0 0 8px rgba(255, 149, 0, 0.5);
+}
+
+.alert-prefs-icon {
+    color: #ff9500;
+    margin: 0 auto 12px;
+}
+
+.alert-prefs-modal h2 {
+    font-size: 1.25rem;
+    margin: 0 0 10px;
+    letter-spacing: 0.04em;
+}
+
+.alert-prefs-desc {
+    font-size: 0.85rem;
+    color: var(--text-sub);
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.alert-prefs-primary,
+.alert-prefs-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 12px 16px;
+    margin-top: 10px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.alert-prefs-primary {
+    background: rgba(255, 149, 0, 0.15);
+    border: 1px solid rgba(255, 149, 0, 0.45);
+    color: #ff9500;
+}
+
+.alert-prefs-primary:hover:not(:disabled) {
+    background: rgba(255, 149, 0, 0.25);
+}
+
+.alert-prefs-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.alert-prefs-secondary {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-sub);
+}
+
+.alert-prefs-options {
+    text-align: left;
+    margin-bottom: 16px;
+}
+
+.alert-prefs-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.alert-prefs-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.alert-prefs-option.selected {
+    border-color: rgba(255, 149, 0, 0.5);
+    background: rgba(255, 149, 0, 0.06);
+}
+
+.alert-prefs-option.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.alert-prefs-option strong {
+    display: block;
+    font-size: 0.85rem;
+}
+
+.alert-prefs-option small {
+    color: var(--text-sub);
+    font-size: 0.75rem;
+}
+
+.alert-prefs-slider-wrap {
+    padding: 8px 12px 16px;
+    text-align: left;
+}
+
+.alert-prefs-slider-wrap label {
+    font-size: 0.8rem;
+    color: var(--text-sub);
+}
+
+.alert-prefs-slider-wrap input[type="range"] {
+    width: 100%;
+    margin-top: 8px;
+    accent-color: #ff9500;
+}
+
+.alert-prefs-summary {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+    text-align: left;
+    font-size: 0.85rem;
+    color: var(--text-sub);
+}
+
+.alert-prefs-summary li {
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.alert-prefs-error {
+    font-size: 0.8rem;
+    color: #ff6b6b;
+    margin: 0 0 12px;
+    text-align: left;
+}
+
+.icon-btn-active {
+    color: #ff9500;
+    border-color: rgba(255, 149, 0, 0.4);
+}

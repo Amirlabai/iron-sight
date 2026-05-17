@@ -4,6 +4,8 @@
 
 **Last reviewed:** 2026-05-17 (web optimization pass #2 — re-appended after revert)
 
+**Related review (separate track):** [Operation Signal Flare](REVIEW-STATUS-SIGNAL-FLARE.md) — scoped Web Push + alert onboarding (`signal-flare`).
+
 **Legend:** `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` wontfix / deferred
 
 ---
@@ -72,6 +74,7 @@
 | `pwa-portrait-lock` | `[x]` | `vite.config.js` | 🟡 `orientation: "portrait"` — landscape/tablet layout untested | `"any"` or landscape breakpoints |
 | `pwa-stale-precache` | `[ ]` | `vite.config.js`, `sw.js` | 🟡 `autoUpdate` + precache can serve old CSS → “stuck” mobile layout after deploy | Hard-refresh test; confirm SW updates post-deploy |
 | `pwa-start-url` | `[ ]` | `vite.config.js` | 🔵 `start_url: "/?utm_source=pwa"` ≠ `/` | OK unless routing depends on exact `/` |
+| `alert-onboarding-push` | `[x]` | `AlertPreferencesWizard`, `push_manager.py`, `sw.js` | No permission flow or scoped background push | Shipped — open fixes tracked in [REVIEW-STATUS-SIGNAL-FLARE.md](REVIEW-STATUS-SIGNAL-FLARE.md) |
 
 **Isolate:** broken in installed app only → PWA/manifest; same in mobile tab → layout/JS (rows above).
 

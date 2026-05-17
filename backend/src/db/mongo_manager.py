@@ -1,7 +1,10 @@
 import logging
 from datetime import datetime, timezone
 from motor.motor_asyncio import AsyncIOMotorClient
-from src.utils.config import MONGO_URI, DB_NAME, COLLECTION_SALVO, COLLECTION_DRONE, COLLECTION_INFILTRATION, COLLECTION_SEISMIC, COLLECTION_LOGS
+from src.utils.config import (
+    MONGO_URI, DB_NAME, COLLECTION_SALVO, COLLECTION_DRONE,
+    COLLECTION_INFILTRATION, COLLECTION_SEISMIC, COLLECTION_LOGS, COLLECTION_PUSH,
+)
 
 logger = logging.getLogger("IronSightBackend")
 
@@ -18,6 +21,17 @@ class MongoManager:
             "earthQuake": self.db[COLLECTION_SEISMIC] if self.db is not None else None,
         }
         self.event_logs = self.db[COLLECTION_LOGS] if self.db is not None else None
+        self.push_subscriptions = self.db[COLLECTION_PUSH] if self.db is not None else None
+        self._push_indexes_ensured = False
+
+    async def ensure_push_indexes(self):
+        if self._push_indexes_ensured or self.push_subscriptions is None:
+            return
+        try:
+            await self.push_subscriptions.create_index("endpoint", unique=True)
+            self._push_indexes_ensured = True
+        except Exception as e:
+            logger.warning(f"PUSH_INDEX_SKIP: {e}")
 
     async def save_alert(self, alert_type, payload):
         """Save a tactical alert to its respective collection."""
@@ -281,3 +295,83 @@ class MongoManager:
         except Exception as e:
             logger.error(f"DB_MERGE_FAILURE: {alert_ids} - {e}")
             return None
+
+    async def get_push_subscription(self, endpoint):
+        if self.push_subscriptions is None or not endpoint:
+            return None
+        doc = await self.push_subscriptions.find_one({"endpoint": endpoint})
+        if doc:
+            doc.pop("_id", None)
+        return doc
+
+    async def verify_push_client(self, endpoint, client_token):
+        if not endpoint or not client_token:
+            return False
+        doc = await self.push_subscriptions.find_one(
+            {"endpoint": endpoint, "client_token": client_token},
+            projection={"_id": 1},
+        )
+        return doc is not None
+
+    async def upsert_push_subscription(self, doc):
+        if self.push_subscriptions is None:
+            return False
+        await self.ensure_push_indexes()
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        set_fields = {
+            "keys": doc["keys"],
+            "scope": doc.get("scope", "all"),
+            "radius_km": doc.get("radius_km", 10),
+            "client_token": doc["client_token"],
+            "updated_at": now,
+        }
+        if doc.get("location") is not None:
+            set_fields["location"] = doc["location"]
+        await self.push_subscriptions.update_one(
+            {"endpoint": doc["endpoint"]},
+            {
+                "$set": set_fields,
+                "$setOnInsert": {
+                    "created_at": now,
+                    "last_notified": doc.get("last_notified") or {},
+                },
+            },
+            upsert=True,
+        )
+        return True
+
+    async def list_push_subscriptions(self):
+        if self.push_subscriptions is None:
+            return []
+        cursor = self.push_subscriptions.find({})
+        return await cursor.to_list(length=5000)
+
+    async def delete_push_subscription(self, endpoint):
+        if self.push_subscriptions is None or not endpoint:
+            return False
+        result = await self.push_subscriptions.delete_one({"endpoint": endpoint})
+        return result.deleted_count > 0
+
+    async def update_push_location(self, endpoint, lat, lng):
+        if self.push_subscriptions is None or not endpoint:
+            return False
+        from datetime import datetime, timezone
+        result = await self.push_subscriptions.update_one(
+            {"endpoint": endpoint},
+            {
+                "$set": {
+                    "location": [lat, lng],
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            },
+        )
+        return result.matched_count > 0
+
+    async def set_last_notified(self, endpoint, last_notified_map):
+        if self.push_subscriptions is None:
+            return
+        await self.push_subscriptions.update_one(
+            {"endpoint": endpoint},
+            {"$set": {"last_notified": last_notified_map}},
+        )

@@ -1,0 +1,101 @@
+{
+  "matches": [
+    {
+      "id": "all_non_newsflash",
+      "user": [32.08, 34.78],
+      "scope": "all",
+      "radiusKm": 10,
+      "event": { "id": "a1", "category": "missiles", "all_cities": [{ "name": "X", "coords": [31.5, 34.5] }] },
+      "expect": true
+    },
+    {
+      "id": "newsflash_never",
+      "user": [32.08, 34.78],
+      "scope": "all",
+      "event": { "id": "nf1", "category": "newsFlash", "all_cities": [] },
+      "expect": false
+    },
+    {
+      "id": "radius_near_city",
+      "user": [32.0853, 34.7818],
+      "scope": "radius",
+      "radiusKm": 15,
+      "event": {
+        "id": "r1",
+        "category": "missiles",
+        "all_cities": [{ "name": "Tel Aviv", "coords": [32.0853, 34.7818] }],
+        "clusters": [{ "cities": [{ "name": "Tel Aviv", "coords": [32.0853, 34.7818] }], "centroid": [32.0853, 34.7818] }]
+      },
+      "expect": true
+    },
+    {
+      "id": "radius_far",
+      "user": [29.55, 34.95],
+      "scope": "radius",
+      "radiusKm": 5,
+      "event": {
+        "id": "r2",
+        "category": "missiles",
+        "all_cities": [{ "name": "Tel Aviv", "coords": [32.0853, 34.7818] }]
+      },
+      "expect": false
+    },
+    {
+      "id": "radius_no_location",
+      "user": null,
+      "scope": "radius",
+      "radiusKm": 10,
+      "event": { "id": "r3", "category": "missiles", "all_cities": [{ "coords": [32.0, 34.0] }] },
+      "expect": false
+    },
+    {
+      "id": "exact_inside_hull",
+      "user": [32.0, 34.0],
+      "scope": "exact",
+      "event": {
+        "id": "e1",
+        "category": "missiles",
+        "clusters": [{
+          "hull": [[31.9, 33.9], [31.9, 34.1], [32.1, 34.1], [32.1, 33.9]],
+          "cities": []
+        }],
+        "all_cities": []
+      },
+      "expect": true
+    },
+    {
+      "id": "exact_near_city_1km",
+      "user": [32.0853, 34.7818],
+      "scope": "exact",
+      "event": {
+        "id": "e2",
+        "category": "missiles",
+        "all_cities": [{ "name": "Tel Aviv", "coords": [32.0853, 34.7818] }]
+      },
+      "expect": true
+    },
+    {
+      "id": "exact_outside",
+      "user": [29.55, 34.95],
+      "scope": "exact",
+      "event": {
+        "id": "e3",
+        "category": "missiles",
+        "all_cities": [{ "name": "Tel Aviv", "coords": [32.0853, 34.7818] }]
+      },
+      "expect": false
+    }
+  ],
+  "notifyKeys": [
+    {
+      "id": "key_city_count",
+      "event": { "id": "k1", "all_cities": [{}, {}, {}] },
+      "expect": "k1:3"
+    }
+  ],
+  "clampRadius": [
+    { "input": 1, "expect": 3 },
+    { "input": 10, "expect": 10 },
+    { "input": 99, "expect": 30 }
+  ]
+}

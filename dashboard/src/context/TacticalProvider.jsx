@@ -14,9 +14,11 @@ import {
 import { getConvexHull, getCentroid, getDistance } from '../utils/geoUtils';
 import missileSound from '../assets/sounds/missile_alert.mp3';
 import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
+import { filterEventsByScope, matchesAlertScope, buildAlertNotifyKey } from '../utils/alertMatching';
+import { useAlertPreferences, shouldShowAlertWizard } from '../hooks/useAlertPreferences';
 
 // --- Tactical Audio Engine ---
-const useAudioEngine = (liveEvents, isMuted) => {
+const useAudioEngine = (liveEvents, isMuted, alertPrefs) => {
   const activeAudioRef = useRef(null);
 
   useEffect(() => {
@@ -29,7 +31,12 @@ const useAudioEngine = (liveEvents, isMuted) => {
   useEffect(() => {
     if (isMuted || !liveEvents || liveEvents.length === 0) return;
 
-    liveEvents.forEach(event => {
+    const scoped = filterEventsByScope(liveEvents, alertPrefs?.location, {
+      scope: alertPrefs?.scope || 'all',
+      radiusKm: alertPrefs?.radiusKm,
+    });
+
+    scoped.forEach(event => {
       if (!SEEN_ALERTS.has(event.id)) {
         SEEN_ALERTS.add(event.id);
         if (event.category === 'newsFlash') return;
@@ -59,8 +66,41 @@ const useAudioEngine = (liveEvents, isMuted) => {
         }
       }
     });
-  }, [liveEvents, isMuted]);
+  }, [liveEvents, isMuted, alertPrefs]);
 };
+
+const NOTIFIED_KEYS = new Set();
+
+function useScopedNotifications(liveEvents, alertPrefs) {
+  useEffect(() => {
+    if (!liveEvents?.length) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+
+    liveEvents.forEach((event) => {
+      if (event.category === 'newsFlash') return;
+      const key = buildAlertNotifyKey(event);
+      if (NOTIFIED_KEYS.has(key)) return;
+
+      const match = matchesAlertScope(alertPrefs?.location, event, {
+        scope: alertPrefs?.scope || 'all',
+        radiusKm: alertPrefs?.radiusKm,
+      });
+      if (!match) return;
+
+      NOTIFIED_KEYS.add(key);
+      const cities = (event.all_cities || []).slice(0, 3).map((c) => (typeof c === 'object' ? c.name : c)).filter(Boolean);
+      const body = cities.length ? cities.join(', ') : 'Active threat detected';
+
+      if (document.hidden) {
+        new Notification(`IRON SIGHT — ${event.title || 'Alert'}`, {
+          body,
+          icon: '/icon-192.png',
+          tag: event.id,
+        });
+      }
+    });
+  }, [liveEvents, alertPrefs]);
+}
 
 export function TacticalProvider({ children }) {
   const [liveEvents, setLiveEvents] = useState([]);
@@ -90,7 +130,17 @@ export function TacticalProvider({ children }) {
   const [timeFrame, setTimeFrame] = useState('all');
   const [mergeTimeFrameClusters, setMergeTimeFrameClusters] = useState(false);
 
-  useAudioEngine(liveEvents, isMuted);
+  const alertPrefsApi = useAlertPreferences();
+  const { prefs: alertPrefs, setShowWizard } = alertPrefsApi;
+
+  useEffect(() => {
+    if (shouldShowAlertWizard(isReady, alertPrefs)) {
+      setShowWizard(true);
+    }
+  }, [isReady, alertPrefs.complete, alertPrefs.wizardDismissed, setShowWizard]);
+
+  useAudioEngine(liveEvents, isMuted, alertPrefs);
+  useScopedNotifications(liveEvents, alertPrefs);
   const ws = useRef(null);
   const viewModeRef = useRef(viewMode);
 
@@ -438,6 +488,8 @@ export function TacticalProvider({ children }) {
     returnToLive, runSandboxAnalysis, handleTabChange, fetchHistory,
     renderableEvents, sidebarEvents, hasSimulation, totalClusters, totalTargets,    timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setMapConfig,
     tacticalColor, highlightColor,
+    alertPrefs,
+    alertPrefsApi,
   };
 
   return (

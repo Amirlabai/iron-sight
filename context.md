@@ -200,3 +200,14 @@ Transitioned to Development Alpha.
     - `styles/animations.css`: All @keyframes and animation-applying utility classes.
     - **Security Awareness**: Migrating to server-side secrets for `RELAY_AUTH_KEY`; ensuring zero hardcoded credentials in relay bridge.
     - Plan: [.open_work/frontend_modularization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/frontend_modularization.md)
+- **Alert preferences & scoped push (2026-05-17)**:
+    - Post-boot wizard: notification + GPS permissions; scope `all` | `radius` (user slider 3–30 km) | `exact` (hull or 1 km to city).
+    - Frontend: `alertMatching.js`, `pushClient.js`, `userLocation.js`, `useAlertPreferences.js`, `AlertPreferencesWizard.jsx`; audio + in-tab notifications filtered by scope.
+    - Backend: `push_manager.py`, `alert_matching.py`, Mongo `push_subscriptions`, routes `/api/push/*`; notify on `multi_alert` broadcast with per-subscription dedup.
+    - Env: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VITE_VAPID_PUBLIC_KEY`; `sw.js` push click opens app.
+- **Signal Flare hardening (2026-05-17)**:
+    - Push sends via `asyncio.to_thread`; one WS/push fanout per relay batch.
+    - Subscribe returns `client_token`; PATCH/DELETE require `X-Push-Client-Token`.
+    - Shared matching tests: [shared/alert_matching_vectors.json](shared/alert_matching_vectors.json).
+    - Review log: [REVIEW-STATUS-SIGNAL-FLARE.md](REVIEW-STATUS-SIGNAL-FLARE.md).
+    - Review track: **Operation Signal Flare** (`signal-flare`) — [REVIEW-STATUS-SIGNAL-FLARE.md](REVIEW-STATUS-SIGNAL-FLARE.md) (not mixed into [REVIEW-STATUS.md](REVIEW-STATUS.md)).
