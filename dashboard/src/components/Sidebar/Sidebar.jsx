@@ -111,27 +111,6 @@ export default function Sidebar() {
     dragControls.start(e);
   };
 
-  const [viewport, setViewport] = React.useState(() => ({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  }));
-
-  React.useEffect(() => {
-    const onResize = () => {
-      setViewport({ width: window.innerWidth, height: window.innerHeight });
-    };
-    window.addEventListener('resize', onResize);
-    window.addEventListener('orientationchange', onResize);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('orientationchange', onResize);
-    };
-  }, []);
-
-  const isMobile = viewport.width <= MOBILE_LAYOUT_BREAKPOINT;
-  const collapsedY = viewport.height * MOBILE_SIDEBAR_HEIGHT_RATIO - MOBILE_SIDEBAR_PEEK_PX;
-  const sidebarHeight = `${MOBILE_SIDEBAR_HEIGHT_RATIO * 100}%`;
-
   return (
     <motion.aside
       ref={sidebarRef}

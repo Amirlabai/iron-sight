@@ -180,6 +180,9 @@ Transitioned to Development Alpha.
     - Sheet `position: fixed` + `useMotionValue` Y (no `animate={{ y }}` during drag). Peek height from `ResizeObserver` on `.sidebar-drag-zone`.
     - Mobile header 45px row; clock absolute below bar on map. Desktop clock centered in header bar.
     - Boot: shell gated on `isReady`; WS effect `[connect]` only; fonts preloaded in `index.html`; PWA `#0a0a0c`.
+- **Vercel build fix (2026-05-17)**:
+    - `main` @ `8e821d8`: PR #11 merge left duplicate mobile state in `Sidebar.jsx` (`viewport`, `isMobile`, `collapsedY`, etc.) → Rolldown `PARSE_ERROR`, Vercel build fail.
+    - Fix: remove second block (lines 114–133); keep `ResizeObserver` / `useLayoutEffect` peek measurement only. Branch: `fix/vercel-sidebar-duplicate`.
 
 ## FRONTEND MODULE MAP (dashboard)
 
