@@ -7,7 +7,14 @@ import {
 } from 'lucide-react';
 import { useTactical } from '../../context/TacticalContext';
 import { formatTime, formatDateTime, dateToDisplay, displayToDate } from '../../utils/formatters';
-import { CATEGORY_COLORS, categoryTint } from '../../utils/constants';
+import {
+  CATEGORY_COLORS,
+  categoryTint,
+  MOBILE_LAYOUT_BREAKPOINT,
+  MOBILE_SIDEBAR_HEIGHT_RATIO,
+  MOBILE_SIDEBAR_PEEK_PX,
+} from '../../utils/constants';
+import { calculateTimeframeMapConfig } from '../../utils/mapGeometry';
 
 export default function Sidebar() {
   const {
@@ -33,25 +40,44 @@ export default function Sidebar() {
 
   const dragControls = useDragControls();
 
+  const [viewport, setViewport] = React.useState(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }));
+
+  React.useEffect(() => {
+    const onResize = () => {
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, []);
+
+  const isMobile = viewport.width <= MOBILE_LAYOUT_BREAKPOINT;
+  const collapsedY = viewport.height * MOBILE_SIDEBAR_HEIGHT_RATIO - MOBILE_SIDEBAR_PEEK_PX;
+  const sidebarHeight = `${MOBILE_SIDEBAR_HEIGHT_RATIO * 100}%`;
+
   return (
     <motion.aside
       className="sidebar"
       drag="y"
       dragControls={dragControls}
       dragListener={false}
-      dragConstraints={{ top: 0, bottom: (window.innerHeight * 0.75) - 65 }}
+      dragConstraints={{ top: 0, bottom: collapsedY }}
       dragElastic={0.1}
       animate={{
-        y: window.innerWidth <= 1024
-          ? (isSidebarExpanded ? 0 : (window.innerHeight * 0.75) - 65)
-          : 0
+        y: isMobile ? (isSidebarExpanded ? 0 : collapsedY) : 0,
       }}
       onDragEnd={(e, info) => {
         if (info.offset.y > 50) setIsSidebarExpanded(false);
         else if (info.offset.y < -50) setIsSidebarExpanded(true);
       }}
       transition={{ type: "spring", damping: 40, stiffness: 600 }}
-      style={{ height: window.innerWidth <= 1024 ? "75%" : "100%" }}
+      style={{ height: isMobile ? sidebarHeight : '100%' }}
     >
       <div
         className="sidebar-drag-zone"
@@ -164,7 +190,7 @@ export default function Sidebar() {
                       setTimeFrame(tf.id);
                       if (tf.id !== 'all') {
                         setViewMode('timeframe');
-                        setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
+                        setMapConfig(calculateTimeframeMapConfig());
                       } else {
                         setViewMode('live');
                       }
@@ -195,7 +221,7 @@ export default function Sidebar() {
                       const newVal = `range:${isoDate},${currentTo}`;
                       setTimeFrame(newVal);
                       setViewMode('timeframe');
-                      setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
+                      setMapConfig(calculateTimeframeMapConfig());
                     }}
                   />
                   <span style={{ fontSize: '10px', color: 'var(--text-sub)', fontWeight: '600' }}>TO:</span>
@@ -219,7 +245,7 @@ export default function Sidebar() {
                       const newVal = `range:${currentFrom},${isoDate}`;
                       setTimeFrame(newVal);
                       setViewMode('timeframe');
-                      setMapConfig({ center: [31.7683, 35.2137], zoom: window.innerWidth < 768 ? 6 : 8 });
+                      setMapConfig(calculateTimeframeMapConfig());
                     }}
                   />
                 </div>

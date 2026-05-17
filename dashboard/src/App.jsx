@@ -53,15 +53,16 @@ function AppShell() {
       </AnimatePresence>
 
       <header className="premium-header">
-        <div className="logo-section">
-          <img src="/favicon.png" className={`logo-img ${liveEvents.length > 0 ? 'alert-pulse' : ''}`} alt="IRON SIGHT" />
-          <h1>IRON SIGHT</h1>
-          <span className="version-badge">{viewMode === 'archive' ? 'ARCHIVE' : (viewMode === 'timeframe' ? 'TIMEFRAME' : __APP_VERSION__)}</span>
-        </div>
+        <div className="header-bar">
+          <div className="logo-section">
+            <img src="/favicon.png" className={`logo-img ${liveEvents.length > 0 ? 'alert-pulse' : ''}`} alt="IRON SIGHT" />
+            <h1>IRON SIGHT</h1>
+            <span className="version-badge">{viewMode === 'archive' ? 'ARCHIVE' : (viewMode === 'timeframe' ? 'TIMEFRAME' : __APP_VERSION__)}</span>
+          </div>
 
-        <TacticalClock />
+          <TacticalClock />
 
-        <div className="status-section">
+          <div className="status-section">
           <button className="icon-btn" onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? "Unmute Tactical Audio" : "Mute Tactical Audio"}>
             {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
@@ -94,6 +95,7 @@ function AppShell() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </header>
 

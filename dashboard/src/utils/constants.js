@@ -6,7 +6,17 @@ import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
 // Geographic Constants
 export const ISRAEL_CENTER = [31.7683, 35.2137];
-export const DEFAULT_ZOOM = window.innerWidth < 768 ? 6 : 8;
+export const MOBILE_LAYOUT_BREAKPOINT = 1024;
+export const MOBILE_SIDEBAR_HEIGHT_RATIO = 0.78;
+export const MOBILE_SIDEBAR_PEEK_PX = 80;
+
+/** Live/idle map zoom — aligned to mobile shell breakpoint (no zoom 6). */
+export const getDefaultZoom = () => 8;
+
+export const DEFAULT_ZOOM = getDefaultZoom();
+
+/** Overview zoom when browsing history by timeframe (8 — mobile previously used 6, too wide). */
+export const getTimeframeOverviewZoom = () => 8;
 
 
 // Tactical Geodata (derived from GeoJSON at import time)

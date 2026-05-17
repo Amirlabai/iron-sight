@@ -2,21 +2,38 @@ import React from 'react';
 import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_BOUNDARIES, STRATEGIC_METADATA } from '../../utils/constants';
+import { ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_BOUNDARIES, STRATEGIC_METADATA, MOBILE_LAYOUT_BREAKPOINT } from '../../utils/constants';
+import { getFitPadding, boundsKey } from '../../utils/mapGeometry';
 import { useTactical } from '../../context/TacticalContext';
 import { formatTime } from '../../utils/formatters';
 import ThreatOverlay from './ThreatOverlay';
 
-function MapController({ center, zoom }) {
+function MapController({ center, zoom, bounds, maxZoom }) {
   const map = useMap();
   const prevRef = React.useRef('');
+  const bKey = boundsKey(bounds);
+
   React.useEffect(() => {
-    const key = `${center[0]},${center[1]},${zoom}`;
-    if (key !== prevRef.current) {
-      prevRef.current = key;
-      map.flyTo(center, zoom, { duration: 1.5 });
+    const key = bounds?.length >= 2
+      ? `bounds:${bKey}:${maxZoom ?? ''}`
+      : `fly:${center[0]},${center[1]},${zoom}`;
+
+    if (key === prevRef.current) return;
+    prevRef.current = key;
+
+    if (bounds?.length >= 2) {
+      const latLngBounds = L.latLngBounds(bounds.map(([lat, lng]) => [lat, lng]));
+      map.fitBounds(latLngBounds, {
+        ...getFitPadding(),
+        maxZoom: maxZoom ?? (window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT ? 10 : 12),
+        duration: 1.5,
+      });
+      return;
     }
-  }, [center, zoom, map]);
+
+    map.flyTo(center, zoom, { duration: 1.5 });
+  }, [center, zoom, bounds, bKey, maxZoom, map]);
+
   return null;
 }
 
@@ -51,7 +68,12 @@ export default function MapViewer() {
       >
         <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png" />
 
-        <MapController center={mapConfig.center} zoom={mapConfig.zoom} />
+        <MapController
+          center={mapConfig.center}
+          zoom={mapConfig.zoom}
+          bounds={mapConfig.bounds}
+          maxZoom={mapConfig.maxZoom}
+        />
         <ZoomControl position="bottomright" />
         <MapClickHandler onMapClick={() => { if (window.innerWidth <= 1024) setIsSidebarExpanded(false); }} />
 
