@@ -16,8 +16,8 @@ function SplashScreen({ progress }) {
   return (
     <motion.div
       className="splash-screen"
-      exit={{ opacity: 0, scale: 1.1 }}
-      transition={{ duration: 1, ease: "circOut" }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
     >
       <div className="radar-scanner">
         <div className="sweep"></div>
@@ -49,9 +49,11 @@ function AppShell() {
   return (
     <div className={`dashboard-container ${viewMode} ${isSidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
       <AnimatePresence>
-        {!isReady && <SplashScreen progress={loadingProgress} />}
+        {!isReady && <SplashScreen key="splash" progress={loadingProgress} />}
       </AnimatePresence>
 
+      {isReady && (
+      <>
       <header className="premium-header">
         <div className="header-bar">
           <div className="logo-section">
@@ -113,6 +115,9 @@ function AppShell() {
         >
           RETURN TO LIVE
         </button>
+      )}
+
+      </>
       )}
 
       <Analytics />

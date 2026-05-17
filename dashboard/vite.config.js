@@ -33,10 +33,10 @@ export default defineConfig({
           }
         ],
         start_url: "/?utm_source=pwa",
-        background_color: "#ffffff",
-        theme_color: "#000000",
+        background_color: "#0a0a0c",
+        theme_color: "#0a0a0c",
         display: "standalone",
-        orientation: "portrait"
+        orientation: "any"
       },
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3}']

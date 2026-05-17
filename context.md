@@ -1,10 +1,11 @@
 #include <.context/COMMUNICATION_PROTOCOL.md>
 #include <.context/UI_DESIGN_SPEC.md>
+#include <.context/MOBILE_SHELL_SPEC.md>
 
 # IRON SIGHT: TACTICAL CONTEXT
 
 > [!IMPORTANT]
-> **SOURCE OF TRUTH DIRECTIVE**: Before modifying ANY communication logic (Headers, Endpoints, JSON payloads), you MUST read the [STRATEGIC COMMUNICATION PROTOCOL (SCP)](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md) immediately. For UI changes, color palettes, or component architecture, you MUST read the [UI DESIGN SPECIFICATION (TDS)](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/UI_DESIGN_SPEC.md) first. Failure to adhere to these protocols will result in Strategic De-sync or UI Degradation.
+> **SOURCE OF TRUTH DIRECTIVE**: Before modifying ANY communication logic (Headers, Endpoints, JSON payloads), you MUST read the [STRATEGIC COMMUNICATION PROTOCOL (SCP)](.context/COMMUNICATION_PROTOCOL.md) immediately. For UI changes, color palettes, or component architecture, you MUST read the [UI DESIGN SPECIFICATION (TDS)](.context/UI_DESIGN_SPEC.md) first. For **mobile bottom sheet, header/clock, boot/splash, or PWA shell**, you MUST read the [MOBILE SHELL UX CONTRACT](.context/MOBILE_SHELL_SPEC.md) — it lists concrete decisions (peek = handle only, motion-value drag, measured collapse) that must not be overridden during bug fixes. Track open UX audits in [REVIEW-STATUS.md](REVIEW-STATUS.md). Failure to adhere to these protocols will result in Strategic De-sync or UI Degradation.
 
 ## MISSION OVERVIEW
 Iron Sight is a real-time, strategic intelligence engine designed to detect, analyze, and visualize tactical threats in the Israeli theater. 
@@ -172,11 +173,17 @@ Transitioned to Development Alpha.
     - Fixed default empty state in Archive tab by implementing a fallback to the global history stream.
     - Hardened `returnToLive` logic to synchronize `activeTab` and `viewMode` state.
     - Resolved tactical desync where selecting "All Time" hid historical records.
+- **Mobile Shell & Smooth UX (2026-05-17)**:
+    - **Contract:** [.context/MOBILE_SHELL_SPEC.md](.context/MOBILE_SHELL_SPEC.md) — authoritative mobile/desktop shell rules.
+    - **Audit log:** [REVIEW-STATUS.md](REVIEW-STATUS.md) — priority fixes shipped vs remaining.
+    - Collapsed sheet peek = drag pill only; tabs/content on expand. Tab switch does not auto-expand.
+    - Sheet `position: fixed` + `useMotionValue` Y (no `animate={{ y }}` during drag). Peek height from `ResizeObserver` on `.sidebar-drag-zone`.
+    - Mobile header 45px row; clock absolute below bar on map. Desktop clock centered in header bar.
+    - Boot: shell gated on `isReady`; WS effect `[connect]` only; fonts preloaded in `index.html`; PWA `#0a0a0c`.
 
+## FRONTEND MODULE MAP (dashboard)
 
-
-
-    - `context/TacticalContext.jsx`: Global state provider with WebSocket lifecycle, audio engine.
+    - `context/TacticalProvider.jsx`: Global state provider with WebSocket lifecycle, audio engine.
     - `utils/constants.js`: Centralized env detection, WS URLs, geodata derivations, color tokens, Leaflet icon fix.
     - `components/Map/MapViewer.jsx`: Isolated Leaflet container with base layer and coordinate sync.
     - `components/Map/ThreatOverlay.jsx`: Per-event rendering of clusters, trajectories, origin highlights, TrackingDrone.

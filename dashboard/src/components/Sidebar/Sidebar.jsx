@@ -1,5 +1,6 @@
+// Mobile bottom sheet: .context/MOBILE_SHELL_SPEC.md (peek = drag zone only, useMotionValue Y).
 import React from 'react';
-import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls, useMotionValue, animate } from 'framer-motion';
 import {
   Activity, ShieldAlert, Navigation2, RotateCcw, History,
   Clock, Shield, ChevronDown, ChevronRight, Terminal,
@@ -33,12 +34,14 @@ export default function Sidebar() {
   } = useTactical();
 
   const [expandedId, setExpandedId] = React.useState(null);
+  const seenLiveAlertIds = React.useRef(new Set());
 
   React.useEffect(() => {
     setExpandedId(null);
   }, [historyFilter]);
 
   const dragControls = useDragControls();
+  const sheetY = useMotionValue(0);
 
   const [viewport, setViewport] = React.useState(() => ({
     width: window.innerWidth,
@@ -58,31 +61,86 @@ export default function Sidebar() {
   }, []);
 
   const isMobile = viewport.width <= MOBILE_LAYOUT_BREAKPOINT;
-  const collapsedY = viewport.height * MOBILE_SIDEBAR_HEIGHT_RATIO - MOBILE_SIDEBAR_PEEK_PX;
   const sidebarHeight = `${MOBILE_SIDEBAR_HEIGHT_RATIO * 100}%`;
+  const sidebarRef = React.useRef(null);
+  const peekChromeRef = React.useRef(null);
+  const [collapsedY, setCollapsedY] = React.useState(0);
+
+  React.useLayoutEffect(() => {
+    if (!isMobile) {
+      setCollapsedY(0);
+      return;
+    }
+    const el = sidebarRef.current;
+    const peek = peekChromeRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const sidebarH = el.getBoundingClientRect().height;
+      const peekH = peek
+        ? peek.getBoundingClientRect().height
+        : MOBILE_SIDEBAR_PEEK_PX;
+      setCollapsedY(Math.max(0, sidebarH - peekH));
+      document.documentElement.style.setProperty('--mobile-sheet-peek', `${Math.ceil(peekH)}px`);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    if (peek) ro.observe(peek);
+    window.addEventListener('resize', measure);
+    window.addEventListener('orientationchange', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('orientationchange', measure);
+    };
+  }, [isMobile, sidebarHeight, viewport.height, viewport.width]);
+
+  React.useEffect(() => {
+    if (!isMobile) {
+      sheetY.set(0);
+      return;
+    }
+    const target = isSidebarExpanded ? 0 : collapsedY;
+    animate(sheetY, target, { type: 'spring', damping: 40, stiffness: 600 });
+  }, [isSidebarExpanded, collapsedY, isMobile, sheetY]);
+
+  const startSheetDrag = (e) => {
+    if (!isMobile) return;
+    dragControls.start(e);
+  };
 
   return (
     <motion.aside
+      ref={sidebarRef}
       className="sidebar"
-      drag="y"
+      drag={isMobile ? 'y' : false}
       dragControls={dragControls}
       dragListener={false}
-      dragConstraints={{ top: 0, bottom: collapsedY }}
-      dragElastic={0.1}
-      animate={{
-        y: isMobile ? (isSidebarExpanded ? 0 : collapsedY) : 0,
+      dragConstraints={isMobile ? { top: 0, bottom: collapsedY } : undefined}
+      dragElastic={isMobile ? 0.12 : 0}
+      dragMomentum={false}
+      onDragEnd={(_, info) => {
+        if (!isMobile || collapsedY <= 0) return;
+        const draggedDown = info.offset.y > 40 || info.velocity.y > 200;
+        const draggedUp = info.offset.y < -40 || info.velocity.y < -200;
+        if (draggedDown) setIsSidebarExpanded(false);
+        else if (draggedUp) setIsSidebarExpanded(true);
+        else setIsSidebarExpanded(sheetY.get() < collapsedY * 0.5);
       }}
-      onDragEnd={(e, info) => {
-        if (info.offset.y > 50) setIsSidebarExpanded(false);
-        else if (info.offset.y < -50) setIsSidebarExpanded(true);
+      style={{
+        y: sheetY,
+        height: isMobile ? sidebarHeight : '100%',
       }}
-      transition={{ type: "spring", damping: 40, stiffness: 600 }}
-      style={{ height: isMobile ? sidebarHeight : '100%' }}
     >
       <div
+        ref={peekChromeRef}
         className="sidebar-drag-zone"
-        onPointerDown={(e) => dragControls.start(e)}
-        style={{ touchAction: 'none', cursor: 'grab' }}
+        role="button"
+        tabIndex={0}
+        aria-label="Drag to expand or collapse panel"
+        onPointerDown={startSheetDrag}
       >
         <div className="sidebar-drag-handle" aria-hidden="true" />
       </div>
@@ -99,9 +157,9 @@ export default function Sidebar() {
       </div>
 
       <div className="tab-content">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode={isMobile ? 'sync' : 'wait'}>
           {activeTab === 'live' ? (
-            <motion.div key="live-tab" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="live-panel">
+            <motion.div key="live-tab" initial={isMobile ? false : { opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={isMobile ? undefined : { opacity: 0, x: -20 }} className="live-panel">
               <div className="stats-card">
                 <div className="card-header"><Navigation2 size={20} /><h2>ACTIVE THREATS</h2></div>
                 <div className="stats-grid">
@@ -115,6 +173,9 @@ export default function Sidebar() {
               ) : (
                 <div className="alerts-list">
                   {liveEvents.map((ev, evIdx) => {
+                    const alertKey = ev.id ?? `idx-${evIdx}`;
+                    const isNewAlert = ev.id ? !seenLiveAlertIds.current.has(ev.id) : false;
+                    if (ev.id) seenLiveAlertIds.current.add(ev.id);
                     const categoryColor = CATEGORY_COLORS[ev.category] || ev.visual_config?.color || '#ff944d';
                     const alertColor = (ev.category && `var(--${ev.category})`) || ev.visual_config?.color || '#ff944d';
                     const isGhost = ev.category === 'newsFlash';
@@ -127,8 +188,8 @@ export default function Sidebar() {
 
                     return (
                       <motion.div
-                        key={ev.id || evIdx}
-                        initial={{ x: 20, opacity: 0 }}
+                        key={alertKey}
+                        initial={isNewAlert ? { x: 20, opacity: 0 } : false}
                         animate={{ x: 0, opacity: 1 }}
                         className={`alert-item live-active live-event-card${isGhost ? ' ghost-card' : ''}`}
                         style={{
