@@ -210,4 +210,4 @@ Transitioned to Development Alpha.
     - Subscribe returns `client_token`; PATCH/DELETE require `X-Push-Client-Token`.
     - Shared matching tests: [shared/alert_matching_vectors.json](shared/alert_matching_vectors.json).
     - Review log: [REVIEW-STATUS-SIGNAL-FLARE.md](REVIEW-STATUS-SIGNAL-FLARE.md).
-    - Review track: **Operation Signal Flare** (`signal-flare`) — [REVIEW-STATUS-SIGNAL-FLARE.md](REVIEW-STATUS-SIGNAL-FLARE.md) (not mixed into [REVIEW-STATUS.md](REVIEW-STATUS.md)).
+    - Review track: **Operation Signal Flare** (`signal-flare`) — [REVIEW-STATUS-SIGNAL-FLARE.md](REVIEW-STATUS-SIGNAL-FLARE.md) (pass #1 closed; pass #2 follow-ups appended 2026-05-17).

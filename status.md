@@ -4,7 +4,7 @@
 
 ## Signal Flare (scoped push)
 
-Review fixes **shipped**. Track: [REVIEW-STATUS-SIGNAL-FLARE.md](REVIEW-STATUS-SIGNAL-FLARE.md).
+Review fixes **shipped** (`0b9dd67`). Pass #2 follow-ups appended in [REVIEW-STATUS-SIGNAL-FLARE.md](REVIEW-STATUS-SIGNAL-FLARE.md#pass-2--post-ship-review-0b9dd67).
 
 | Area | State |
 |------|--------|
