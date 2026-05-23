@@ -58,6 +58,12 @@ npm run dev
 ```
 *The dashboard will be available at http://localhost:5173.*
 
+**Production URL:** [Live Israel alert map — Iron Sight](https://iron-sight-drab.vercel.app/)
+
+Optional env in `dashboard/.env` (see `dashboard/.env.example`):
+
+- `VITE_SITE_URL` — canonical base for SEO, Open Graph, and sitemap (default: `https://iron-sight-drab.vercel.app`)
+
 ---
 
 ## 🛰️ System Parameters

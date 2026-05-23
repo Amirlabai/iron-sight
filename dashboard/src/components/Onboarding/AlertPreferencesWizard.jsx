@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useRef, useState } from 'react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { Bell, MapPin, Radio, Target, Crosshair, ChevronRight, X } from 'lucide-react';
 import {
   DEFAULT_RADIUS_KM,
@@ -11,7 +11,6 @@ const STEPS = ['notify', 'gps', 'scope', 'confirm'];
 
 export default function AlertPreferencesWizard({
   prefs,
-  onClose,
   onSkip,
   requestNotificationPermission,
   requestGeolocation,
@@ -24,6 +23,12 @@ export default function AlertPreferencesWizard({
   const [saveError, setSaveError] = useState('');
   const [notifyStatus, setNotifyStatus] = useState(prefs.notifyPermission);
   const [geoStatus, setGeoStatus] = useState(prefs.geoPermission);
+  const overlayRef = useRef(null);
+
+  useFocusTrap(overlayRef, {
+    active: true,
+    onEscape: onSkip,
+  });
 
   const step = STEPS[stepIndex];
   const geoGranted = geoStatus === 'granted' || prefs.geoPermission === 'granted';
@@ -76,20 +81,14 @@ export default function AlertPreferencesWizard({
   };
 
   return (
-    <motion.div
+    <div
+      ref={overlayRef}
       className="alert-prefs-overlay"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="alert-prefs-title"
     >
-      <motion.div
-        className="alert-prefs-modal"
-        initial={{ y: 24, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-      >
+      <div className="alert-prefs-modal">
         <button type="button" className="alert-prefs-close" onClick={onSkip} aria-label="Close">
           <X size={18} />
         </button>
@@ -235,8 +234,8 @@ export default function AlertPreferencesWizard({
             </button>
           </>
         )}
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 

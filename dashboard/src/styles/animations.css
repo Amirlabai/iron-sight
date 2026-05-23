@@ -201,10 +201,31 @@
     }
 }
 
+/* Scoped only — global * breaks Framer Motion (wizard/splash stay invisible at opacity 0) */
 @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
+    .pulse-animation,
+    .trajectory-line,
+    .origin-threat-glow,
+    .origin-threat-halo,
+    .logo-img.alert-pulse,
+    .pulse-dot,
+    .return-to-live-btn.sidebar-return-live::before,
+    .radar-scanner .sweep {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
+    }
+
+    .history-card-chevron {
         transition-duration: 0.01ms !important;
+    }
+
+    /* Framer / splash must stay visible when motion transitions are suppressed */
+    .splash-screen,
+    .splash-screen *,
+    .alert-prefs-overlay,
+    .alert-prefs-modal,
+    [data-framer-motion] {
+        opacity: 1 !important;
+        transform: none !important;
     }
 }

@@ -1,0 +1,11 @@
+# Iron Sight
+
+> Live tactical alert map for Israel (independent tooling, not government).
+
+- Site: https://iron-sight-drab.vercel.app/
+- About: https://iron-sight-drab.vercel.app/about
+- Privacy: https://iron-sight-drab.vercel.app/privacy
+- Terms: https://iron-sight-drab.vercel.app/terms
+- Accessibility: https://iron-sight-drab.vercel.app/accessibility
+- Contact: amirlabay+support@gmail.com
+- Operator: Amir Labay

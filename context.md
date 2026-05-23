@@ -27,6 +27,7 @@ It converts raw Pikud HaOref API feeds into actionable intelligence through real
 - **Database**: MongoDB Atlas (M0)
 - **Deployment**: Render (Backend) / Vercel (Frontend) / Kamatera (Relay)
 - **`dashboard/` (Intelligence Dashboard)**: Premium Vite + React command interface.
+    - **SEO / compliance (v1.2)**: `react-router-dom` routes; `seoConfig.js` + `SEO.jsx` (`VITE_SITE_URL` canonical, build-time `generate-sitemap.mjs`); minimal `index.html` shell; English UI/legal; Hebrew only in `keywords` meta; JSON-LD (Organization = Iron Sight); build prerender for `/about`, `/accessibility`, `/privacy`, `/terms` only (not `/` — dashboard is client-only); set `PRERENDER=0` to skip prerender for faster CI; cookie banner on map route only (`accepted` vs `essential` consent, focus-trapped dialog); IS 5568 accessibility statement at `/accessibility`; legal high-contrast via `#a11y-viewport-overlay` portal (see `docs/TOURNAMENT_HANDOFF_SEO_AND_UI.md`).
     - **Map Dynamics**: Leaflet-driven strategic view with Origin-to-Israel corridor auto-centering.
     - **Tactical Silhouettes**: Country borders from `dashboard/src/assets/countries.json` (Israel: high-res outer ring with Gaza/West Bank cutout holes; origin regions unchanged). Regenerate via `scripts/merge_israel_boundary.py` from `.incoming/il(2).json` and `.incoming/ps.json`.
     - **Mission Archive**: Historical rewind and playback telemetry synchronized with backend logs. Streamlined observer-only interface.

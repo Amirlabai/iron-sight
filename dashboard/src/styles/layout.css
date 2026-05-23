@@ -6,6 +6,8 @@
 /* Fonts loaded via index.html preconnect + stylesheet */
 
 :root {
+    --z-a11y-toolbar: 2800;
+    --z-cookie-notice: 5000;
     --bg-primary: #0a0a0c;
     --bg-secondary: rgba(20, 20, 22, 0.85);
     --tactical-red: #ff4d4d;
@@ -489,5 +491,58 @@ body {
         height: 44px !important;
         line-height: 44px !important;
         font-size: 20px !important;
+    }
+}
+
+/* Skip link (IS 5568) */
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 10000;
+    padding: 0.75rem 1rem;
+    background: #fff;
+    color: #000;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.skip-link:focus {
+    left: 0.5rem;
+    top: 0.5rem;
+}
+
+.dashboard-a11y-toolbar {
+    position: fixed;
+    left: max(0.75rem, env(safe-area-inset-left));
+    bottom: max(5rem, calc(env(safe-area-inset-bottom) + 4rem));
+    z-index: var(--z-a11y-toolbar);
+}
+
+/* In-flow footer on dashboard (desktop); hidden on mobile — bottom sheet covers that zone */
+.dashboard-container .site-footer--compact {
+    flex-shrink: 0;
+    padding: 0.35rem 0.75rem;
+    padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+    background: rgba(10, 10, 12, 0.92);
+    border-top: 1px solid var(--border);
+}
+
+.dashboard-container .site-footer--compact .site-footer__nav {
+    margin-bottom: 0.25rem;
+    gap: 0.5rem 1rem;
+}
+
+.dashboard-container .site-footer--compact .site-footer__nav a {
+    font-size: 0.7rem;
+}
+
+.dashboard-container .site-footer--compact .site-footer__copy {
+    font-size: 0.65rem;
+}
+
+@media (max-width: 1024px) {
+    .dashboard-container .site-footer--compact {
+        display: none;
     }
 }

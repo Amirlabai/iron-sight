@@ -1,32 +1,38 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Activity, Zap, Volume2, VolumeX, Radio, RotateCcw, Terminal, Shield, Bell } from 'lucide-react';
-import AlertPreferencesWizard from './components/Onboarding/AlertPreferencesWizard';
 import { Analytics } from '@vercel/analytics/react';
+import AlertPreferencesWizard from './components/Onboarding/AlertPreferencesWizard';
+import SEO from './components/SEO';
+import SiteFooter from './components/SiteFooter';
+import CookieNotice from './components/CookieNotice';
+import AccessibilityToolbar from './components/AccessibilityToolbar';
 import { TacticalProvider } from './context/TacticalProvider';
 import { useTactical } from './context/TacticalContext';
 import MapViewer from './components/Map/MapViewer';
 import Sidebar from './components/Sidebar/Sidebar';
 import TacticalClock from './components/Header/TacticalClock';
 import { useMobileLayout } from './hooks/useMobileLayout';
+import { useCookieConsent } from './hooks/useCookieConsent';
 import { agentDebugLogThrottled } from './utils/agentDebugLog';
 import {
   getLiveStatusPillAriaLabel,
   getLiveStatusPillLabel,
   getSandboxStatusPillLabel,
 } from './utils/statusLabels';
+import About from './pages/About';
+import Accessibility from './pages/Accessibility';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+import NotFound from './pages/NotFound';
 import './styles/layout.css';
 import './styles/animations.css';
+import './styles/a11y-high-contrast.css';
 import './App.css';
 
-// --- Splash Screen (boot sequence) ---
 function SplashScreen({ progress }) {
   return (
-    <motion.div
-      className="splash-screen"
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.45, ease: "easeOut" }}
-    >
+    <div className="splash-screen" role="status" aria-live="polite" aria-busy="true">
       <div className="radar-scanner">
         <div className="sweep"></div>
         <img src="/favicon.png" className="splash-logo-img" alt="IRON SIGHT LOGO" />
@@ -38,15 +44,21 @@ function SplashScreen({ progress }) {
         {progress > 80 && <div className="terminal-line"><Zap size={14} /> SYSTEM READY. STANDING BY.</div>}
       </div>
       <div className="progress-bar-container">
-        <motion.div className="progress-bar" initial={{ scaleX: 0 }} animate={{ scaleX: progress / 100 }} />
+        <div className="progress-bar" style={{ transform: `scaleX(${Math.min(100, Math.max(0, progress)) / 100})` }} />
       </div>
       <h2 className="splash-title">IRON SIGHT <span>{__APP_VERSION__}</span></h2>
-    </motion.div>
+    </div>
   );
 }
 
-// --- App Shell (consumes TacticalContext) ---
-function AppShell() {
+function TacticalDashboard() {
+  const {
+    accepted: cookieAccepted,
+    accept: acceptCookies,
+    dismissEssential: dismissCookies,
+    showBanner,
+  } = useCookieConsent();
+
   const {
     isReady, loadingProgress, liveEvents, viewMode,
     isConnected, isMuted, setIsMuted, tacticalHealth,
@@ -59,7 +71,6 @@ function AppShell() {
   const {
     showWizard,
     openWizard,
-    closeWizard,
     skipOnboarding,
     requestNotificationPermission,
     requestGeolocation,
@@ -75,7 +86,6 @@ function AppShell() {
     const obs = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
         if (entry.duration < 50) continue;
-        // #region agent log
         agentDebugLogThrottled(
           'longtask',
           2000,
@@ -84,7 +94,6 @@ function AppShell() {
           { durationMs: Math.round(entry.duration), name: entry.name || 'unknown' },
           'D',
         );
-        // #endregion
       }
     });
     try {
@@ -96,122 +105,137 @@ function AppShell() {
   }, []);
 
   return (
-    <div className={`dashboard-container ${viewMode} ${isSidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
-      <AnimatePresence>
-        {!isReady && <SplashScreen key="splash" progress={loadingProgress} />}
-      </AnimatePresence>
+    <>
+      <SEO pathname="/" includeWebApp breadcrumbs={[{ name: 'Home', url: '/' }]} />
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
+      <div className={`dashboard-container ${viewMode} ${isSidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
+        <header className="premium-header" aria-hidden={!isReady}>
+          <div className="header-bar">
+            <div className="logo-section">
+              <img src="/favicon.png" className={`logo-img ${liveEvents.length > 0 ? 'alert-pulse' : ''}`} alt="IRON SIGHT" />
+              <h1>IRON SIGHT</h1>
+              <span className="version-badge">{viewMode === 'archive' ? 'ARCHIVE' : (viewMode === 'timeframe' ? 'TIMEFRAME' : __APP_VERSION__)}</span>
+            </div>
 
-      {isReady && (
-      <>
-      <header className="premium-header">
-        <div className="header-bar">
-          <div className="logo-section">
-            <img src="/favicon.png" className={`logo-img ${liveEvents.length > 0 ? 'alert-pulse' : ''}`} alt="IRON SIGHT" />
-            <h1>IRON SIGHT</h1>
-            <span className="version-badge">{viewMode === 'archive' ? 'ARCHIVE' : (viewMode === 'timeframe' ? 'TIMEFRAME' : __APP_VERSION__)}</span>
+            <TacticalClock />
+
+            <div className="status-section">
+              <button
+                type="button"
+                className={`icon-btn ${alertPrefs.scope !== 'all' ? 'icon-btn-active' : ''}`}
+                onClick={openWizard}
+                aria-label="Alert notification preferences"
+              >
+                <Bell size={iconSize} />
+              </button>
+              <button type="button" className="icon-btn" onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? 'Unmute Tactical Audio' : 'Mute Tactical Audio'}>
+                {isMuted ? <VolumeX size={iconSize} /> : <Volume2 size={iconSize} />}
+              </button>
+
+              {(viewMode === 'archive' || viewMode === 'timeframe') && (
+                <button type="button" className="return-live-btn header-return-live-btn" onClick={returnToLive} aria-label="Return to Live Tactical View">
+                  <Radio size={16} /> RETURN TO LIVE
+                </button>
+              )}
+
+              {viewMode === 'live' && (
+                <div
+                  className={`status-pill ${isConnected ? (tacticalHealth.status === 'DEGRADED' ? 'degraded' : 'online') : 'offline'}`}
+                  aria-label={getLiveStatusPillAriaLabel(isConnected, tacticalHealth)}
+                >
+                  <div className="pulse-dot"></div>
+                  {getLiveStatusPillLabel(isConnected, tacticalHealth, { compact: statusCompact })}
+                </div>
+              )}
+
+              {viewMode === 'sandbox' && (
+                <div className="flex gap-2">
+                  <button type="button" className="return-live-btn sandbox" onClick={() => { setViewMode('live'); setSandboxEvent(null); }}>
+                    <RotateCcw size={16} /> TERMINATE ANALYSIS
+                  </button>
+                  <div className="status-pill sandbox" aria-label={getSandboxStatusPillLabel()}>
+                    <div className="pulse-dot"></div>
+                    {getSandboxStatusPillLabel({ compact: statusCompact })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
+        </header>
 
-          <TacticalClock />
+        <main id="main-content" className="main-content" aria-hidden={!isReady}>
+          <MapViewer />
+          <Sidebar />
+        </main>
 
-          <div className="status-section">
+        <SiteFooter compact />
+
+        {(viewMode === 'archive' || viewMode === 'timeframe') && isReady && (
           <button
             type="button"
-            className={`icon-btn ${alertPrefs.scope !== 'all' ? 'icon-btn-active' : ''}`}
-            onClick={openWizard}
-            aria-label="Alert notification preferences"
+            className="return-to-live-btn sidebar-return-live"
+            onClick={returnToLive}
+            aria-label="Return to Live Tactical View"
           >
-            <Bell size={iconSize} />
+            RETURN TO LIVE
           </button>
-          <button className="icon-btn" onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? "Unmute Tactical Audio" : "Mute Tactical Audio"}>
-            {isMuted ? <VolumeX size={iconSize} /> : <Volume2 size={iconSize} />}
-          </button>
+        )}
 
-          {(viewMode === 'archive' || viewMode === 'timeframe') && (
-            <button className="return-live-btn header-return-live-btn" onClick={returnToLive} aria-label="Return to Live Tactical View">
-              <Radio size={16} /> RETURN TO LIVE
-            </button>
-          )}
-
-          {viewMode === 'live' && (
-            <div
-              className={`status-pill ${isConnected ? (tacticalHealth.status === 'DEGRADED' ? 'degraded' : 'online') : 'offline'}`}
-              aria-label={getLiveStatusPillAriaLabel(isConnected, tacticalHealth)}
-            >
-              <div className="pulse-dot"></div>
-              {getLiveStatusPillLabel(isConnected, tacticalHealth, { compact: statusCompact })}
-            </div>
-          )}
-
-          {viewMode === 'sandbox' && (
-            <div className="flex gap-2">
-              <button className="return-live-btn sandbox" onClick={() => { setViewMode('live'); setSandboxEvent(null); }}>
-                <RotateCcw size={16} /> TERMINATE ANALYSIS
-              </button>
-              <div className="status-pill sandbox" aria-label={getSandboxStatusPillLabel()}>
-                <div className="pulse-dot"></div>
-                {getSandboxStatusPillLabel({ compact: statusCompact })}
-              </div>
-            </div>
-          )}
-          </div>
-        </div>
-      </header>
-
-      <AnimatePresence>
         {showWizard && (
           <AlertPreferencesWizard
-            key="alert-prefs-wizard"
             prefs={alertPrefs}
-            onClose={closeWizard}
             onSkip={skipOnboarding}
             requestNotificationPermission={requestNotificationPermission}
             requestGeolocation={requestGeolocation}
             completeOnboarding={completeOnboarding}
           />
         )}
-      </AnimatePresence>
 
-      <main className="main-content">
-        <MapViewer />
-        <Sidebar />
-      </main>
+        {!isReady && <SplashScreen progress={loadingProgress} />}
 
-      {(viewMode === 'archive' || viewMode === 'timeframe') && (
-        <button
-          type="button"
-          className="return-to-live-btn sidebar-return-live"
-          onClick={returnToLive}
-          aria-label="Return to Live Tactical View"
-        >
-          RETURN TO LIVE
-        </button>
-      )}
+        <svg style={{ position: 'absolute', width: 0, height: 0 }} aria-hidden="true">
+          <defs>
+            <filter id="organic-round">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
+              <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="round" />
+              <feComposite in="SourceGraphic" in2="round" operator="atop" />
+            </filter>
+          </defs>
+        </svg>
+      </div>
 
-      </>
-      )}
-
-      <Analytics />
-
-      {/* Tactical SVG Filters */}
-      <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-        <defs>
-          <filter id="organic-round">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
-            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="round" />
-            <feComposite in="SourceGraphic" in2="round" operator="atop" />
-          </filter>
-        </defs>
-      </svg>
-    </div>
+      <AccessibilityToolbar />
+      <CookieNotice
+        show={showBanner}
+        onAccept={acceptCookies}
+        onEssentialOnly={dismissCookies}
+      />
+      {cookieAccepted ? <Analytics /> : null}
+    </>
   );
 }
 
-// --- App Entry (TacticalProvider wrapper) ---
 function App() {
   return (
-    <TacticalProvider>
-      <AppShell />
-    </TacticalProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={(
+            <TacticalProvider>
+              <TacticalDashboard />
+            </TacticalProvider>
+          )}
+        />
+        <Route path="/about" element={<About />} />
+        <Route path="/accessibility" element={<Accessibility />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

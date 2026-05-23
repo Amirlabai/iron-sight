@@ -90,7 +90,8 @@
     width: 100%;
     background: var(--accent);
     box-shadow: 0 0 10px var(--accent);
-    transform-origin: left;
+    transform-origin: left center;
+    transform: scaleX(0);
 }
 
 .splash-title {
@@ -98,6 +99,7 @@
     font-weight: 700;
     letter-spacing: 4px;
     margin-top: 20px;
+    color: var(--text-main, #e0e0e0);
 }
 
 .splash-title span {

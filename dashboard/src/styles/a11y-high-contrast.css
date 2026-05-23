@@ -1,0 +1,40 @@
+/* High contrast: stronger chrome legibility without flattening the map to void black */
+
+html[data-high-contrast='true'] {
+  --text-main: #ffffff;
+  --text-sub: #e8e8e8;
+  --border: rgba(255, 255, 255, 0.45);
+}
+
+html[data-high-contrast='true'] .premium-header,
+html[data-high-contrast='true'] .sidebar,
+html[data-high-contrast='true'] .site-footer {
+  background: #0a0a0c !important;
+  border-color: #fff !important;
+}
+
+html[data-high-contrast='true'] .logo-section h1,
+html[data-high-contrast='true'] .version-badge,
+html[data-high-contrast='true'] .terminal-line,
+html[data-high-contrast='true'] .sidebar,
+html[data-high-contrast='true'] .site-footer {
+  color: #fff !important;
+}
+
+html[data-high-contrast='true'] .icon-btn,
+html[data-high-contrast='true'] .return-live-btn,
+html[data-high-contrast='true'] .status-pill,
+html[data-high-contrast='true'] .a11y-toolbar__btn {
+  border: 1px solid #fff;
+  color: #fff;
+}
+
+html[data-high-contrast='true'] .leaflet-container {
+  /* Keep map tiles visible; do not force leaflet background to #000 */
+  filter: contrast(1.12) saturate(1.08);
+}
+
+html[data-high-contrast='true'] *:focus-visible {
+  outline: 3px solid #ffff00 !important;
+  outline-offset: 2px;
+}

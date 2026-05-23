@@ -59,13 +59,15 @@ export const STRATEGIC_METADATA = TACTICAL_GEOJSON.features.reduce((acc, feature
   return acc;
 }, {});
 
-// Networking
+// Networking — in dev, always use the Vite origin so /api and /ws proxy (avoids CORS on :5173).
 export const IS_PROD = import.meta.env.PROD;
-const RAW_HOST = import.meta.env.VITE_WS_URL || window.location.host;
+const RAW_HOST = IS_PROD
+  ? (import.meta.env.VITE_WS_URL || window.location.host)
+  : window.location.host;
 const WS_HOST = RAW_HOST.replace(/^https?:\/\//, '');
 const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 export const WEBSOCKET_URL = `${WS_PROTOCOL}//${WS_HOST}/ws`;
-export const TACTICAL_API_URL = IS_PROD ? "" : `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${WS_HOST}`;
+export const TACTICAL_API_URL = IS_PROD ? '' : `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${WS_HOST}`;
 export const MISSION_KEY = import.meta.env.VITE_MISSION_KEY;
 
 // Tactical Color Tokens

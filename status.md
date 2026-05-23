@@ -2,6 +2,16 @@
 
 **Updated:** 2026-05-23
 
+## Dashboard black screen / build
+
+- [x] **Root cause:** `JsonLdScript` function component inside `<Helmet>` — react-helmet-async v3 throws and React never mounts (empty `#root`). Fixed: inline `<script type="application/ld+json">` in `SEO.jsx`
+- [x] Dev networking: use Vite origin in dev so `/api` + `/ws` proxy work (ignore `VITE_WS_URL` when `import.meta.env.DEV`)
+- [x] Removed `/` from prerender routes (legal pages only); home stays empty `#root` until SPA mounts
+- [x] Splash: plain DOM overlay; dashboard header/map mount underneath; no wizard auto-open
+- [x] `prefers-reduced-motion` guard for splash/wizard opacity
+- [x] Footer: in-flow on desktop; hidden on mobile (bottom sheet zone)
+- [x] Fast build: `$env:PRERENDER='0'; npm run build` (~10s). Full SEO prerender: default `npm run build` (4 legal routes; may take longer)
+
 ## CSS shell refactor
 
 - [x] Desktop header/sidebar shell layout consolidated in `dashboard/src/styles/layout.css` (≥1025px + ≤1024px)
@@ -54,6 +64,42 @@ Includes `pywebpush==2.3.0` and `pytest`.
 - [x] `MapViewer` — `ResizeObserver` + `visualViewport` sync + mount `invalidateSize` (half-tile map on viewport change)
 - [x] `Sidebar` — snap collapsed sheet after first measure; `visualViewport` updates layout width/height
 - [x] `vite.config.js` — `server.host: true` for phone testing on LAN
+
+## SEO and Israeli compliance (dashboard v1.2)
+
+- [x] `seoConfig.js` + `SEO.jsx` (react-helmet-async); English title/description; Hebrew in `keywords` meta only
+- [x] Routes: `/`, `/about`, `/accessibility`, `/privacy`, `/terms`, 404
+- [x] English legal pages; footer; cookie notice gating Vercel Analytics
+- [x] High-contrast toolbar, skip link, `prefers-reduced-motion` (scroll-to-top removed — map shell does not scroll)
+- [x] `og-image.png`, `favicon.png`, expanded `sitemap.xml`, `llms.txt`
+- [x] Build prerender via `vite-prerender-plugin` for public routes
+- [x] PWA manifest: English description, `lang: en`
+- [x] `.cursor/rules/israeli-accessibility-is5568.mdc`, `review/is-5568-iron-sight.md`
+
+### Search Console (manual after deploy)
+
+1. [Google Search Console](https://search.google.com/search-console) — add property `https://iron-sight-drab.vercel.app`, verify (HTML file in `dashboard/public/` when token issued), submit `https://iron-sight-drab.vercel.app/sitemap.xml`
+2. [Bing Webmaster Tools](https://www.bing.com/webmasters) — same sitemap URL
+3. Optional: IndexNow ping on deploy when URLs change
+4. Social card debuggers: validate `/og-image.png` (1200×630)
+5. [Rich Results Test](https://search.google.com/test/rich-results) — WebApplication on `/`, FAQPage on `/about`
+
+Set `VITE_SITE_URL` in Vercel dashboard env to match production domain.
+
+## Dashboard audit fixes (2026-05-23)
+
+- [x] Alert wizard auto-open restored (`shouldShowAlertWizard` + `openWizard` in `TacticalDashboard`)
+- [x] Removed dead `AppShell.jsx`; splash `AnimatePresence` exit in `App.jsx`
+- [x] Cookie notice: `aria-modal`, focus trap, Escape → Essential only; `essential` vs `accepted` consent
+- [x] Alert wizard + cookie dialog: shared `useFocusTrap` (tab cycle + return focus)
+- [x] `index.html` trimmed (Helmet owns SEO); `generate-sitemap.mjs` uses `VITE_SITE_URL`
+- [x] Prerender unknown paths → noindex 404 stub; FAQ headings `h3` on About
+- [x] `og-image.png` regenerated (~205 KB); removed unused prerender npm deps
+- [x] Organization JSON-LD: product name Iron Sight + founder contact
+
+## Handoff doc (tournament / other SPAs)
+
+- [x] Full summary + replication steps: [docs/TOURNAMENT_HANDOFF_SEO_AND_UI.md](docs/TOURNAMENT_HANDOFF_SEO_AND_UI.md)
 
 ## Deploy
 

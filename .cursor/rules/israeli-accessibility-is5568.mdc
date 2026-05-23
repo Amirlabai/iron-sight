@@ -1,0 +1,26 @@
+---
+description: Israeli Standard IS 5568 (WCAG 2.1 Level AA) — required for dashboard UI work
+globs:
+  - dashboard/**/*
+alwaysApply: false
+---
+
+# Israeli accessibility — IS 5568 (dashboard)
+
+Comply with **Israeli Standard IS 5568** (WCAG 2.1 Level AA) for all `dashboard/**` UI changes.
+
+## Non-negotiables
+
+- Semantic HTML: native buttons/links; one `<main>`; proper headings; `aria-current` on nav.
+- Keyboard: Tab/Enter/Space; visible `:focus-visible`; skip link to `#main-content` (map) or `#legal-main` (legal pages).
+- Forms: visible labels; `aria-invalid` + errors; `role="alert"` for dynamic errors.
+- Images: meaningful `alt`; icon-only controls need `aria-label`.
+- Color: 4.5:1 text contrast; do not rely on color alone; high-contrast toggle must remain available.
+- Motion: respect `prefers-reduced-motion`.
+- Language: `lang="en"` on `<html>`; legal/visible copy in English; Hebrew only in SEO `keywords` meta.
+- Legal: maintain `/accessibility` with coordinator **Amir Labay** — `amirlabay+support@gmail.com`.
+
+## Reference
+
+- [review/is-5568-iron-sight.md](review/is-5568-iron-sight.md)
+- [context.md](context.md)

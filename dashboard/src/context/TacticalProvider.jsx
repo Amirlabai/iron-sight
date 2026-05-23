@@ -15,8 +15,9 @@ import { getConvexHull, getCentroid, getDistance } from '../utils/geoUtils';
 import missileSound from '../assets/sounds/missile_alert.mp3';
 import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
 import { filterEventsByScope, matchesAlertScope, buildAlertNotifyKey } from '../utils/alertMatching';
-import { useAlertPreferences, shouldShowAlertWizard } from '../hooks/useAlertPreferences';
+import { useAlertPreferences } from '../hooks/useAlertPreferences';
 import { agentDebugBurst, agentDebugLog, WS_MESSAGE_BURST } from '../utils/agentDebugLog';
+import { hasSessionBooted, markSessionBooted } from '../utils/sessionBoot';
 
 // --- Tactical Audio Engine ---
 const useAudioEngine = (liveEvents, isMuted, alertPrefs) => {
@@ -116,9 +117,9 @@ export function TacticalProvider({ children }) {
   });
   const [isConnected, setIsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState('live');
-  const [isReady, setIsReady] = useState(false);
+  const [isReady, setIsReady] = useState(() => hasSessionBooted());
   const [isMuted, setIsMuted] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingProgress, setLoadingProgress] = useState(() => (hasSessionBooted() ? 100 : 0));
   const [sandboxEvent, setSandboxEvent] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [regionalData, setRegionalData] = useState({});
@@ -132,29 +133,35 @@ export function TacticalProvider({ children }) {
   const [mergeTimeFrameClusters, setMergeTimeFrameClusters] = useState(false);
 
   const alertPrefsApi = useAlertPreferences();
-  const { prefs: alertPrefs, setShowWizard } = alertPrefsApi;
-
-  useEffect(() => {
-    if (shouldShowAlertWizard(isReady, alertPrefs)) {
-      setShowWizard(true);
-    }
-  }, [isReady, alertPrefs.complete, alertPrefs.wizardDismissed, setShowWizard]);
+  const { prefs: alertPrefs } = alertPrefsApi;
 
   useAudioEngine(liveEvents, isMuted, alertPrefs);
   useScopedNotifications(liveEvents, alertPrefs);
   const ws = useRef(null);
   const viewModeRef = useRef(viewMode);
+  const isReadyRef = useRef(isReady);
 
   useEffect(() => {
     viewModeRef.current = viewMode;
   }, [viewMode]);
+
+  useEffect(() => {
+    isReadyRef.current = isReady;
+    if (isReady) markSessionBooted();
+  }, [isReady]);
 
   const connect = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
     ws.current = new WebSocket(WEBSOCKET_URL);
     ws.current.onopen = () => { setIsConnected(true); setLoadingProgress(p => p + 30); };
     ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch {
+        if (!IS_PROD) console.warn('WS_MESSAGE_PARSE_FAILED', event.data);
+        return;
+      }
       // #region agent log
       agentDebugBurst(
         'ws-message',
@@ -211,8 +218,8 @@ export function TacticalProvider({ children }) {
     fetch(`${TACTICAL_API_URL}/api/cities`).then(res => res.json()).then(data => setRegionalData(data)).catch(err => { if (!IS_PROD) console.error("CITIES_FETCH_FAILED", err); });
 
     const missionTimer = setTimeout(() => {
-      if (!isReady) {
-        if (!IS_PROD) console.warn("TACTICAL_UPLINK: Transitioning to manual UI mode.");
+      if (!isReadyRef.current) {
+        if (!IS_PROD) console.warn('TACTICAL_UPLINK: Transitioning to manual UI mode.');
         setIsReady(true);
       }
     }, 6000);

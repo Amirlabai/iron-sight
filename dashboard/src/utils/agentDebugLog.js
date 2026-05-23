@@ -30,8 +30,14 @@ export function agentDebugLog(location, message, data, hypothesisId, runId = 'pr
     runId,
     timestamp: Date.now(),
   };
-  const buf = window.__AGENT_DEBUG__ || [];
-  window.__AGENT_DEBUG__ = [...buf.slice(-49), entry];
+  if (!window.__AGENT_DEBUG__) {
+    window.__AGENT_DEBUG__ = [];
+  }
+  const buf = window.__AGENT_DEBUG__;
+  buf.push(entry);
+  if (buf.length > 50) {
+    buf.splice(0, buf.length - 50);
+  }
   fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': SESSION_ID },
