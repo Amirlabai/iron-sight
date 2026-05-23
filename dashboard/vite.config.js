@@ -29,7 +29,7 @@ async function loadPlugins() {
       srcDir: 'src',
       filename: 'sw.js',
       registerType: 'autoUpdate',
-      injectRegister: 'script-defer',
+      injectRegister: null,
       includeAssets: ['favicon.png', 'favicon.svg', 'icons.svg', 'og-image.png'],
       manifest: {
         short_name: 'Iron Sight',

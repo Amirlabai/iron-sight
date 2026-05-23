@@ -31,7 +31,7 @@
 
 Review fixes **shipped** (`0b9dd67`). Pass #2 follow-ups appended in [REVIEW-STATUS-SIGNAL-FLARE.md](REVIEW-STATUS-SIGNAL-FLARE.md#pass-2--post-ship-review-0b9dd67).
 
-**Mobile wizard freeze:** save step could hang on `serviceWorker.ready` / push subscribe; dashboard now uses fetch/SW timeouts and always clears "Saving…".
+**Mobile wizard / push:** SW registers on boot (`registerSW` immediate); `skipWaiting` + `clients.claim`; push waits for `reg.active` not only `ready`. If SW still pending, prefs save and wizard closes with reload hint.
 
 | Area | State |
 |------|--------|
@@ -106,5 +106,8 @@ Set `VITE_SITE_URL` in Vercel to `https://iron-sight-drab.vercel.app` and redepl
 - [x] Full summary + replication steps: [docs/TOURNAMENT_HANDOFF_SEO_AND_UI.md](docs/TOURNAMENT_HANDOFF_SEO_AND_UI.md)
 
 ## Deploy
+
+- [ ] **MISSION**: Backend + dashboard production deploy (DEPLOY-2026-05-23) - [.open_work/backend_render_vercel_deploy.md](.open_work/backend_render_vercel_deploy.md)
+- [ ] **MISSION**: Dashboard push / SW boot deploy (DASH-PUSH-SW-01) - [.open_work/dashboard_push_sw_deploy.md](.open_work/dashboard_push_sw_deploy.md)
 
 Verify Vercel dashboard build and Render backend after env keys are set.

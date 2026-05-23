@@ -141,18 +141,16 @@ describe('subscribeToPush', () => {
   });
 
   it('should throw when PushManager is missing', async () => {
+    const reg = { active: {}, pushManager: {} };
     vi.stubGlobal('navigator', {
       serviceWorker: {
-        ready: Promise.resolve({
-          pushManager: {},
-        }),
+        getRegistration: vi.fn().mockResolvedValue(reg),
+        register: vi.fn(),
+        ready: Promise.resolve(reg),
       },
     });
     vi.stubGlobal('window', {});
-    await expect(getServiceWorkerRegistration()).resolves.toBeDefined();
-    const reg = await getServiceWorkerRegistration();
-    vi.stubGlobal('navigator', { serviceWorker: { ready: Promise.resolve(reg) } });
-    vi.stubGlobal('window', {});
+    await expect(getServiceWorkerRegistration()).resolves.toBe(reg);
     await expect(subscribeToPush('QUJD')).rejects.toThrow('Push not supported');
   });
 });

@@ -1,7 +1,8 @@
 import { TACTICAL_API_URL } from './constants';
 
 const PUSH_TOKEN_HEADER = 'X-Push-Client-Token';
-const SW_READY_MS = 12000;
+const SW_URL = '/sw.js';
+const SW_READY_MS = 20000;
 const FETCH_MS = 15000;
 
 function withTimeout(promise, ms, message) {
@@ -47,13 +48,58 @@ export async function fetchVapidPublicKey() {
   return data.publicKey;
 }
 
-export async function getServiceWorkerRegistration() {
+function waitForWorkerActive(reg) {
+  if (reg.active) return Promise.resolve(reg);
+
+  const worker = reg.installing || reg.waiting;
+  if (!worker) {
+    return withTimeout(
+      navigator.serviceWorker.ready,
+      SW_READY_MS,
+      'Service worker not ready — reload the page or use the installed app'
+    );
+  }
+
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error('Service worker not ready — reload the page or use the installed app'));
+    }, SW_READY_MS);
+
+    const finish = () => {
+      clearTimeout(timer);
+      resolve(reg);
+    };
+
+    const onState = () => {
+      if (reg.active || worker.state === 'activated') finish();
+      else if (worker.state === 'redundant') {
+        clearTimeout(timer);
+        reject(new Error('Service worker registration failed'));
+      }
+    };
+
+    worker.addEventListener('statechange', onState);
+    onState();
+  });
+}
+
+export async function ensureServiceWorkerRegistration() {
   if (!('serviceWorker' in navigator)) throw new Error('Service worker not supported');
-  return withTimeout(
-    navigator.serviceWorker.ready,
-    SW_READY_MS,
-    'Service worker not ready — reload the page or use the installed app'
-  );
+
+  let reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) {
+    reg = await navigator.serviceWorker.register(SW_URL, {
+      type: 'module',
+      scope: '/',
+      updateViaCache: 'none',
+    });
+  }
+
+  return waitForWorkerActive(reg);
+}
+
+export async function getServiceWorkerRegistration() {
+  return ensureServiceWorkerRegistration();
 }
 
 export async function subscribeToPush(vapidPublicKey) {

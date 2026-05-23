@@ -134,6 +134,21 @@ export function useAlertPreferences() {
         return syncResult;
       } catch (err) {
         if (!import.meta.env.PROD) console.warn('Push registration failed:', err);
+        const swNotReady =
+          typeof err?.message === 'string' &&
+          (err.message.includes('Service worker') || err.message.includes('service worker'));
+        if (swNotReady) {
+          setPrefs({
+            ...basePatch,
+            complete: true,
+            wizardDismissed: true,
+          });
+          return {
+            ok: false,
+            reason: 'push_sw_pending',
+            message: err.message,
+          };
+        }
         setPrefs({
           ...basePatch,
           complete: false,
@@ -161,6 +176,10 @@ export function useAlertPreferences() {
       if (!skipPush && prefsRef.current.notifyPermission === 'granted') {
         const result = await registerPush({ scope, radiusKm, location: loc });
         if (!result.ok) {
+          if (result.reason === 'push_sw_pending') {
+            closeWizard();
+            return { ok: true, pushDeferred: true };
+          }
           setPrefs({ ...basePatch, complete: false });
           return result;
         }

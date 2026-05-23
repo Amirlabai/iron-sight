@@ -2,6 +2,14 @@ import { precacheAndRoute } from 'workbox-precaching'
 
 precacheAndRoute(self.__WB_MANIFEST)
 
+self.addEventListener('install', () => {
+  self.skipWaiting()
+})
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim())
+})
+
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : { title: 'Alert', body: 'New notification from Iron Sight' };
 
