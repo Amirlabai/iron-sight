@@ -245,6 +245,33 @@ html[data-high-contrast='true'] .pref-switch--on .pref-switch__track {
   line-height: 1.4;
 }
 
+.alert-prefs-panel__zoom-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.alert-prefs-panel__zoom-reset {
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 149, 0, 0.35);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.alert-prefs-panel__zoom-reset:hover {
+  background: rgba(255, 149, 0, 0.12);
+}
+
+.alert-prefs-panel__zoom-reset:focus-visible {
+  outline: 2px solid #ff9500;
+  outline-offset: 2px;
+}
+
 .alert-prefs-panel__zoom-levels-list {
   display: flex;
   flex-direction: column;

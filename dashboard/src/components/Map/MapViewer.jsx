@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
+import { Crosshair } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -31,20 +32,31 @@ function refitMap(map, { center, zoom, bounds, maxZoom }) {
   map.flyTo(center, zoom, { duration: 0 });
 }
 
-function MapController({ center, zoom, bounds, maxZoom }) {
+function markProgrammaticMove(map, suppressRef) {
+  suppressRef.current = true;
+  map.once('moveend', () => {
+    suppressRef.current = false;
+  });
+}
+
+function MapController({ center, zoom, bounds, maxZoom, followAuto, suppressRef }) {
   const map = useMap();
-  const prevRef = React.useRef('');
+  const prevRef = useRef('');
   const bKey = boundsKey(bounds);
-  const configRef = React.useRef({ center, zoom, bounds, maxZoom });
+  const configRef = useRef({ center, zoom, bounds, maxZoom });
   configRef.current = { center, zoom, bounds, maxZoom };
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (!followAuto) return;
+
     const key = bounds?.length >= 2
       ? `bounds:${bKey}:${maxZoom ?? ''}`
       : `fly:${center[0]},${center[1]},${zoom}`;
 
     if (key === prevRef.current) return;
     prevRef.current = key;
+
+    markProgrammaticMove(map, suppressRef);
 
     if (bounds?.length >= 2) {
       const latLngBounds = L.latLngBounds(bounds.map(([lat, lng]) => [lat, lng]));
@@ -57,15 +69,18 @@ function MapController({ center, zoom, bounds, maxZoom }) {
     }
 
     map.flyTo(center, zoom, { duration: 0.6 });
-  }, [center, zoom, bounds, bKey, maxZoom, map]);
+  }, [center, zoom, bounds, bKey, maxZoom, map, followAuto, suppressRef]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     let raf = 0;
     const syncSize = (refit = false) => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         map.invalidateSize({ pan: false });
-        if (refit) refitMap(map, configRef.current);
+        if (refit) {
+          markProgrammaticMove(map, suppressRef);
+          refitMap(map, configRef.current);
+        }
       });
     };
 
@@ -109,8 +124,23 @@ function MapController({ center, zoom, bounds, maxZoom }) {
       window.removeEventListener('resize', onWindowResize);
       window.removeEventListener('orientationchange', onWindowResize);
     };
-  }, [map]);
+  }, [map, suppressRef]);
 
+  return null;
+}
+
+function MapUserMoveTracker({ onUserMove, suppressRef }) {
+  useMapEvents({
+    dragstart: () => {
+      if (!suppressRef.current) onUserMove();
+    },
+    zoomstart: (e) => {
+      if (!suppressRef.current && e.originalEvent) onUserMove();
+    },
+    wheel: () => {
+      if (!suppressRef.current) onUserMove();
+    },
+  });
   return null;
 }
 
@@ -180,11 +210,55 @@ export default function MapViewer() {
   const {
     mapConfig, renderableEvents, viewMode, archiveEvent,
     hasSimulation, tacticalColor, highlightColor,
-    setIsSidebarExpanded
+    setIsSidebarExpanded, mapAutoFollowToken,
   } = useTactical();
+
+  const [mapFollowAuto, setMapFollowAuto] = useState(true);
+  const suppressProgrammaticRef = useRef(false);
+  const mapRef = useRef(null);
+  const mapConfigRef = useRef(mapConfig);
+  mapConfigRef.current = mapConfig;
+
+  useEffect(() => {
+    setMapFollowAuto(true);
+  }, [viewMode, mapAutoFollowToken]);
+
+  const handleUserMovedMap = useCallback(() => {
+    setMapFollowAuto(false);
+  }, []);
+
+  const handleRecenterMap = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    setMapFollowAuto(true);
+    markProgrammaticMove(map, suppressProgrammaticRef);
+    refitMap(map, mapConfigRef.current);
+  }, []);
+
+  function MapInstanceBridge() {
+    const map = useMap();
+    useEffect(() => {
+      mapRef.current = map;
+      return () => {
+        if (mapRef.current === map) mapRef.current = null;
+      };
+    }, [map]);
+    return null;
+  }
 
   return (
     <div className="map-wrapper">
+      {!mapFollowAuto ? (
+        <button
+          type="button"
+          className="map-recenter-btn"
+          onClick={handleRecenterMap}
+          aria-label="Center map on current view"
+        >
+          <Crosshair size={18} aria-hidden="true" />
+          <span>Center</span>
+        </button>
+      ) : null}
       <div className="map-overlay-info">
         {viewMode === 'archive' && <div className="archive-watermark">HISTORICAL DATA REWIND | {formatTime(archiveEvent?.time)}</div>}
         {viewMode === 'sandbox' && <div className="sandbox-watermark">DRY RUN ANALYSIS | Hypo-Salvo</div>}
@@ -200,11 +274,18 @@ export default function MapViewer() {
       >
         <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png" />
 
+        <MapInstanceBridge />
         <MapController
           center={mapConfig.center}
           zoom={mapConfig.zoom}
           bounds={mapConfig.bounds}
           maxZoom={mapConfig.maxZoom}
+          followAuto={mapFollowAuto}
+          suppressRef={suppressProgrammaticRef}
+        />
+        <MapUserMoveTracker
+          onUserMove={handleUserMovedMap}
+          suppressRef={suppressProgrammaticRef}
         />
         <ZoomControl position="bottomright" />
         <MapClickHandler onMapClick={() => {

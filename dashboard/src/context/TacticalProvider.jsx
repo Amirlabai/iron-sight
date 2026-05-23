@@ -134,6 +134,7 @@ export function TacticalProvider({ children }) {
   const [timeFrame, setTimeFrame] = useState('all');
   const [originFilter, setOriginFilter] = useState('all');
   const [mergeTimeFrameClusters, setMergeTimeFrameClusters] = useState(false);
+  const [mapAutoFollowToken, setMapAutoFollowToken] = useState(0);
 
   const alertPrefsApi = useAlertPreferences();
   const { prefs: alertPrefs } = alertPrefsApi;
@@ -398,6 +399,7 @@ export function TacticalProvider({ children }) {
     setHistoryFilter('all');
     setOriginFilter('all');
     setMapConfig(resolveMapConfig(liveEvents, alertPrefsRef.current));
+    setMapAutoFollowToken((t) => t + 1);
   };
 
   useEffect(() => {
@@ -624,6 +626,7 @@ export function TacticalProvider({ children }) {
     returnToLive, runSandboxAnalysis, handleTabChange, fetchHistory,
     renderableEvents, sidebarEvents, hasSimulation, totalClusters, totalTargets,
     timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setMapConfig,
+    mapAutoFollowToken,
     tacticalColor, highlightColor,
     alertPrefs,
     alertPrefsApi,

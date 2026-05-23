@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getEventOrigin, resolveMapConfig } from './mapZoomPresets';
-import { getZoomLevel, normalizeOriginName } from './mapZoomLevels';
+import { getZoomLevel, normalizeOriginName, parseZoomDraft } from './mapZoomLevels';
 import { calculateBestMapConfig } from './mapGeometry';
 import { getDefaultZoom } from './constants';
 
@@ -43,6 +43,18 @@ describe('resolveMapConfig', () => {
     const cfg = resolveMapConfig(events, { mapZoomLevels: { overview: 9 } });
     expect(cfg.zoom).toBe(9);
     expect(cfg.center[0]).toBeCloseTo(31.7683, 2);
+  });
+});
+
+describe('parseZoomDraft', () => {
+  it('commits in-range values and reverts ambiguous low digits', () => {
+    expect(parseZoomDraft('12', 8)).toBe(12);
+    expect(parseZoomDraft('1', 8)).toBe(8);
+    expect(parseZoomDraft('2', 8)).toBe(8);
+    expect(parseZoomDraft('4', 8)).toBe(4);
+    expect(parseZoomDraft('15', 8)).toBe(14);
+    expect(parseZoomDraft('', 8)).toBe(8);
+    expect(parseZoomDraft('x', 8)).toBe(8);
   });
 });
 

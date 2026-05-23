@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import {
@@ -7,12 +7,12 @@ import {
   RADIUS_MAX_KM,
 } from '../../utils/alertMatching';
 import {
+  DEFAULT_MAP_ZOOM_LEVELS,
   MAP_ZOOM_LEVEL_SECTIONS,
   MAP_ZOOM_LEVEL_LABELS,
-  MAP_ZOOM_MIN,
-  MAP_ZOOM_MAX,
+  getAllMapZoomLevelKeys,
   mergeMapZoomLevels,
-  clampZoomLevel,
+  parseZoomDraft,
 } from '../../utils/mapZoomLevels';
 import PreferenceSwitch from './PreferenceSwitch';
 import './AlertPreferencesPanel.css';
@@ -27,8 +27,37 @@ export default function AlertPreferencesPanel({
 }) {
   const overlayRef = useRef(null);
   const [busy, setBusy] = useState(false);
+  const zoomKeys = useMemo(() => getAllMapZoomLevelKeys(), []);
 
-  useFocusTrap(overlayRef, { active: true, onEscape: onClose });
+  const levelsToDraftStrings = useCallback(
+    (levels) => Object.fromEntries(zoomKeys.map((key) => [key, String(levels[key])])),
+    [zoomKeys],
+  );
+
+  const [draftZoom, setDraftZoom] = useState(() =>
+    levelsToDraftStrings(mergeMapZoomLevels(prefs.mapZoomLevels)),
+  );
+  const draftZoomRef = useRef(draftZoom);
+  draftZoomRef.current = draftZoom;
+
+  const commitAllZoomDrafts = useCallback(() => {
+    const saved = mergeMapZoomLevels(prefs.mapZoomLevels);
+    const draft = draftZoomRef.current;
+    const patch = {};
+    for (const key of zoomKeys) {
+      patch[key] = parseZoomDraft(draft[key], saved[key]);
+    }
+    const next = { ...saved, ...patch };
+    setPrefs({ mapZoomLevels: next });
+    setDraftZoom(levelsToDraftStrings(next));
+  }, [prefs.mapZoomLevels, setPrefs, zoomKeys, levelsToDraftStrings]);
+
+  const handleClose = useCallback(() => {
+    commitAllZoomDrafts();
+    onClose();
+  }, [commitAllZoomDrafts, onClose]);
+
+  useFocusTrap(overlayRef, { active: true, onEscape: handleClose });
 
   const notifyGranted =
     prefs.notifyPermission === 'granted' ||
@@ -58,13 +87,20 @@ export default function AlertPreferencesPanel({
     setPrefs({ showUserLocationOnMap: on });
   };
 
-  const zoomLevels = mergeMapZoomLevels(prefs.mapZoomLevels);
+  const commitZoomKey = useCallback(
+    (key, raw) => {
+      const saved = mergeMapZoomLevels(prefs.mapZoomLevels);
+      const value = parseZoomDraft(raw, saved[key]);
+      setPrefs({ mapZoomLevels: { ...saved, [key]: value } });
+      setDraftZoom((prev) => ({ ...prev, [key]: String(value) }));
+    },
+    [prefs.mapZoomLevels, setPrefs],
+  );
 
-  const handleZoomLevelChange = (key, raw) => {
-    const value = clampZoomLevel(raw);
-    setPrefs({
-      mapZoomLevels: { ...mergeMapZoomLevels(prefs.mapZoomLevels), [key]: value },
-    });
+  const handleZoomReset = () => {
+    const defaults = { ...DEFAULT_MAP_ZOOM_LEVELS };
+    setPrefs({ mapZoomLevels: defaults });
+    setDraftZoom(levelsToDraftStrings(defaults));
   };
 
   const handleScopeChange = (scope) => {
@@ -84,13 +120,17 @@ export default function AlertPreferencesPanel({
       <label htmlFor={`pref-zoom-${key}`}>{MAP_ZOOM_LEVEL_LABELS[key]}</label>
       <input
         id={`pref-zoom-${key}`}
-        type="number"
+        type="text"
+        inputMode="numeric"
         className="alert-prefs-panel__zoom-input"
-        min={MAP_ZOOM_MIN}
-        max={MAP_ZOOM_MAX}
-        step={1}
-        value={zoomLevels[key] ?? MAP_ZOOM_MIN}
-        onChange={(e) => handleZoomLevelChange(key, e.target.value)}
+        autoComplete="off"
+        value={draftZoom[key] ?? ''}
+        aria-describedby="pref-map-zoom-levels-label"
+        onChange={(e) => setDraftZoom((prev) => ({ ...prev, [key]: e.target.value }))}
+        onBlur={(e) => commitZoomKey(key, e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+        }}
       />
     </div>
   );
@@ -102,6 +142,9 @@ export default function AlertPreferencesPanel({
       role="dialog"
       aria-modal="true"
       aria-labelledby="alert-prefs-panel-title"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) handleClose();
+      }}
     >
       <div className="alert-prefs-panel">
         <header className="alert-prefs-panel__header">
@@ -109,7 +152,7 @@ export default function AlertPreferencesPanel({
           <button
             type="button"
             className="alert-prefs-close"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close preferences"
           >
             <X size={18} />
@@ -177,6 +220,15 @@ export default function AlertPreferencesPanel({
             <p className="alert-prefs-panel__zoom-levels-desc">
               Leaflet zoom 4–14. Live map picks the value for the active threat type or launch country.
             </p>
+            <div className="alert-prefs-panel__zoom-actions">
+              <button
+                type="button"
+                className="alert-prefs-panel__zoom-reset"
+                onClick={handleZoomReset}
+              >
+                Reset to defaults
+              </button>
+            </div>
             <div className="alert-prefs-panel__zoom-levels-list">
               {MAP_ZOOM_LEVEL_SECTIONS.map((section) => (
                 <section

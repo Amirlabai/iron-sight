@@ -123,3 +123,23 @@ export const MAP_ZOOM_LEVEL_SECTIONS = [
     groups: [ORIGIN_FILTER_OPTIONS.map((name) => `origin:${name}`)],
   },
 ];
+
+export function getAllMapZoomLevelKeys() {
+  return MAP_ZOOM_LEVEL_SECTIONS.flatMap((section) => section.groups.flat());
+}
+
+/**
+ * Commit zoom draft on blur/close. Values below min revert to fallback (avoids
+ * snapping "1" to 4 while typing "10"). Out-of-range high values clamp to max.
+ * @param {string} raw @param {number} fallback
+ */
+export function parseZoomDraft(raw, fallback) {
+  const trimmed = String(raw ?? '').trim();
+  if (trimmed === '') return clampZoomLevel(fallback);
+  if (!/^\d+$/.test(trimmed)) return clampZoomLevel(fallback);
+  const n = Number(trimmed);
+  if (Number.isNaN(n)) return clampZoomLevel(fallback);
+  if (n > MAP_ZOOM_MAX) return MAP_ZOOM_MAX;
+  if (n < MAP_ZOOM_MIN) return clampZoomLevel(fallback);
+  return n;
+}
