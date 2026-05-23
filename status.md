@@ -44,6 +44,17 @@ cd backend
 
 Includes `pywebpush==2.3.0` and `pytest`.
 
+## Agent debug instrumentation (dashboard)
+
+- [x] `agentDebugLog.js` — dev-only (`import.meta.env.DEV`), longtask throttle (2s), documented burst constants (`WS_MESSAGE_BURST`, `MAP_RESIZE_BURST`)
+- [x] Sidebar — visualViewport resize only; `collapsedY` log outside state updater; removed spring/layout noise
+
+## Mobile Chrome fixes (2026-05-23)
+
+- [x] `MapViewer` — `ResizeObserver` + `visualViewport` sync + mount `invalidateSize` (half-tile map on viewport change)
+- [x] `Sidebar` — snap collapsed sheet after first measure; `visualViewport` updates layout width/height
+- [x] `vite.config.js` — `server.host: true` for phone testing on LAN
+
 ## Deploy
 
 Verify Vercel dashboard build and Render backend after env keys are set.

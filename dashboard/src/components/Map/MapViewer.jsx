@@ -15,6 +15,7 @@ import { getFitPadding, boundsKey, resolveOriginPinCoords } from '../../utils/ma
 import { useTactical } from '../../context/TacticalContext';
 import { formatTime } from '../../utils/formatters';
 import ThreatOverlay from './ThreatOverlay';
+import { agentDebugBurst, agentDebugLog, MAP_RESIZE_BURST } from '../../utils/agentDebugLog';
 
 function refitMap(map, { center, zoom, bounds, maxZoom }) {
   if (bounds?.length >= 2) {
@@ -58,15 +59,54 @@ function MapController({ center, zoom, bounds, maxZoom }) {
   }, [center, zoom, bounds, bKey, maxZoom, map]);
 
   React.useEffect(() => {
-    const onResize = () => {
-      map.invalidateSize();
-      refitMap(map, configRef.current);
+    let raf = 0;
+    const syncSize = (refit = false) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        map.invalidateSize({ pan: false });
+        if (refit) refitMap(map, configRef.current);
+      });
     };
-    window.addEventListener('resize', onResize);
-    window.addEventListener('orientationchange', onResize);
+
+    const onWindowResize = () => {
+      // #region agent log
+      agentDebugBurst(
+        'map-resize',
+        'MapViewer.jsx:onResize',
+        'map invalidateSize+refit burst',
+        { innerW: window.innerWidth },
+        'B',
+        MAP_RESIZE_BURST.threshold,
+        MAP_RESIZE_BURST.windowMs,
+      );
+      // #endregion
+      syncSize(true);
+    };
+
+    const wrapper = map.getContainer()?.parentElement;
+    const ro = typeof ResizeObserver !== 'undefined' && wrapper
+      ? new ResizeObserver(() => syncSize(false))
+      : null;
+    ro?.observe(wrapper);
+
+    const vv = window.visualViewport;
+    const onVisualViewport = () => syncSize(false);
+    vv?.addEventListener('resize', onVisualViewport);
+    vv?.addEventListener('scroll', onVisualViewport);
+
+    window.addEventListener('resize', onWindowResize);
+    window.addEventListener('orientationchange', onWindowResize);
+    syncSize(true);
+    const t2 = requestAnimationFrame(() => syncSize(false));
+
     return () => {
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('orientationchange', onResize);
+      cancelAnimationFrame(raf);
+      cancelAnimationFrame(t2);
+      ro?.disconnect();
+      vv?.removeEventListener('resize', onVisualViewport);
+      vv?.removeEventListener('scroll', onVisualViewport);
+      window.removeEventListener('resize', onWindowResize);
+      window.removeEventListener('orientationchange', onWindowResize);
     };
   }, [map]);
 
@@ -85,6 +125,24 @@ function IsraelBaseLayer() {
   const israelColor = STRATEGIC_METADATA['Israel']?.color || '#ffffff';
   const holeStroke = '#8ec5ff';
   const holes = getBoundaryHoles(israelBoundary);
+
+  // Geodata is static at build time; omit boundary/holes deps intentionally.
+  React.useEffect(() => {
+    const t0 = performance.now();
+    const ringCount = Array.isArray(israelBoundary?.[0]?.[0])
+      ? israelBoundary.length
+      : 1;
+    requestAnimationFrame(() => {
+      // #region agent log
+      agentDebugLog(
+        'MapViewer.jsx:IsraelBaseLayer',
+        'Israel layer first frame',
+        { ringCount, holeRings: holes.length, scheduleMs: Math.round(performance.now() - t0) },
+        'C',
+      );
+      // #endregion
+    });
+  }, []);
 
   return (
     <>

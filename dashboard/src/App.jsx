@@ -9,6 +9,7 @@ import MapViewer from './components/Map/MapViewer';
 import Sidebar from './components/Sidebar/Sidebar';
 import TacticalClock from './components/Header/TacticalClock';
 import { useMobileLayout } from './hooks/useMobileLayout';
+import { agentDebugLogThrottled } from './utils/agentDebugLog';
 import {
   getLiveStatusPillAriaLabel,
   getLiveStatusPillLabel,
@@ -68,6 +69,31 @@ function AppShell() {
   const isMobile = useMobileLayout();
   const iconSize = isMobile ? 18 : 20;
   const statusCompact = isMobile;
+
+  React.useEffect(() => {
+    if (typeof PerformanceObserver === 'undefined') return undefined;
+    const obs = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.duration < 50) continue;
+        // #region agent log
+        agentDebugLogThrottled(
+          'longtask',
+          2000,
+          'App.jsx:longtask',
+          'main thread long task',
+          { durationMs: Math.round(entry.duration), name: entry.name || 'unknown' },
+          'D',
+        );
+        // #endregion
+      }
+    });
+    try {
+      obs.observe({ entryTypes: ['longtask'] });
+    } catch {
+      return undefined;
+    }
+    return () => obs.disconnect();
+  }, []);
 
   return (
     <div className={`dashboard-container ${viewMode} ${isSidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>

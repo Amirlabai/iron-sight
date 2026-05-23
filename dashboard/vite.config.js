@@ -47,6 +47,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(versionData.version)
   },
   server: {
+    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

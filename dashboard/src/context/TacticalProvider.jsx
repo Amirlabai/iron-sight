@@ -16,6 +16,7 @@ import missileSound from '../assets/sounds/missile_alert.mp3';
 import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
 import { filterEventsByScope, matchesAlertScope, buildAlertNotifyKey } from '../utils/alertMatching';
 import { useAlertPreferences, shouldShowAlertWizard } from '../hooks/useAlertPreferences';
+import { agentDebugBurst, agentDebugLog, WS_MESSAGE_BURST } from '../utils/agentDebugLog';
 
 // --- Tactical Audio Engine ---
 const useAudioEngine = (liveEvents, isMuted, alertPrefs) => {
@@ -154,6 +155,25 @@ export function TacticalProvider({ children }) {
     ws.current.onopen = () => { setIsConnected(true); setLoadingProgress(p => p + 30); };
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      // #region agent log
+      agentDebugBurst(
+        'ws-message',
+        'TacticalProvider.jsx:onmessage',
+        'websocket message burst',
+        { type: data.type },
+        'E',
+        WS_MESSAGE_BURST.threshold,
+        WS_MESSAGE_BURST.windowMs,
+      );
+      if (data.type === 'multi_alert') {
+        agentDebugLog(
+          'TacticalProvider.jsx:multi_alert',
+          'multi_alert received',
+          { eventCount: (data.events || []).length },
+          'E',
+        );
+      }
+      // #endregion
       if (data.type === 'history_sync') {
         // Only overwrite history if no filter is active to prevent 'reverting to all' bug
         if (historyFilter === 'all' && timeFrame === 'all') {

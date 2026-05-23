@@ -16,6 +16,7 @@ import {
   MOBILE_SIDEBAR_PEEK_PX,
 } from '../../utils/constants';
 import { calculateTimeframeMapConfig } from '../../utils/mapGeometry';
+import { agentDebugBurst, agentDebugLog } from '../../utils/agentDebugLog';
 
 export default function Sidebar() {
   const {
@@ -50,13 +51,39 @@ export default function Sidebar() {
 
   React.useEffect(() => {
     const onResize = () => {
+      // #region agent log
+      agentDebugBurst(
+        'sidebar-viewport-resize',
+        'Sidebar.jsx:onResize',
+        'viewport resize burst',
+        { w: window.innerWidth, h: window.innerHeight },
+        'F',
+      );
+      // #endregion
       setViewport({ width: window.innerWidth, height: window.innerHeight });
     };
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onResize);
+    const vv = window.visualViewport;
+    const onVisualViewport = () => {
+      const w = Math.round(vv?.width ?? window.innerWidth);
+      const h = Math.round(vv?.height ?? window.innerHeight);
+      setViewport((prev) => (prev.width === w && prev.height === h ? prev : { width: w, height: h }));
+      // #region agent log
+      agentDebugBurst(
+        'visual-viewport',
+        'Sidebar.jsx:visualViewport',
+        'visualViewport resize burst',
+        { w, h, innerH: window.innerHeight },
+        'F',
+      );
+      // #endregion
+    };
+    vv?.addEventListener('resize', onVisualViewport);
     return () => {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onResize);
+      vv?.removeEventListener('resize', onVisualViewport);
     };
   }, []);
 
@@ -64,6 +91,8 @@ export default function Sidebar() {
   const sidebarHeight = `${MOBILE_SIDEBAR_HEIGHT_RATIO * 100}%`;
   const sidebarRef = React.useRef(null);
   const peekChromeRef = React.useRef(null);
+  const collapsedYDebugRef = React.useRef(0);
+  const collapsedYRef = React.useRef(0);
   const [collapsedY, setCollapsedY] = React.useState(0);
 
   React.useLayoutEffect(() => {
@@ -80,7 +109,30 @@ export default function Sidebar() {
       const peekH = peek
         ? peek.getBoundingClientRect().height
         : MOBILE_SIDEBAR_PEEK_PX;
-      setCollapsedY(Math.max(0, sidebarH - peekH));
+      const nextY = Math.max(0, sidebarH - peekH);
+      // #region agent log
+      agentDebugBurst(
+        'sidebar-measure',
+        'Sidebar.jsx:measure',
+        'ResizeObserver measure burst',
+        { sidebarH, peekH, nextY },
+        'A',
+      );
+      // #endregion
+      const prevY = collapsedYDebugRef.current;
+      if (prevY !== nextY) {
+        // #region agent log
+        agentDebugLog(
+          'Sidebar.jsx:setCollapsedY',
+          'collapsedY changed',
+          { prev: prevY, nextY },
+          'A',
+        );
+        // #endregion
+        collapsedYDebugRef.current = nextY;
+      }
+      collapsedYRef.current = nextY;
+      setCollapsedY((prev) => (prev === nextY ? prev : nextY));
       document.documentElement.style.setProperty('--mobile-sheet-peek', `${Math.ceil(peekH)}px`);
     };
 
@@ -97,14 +149,23 @@ export default function Sidebar() {
     };
   }, [isMobile, sidebarHeight, viewport.height, viewport.width]);
 
-  React.useEffect(() => {
+  // Snap collapsed offset when peek height is remeasured (not on expand/collapse gesture).
+  React.useLayoutEffect(() => {
     if (!isMobile) {
       sheetY.set(0);
       return;
     }
-    const target = isSidebarExpanded ? 0 : collapsedY;
+    if (isSidebarExpanded || collapsedY <= 0) return;
+    sheetY.set(collapsedY);
+  }, [collapsedY, isMobile, isSidebarExpanded, sheetY]);
+
+  React.useEffect(() => {
+    if (!isMobile) return;
+    const y = collapsedYRef.current;
+    const target = isSidebarExpanded ? 0 : y;
+    if (!isSidebarExpanded && y <= 0) return;
     animate(sheetY, target, { type: 'spring', damping: 40, stiffness: 600 });
-  }, [isSidebarExpanded, collapsedY, isMobile, sheetY]);
+  }, [isSidebarExpanded, isMobile, sheetY]);
 
   const startSheetDrag = (e) => {
     if (!isMobile) return;
