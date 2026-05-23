@@ -214,19 +214,23 @@ export function TacticalProvider({ children }) {
   }, [historyFilter, timeFrame]);
 
   useEffect(() => {
-    connect();
-    fetch(`${TACTICAL_API_URL}/api/cities`).then(res => res.json()).then(data => setRegionalData(data)).catch(err => { if (!IS_PROD) console.error("CITIES_FETCH_FAILED", err); });
-
-    const missionTimer = setTimeout(() => {
+    if (isReadyRef.current) return undefined;
+    const bootTimer = setTimeout(() => {
       if (!isReadyRef.current) {
         if (!IS_PROD) console.warn('TACTICAL_UPLINK: Transitioning to manual UI mode.');
         setIsReady(true);
+        setLoadingProgress(100);
       }
-    }, 6000);
+    }, 4000);
+    return () => clearTimeout(bootTimer);
+  }, []);
+
+  useEffect(() => {
+    connect();
+    fetch(`${TACTICAL_API_URL}/api/cities`).then(res => res.json()).then(data => setRegionalData(data)).catch(err => { if (!IS_PROD) console.error("CITIES_FETCH_FAILED", err); });
 
     return () => {
       ws.current?.close();
-      clearTimeout(missionTimer);
     };
   }, [connect]);
 

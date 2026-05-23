@@ -43,7 +43,7 @@ Transitioned to Development Alpha.
 - **Reset Protocol Hardening**: Shortened dashboard reset delay to 10s for explicit "Event Ended" signals, with immediate backend state purging.
 - **Cluster-Based Iran Filtering**: Applied a dual-tier threshold system (`MIN_IRAN_THRESHOLD=10`, `MAX_IRAN_THRESHOLD=40`) to map massive salvos explicitly to Iran while demoting sparse clusters to regional origins.
 - **Tactical Console Hardening**: 
-    - Masked backend infrastructure via Vercel `/api` rewrites, anonymizing REST traffic.
+    - Masked backend infrastructure via Vercel `/api` and `/ws` rewrites to Render (`iron-sight-hjwf.onrender.com`), anonymizing REST and WebSocket traffic.
     - Eliminated diagnostic console warnings (`MISSION_SYNC_TIMEOUT`) and sanitized production logs.
     - Integrated `IS_PROD` environment detection for silent telemetry.
 - **Backend Modernization**:

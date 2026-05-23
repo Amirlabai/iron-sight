@@ -75,6 +75,12 @@ export async function prerender(data) {
   const url = data?.url ?? '/';
   const pathname = url.replace(/\/?$/, '') || '/';
   const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`;
+
+  // vite-prerender-plugin always prerenders /. Leave #root empty for the SPA dashboard.
+  if (normalized === '/') {
+    return { html: '' };
+  }
+
   const Page = ROUTES[normalized] || NotFoundPrerender;
   const html = renderToString(
     <StaticRouter location={normalized}>

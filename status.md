@@ -7,6 +7,7 @@
 - [x] **Root cause:** `JsonLdScript` function component inside `<Helmet>` — react-helmet-async v3 throws and React never mounts (empty `#root`). Fixed: inline `<script type="application/ld+json">` in `SEO.jsx`
 - [x] Dev networking: use Vite origin in dev so `/api` + `/ws` proxy work (ignore `VITE_WS_URL` when `import.meta.env.DEV`)
 - [x] Removed `/` from prerender routes (legal pages only); home stays empty `#root` until SPA mounts
+- [x] **Prod splash stuck:** Vercel had `/api` proxy but not `/ws` (WS hit SPA HTML). Added `/ws` rewrite; prerender `/` returns `{ html: '' }`; 4s boot timeout not tied to WS reconnect cleanup
 - [x] Splash: plain DOM overlay; dashboard header/map mount underneath; no wizard auto-open
 - [x] `prefers-reduced-motion` guard for splash/wizard opacity
 - [x] Footer: in-flow on desktop; hidden on mobile (bottom sheet zone)
