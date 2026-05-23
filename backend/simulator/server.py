@@ -17,6 +17,7 @@ class TacticalSimulator:
         self.app = web.Application()
         self.outbound_queue = deque()
         self.active_alerts = {}  # Track active alert IDs for UI icon state
+        self._http_session = None
         
         # Simulator Logic Routes
         self.app.router.add_get('/relay', self.relay_handler)
@@ -28,6 +29,18 @@ class TacticalSimulator:
         # Serve the UI
         self.app.router.add_get('/', self.ui_handler)
         self.app.router.add_get('/index.html', self.ui_handler)
+        self.app.on_cleanup.append(self._close_http_session)
+
+    async def _get_http_session(self):
+        if self._http_session is None or self._http_session.closed:
+            self._http_session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=30),
+            )
+        return self._http_session
+
+    async def _close_http_session(self, _app):
+        if self._http_session and not self._http_session.closed:
+            await self._http_session.close()
 
     async def ui_handler(self, request):
         """Serve the dispatcher UI interface."""
@@ -40,21 +53,20 @@ class TacticalSimulator:
         """Same-origin proxy to the tactical engine city list (avoids browser CORS)."""
         backend_url = os.getenv("BACKEND_URL", "http://127.0.0.1:8080")
         try:
-            timeout = aiohttp.ClientTimeout(total=30)
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{backend_url.rstrip('/')}/api/cities", timeout=timeout) as resp:
-                    if resp.status != 200:
-                        logger.error(f"CITIES_PROXY: backend returned {resp.status}")
-                        return web.json_response(
-                            {"error": "Backend not responding on :8080"},
-                            status=502,
-                        )
-                    data = await resp.json()
-                    return web.json_response(data)
-        except Exception as e:
-            logger.error(f"CITIES_PROXY_ERROR: {e}")
+            session = await self._get_http_session()
+            async with session.get(f"{backend_url.rstrip('/')}/api/cities") as resp:
+                if resp.status != 200:
+                    logger.error(f"CITIES_PROXY: backend returned {resp.status}")
+                    return web.json_response(
+                        {"error": f"Backend not responding ({backend_url})"},
+                        status=502,
+                    )
+                data = await resp.json()
+                return web.json_response(data)
+        except aiohttp.ClientError as e:
+            logger.error(f"CITIES_PROXY_ERROR: {e!r}")
             return web.json_response(
-                {"error": "Ensure main.py is running on :8080"},
+                {"error": f"Backend unreachable ({backend_url})"},
                 status=502,
             )
 

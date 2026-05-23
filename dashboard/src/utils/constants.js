@@ -27,11 +27,20 @@ export const DEFAULT_ZOOM = getDefaultZoom();
 export const getTimeframeOverviewZoom = () => 8;
 
 
-function geoJsonToBoundary(feature) {
-  const rings = feature.geometry.coordinates.map((ring) =>
-    ring.map((p) => [p[1], p[0]])
-  );
+function ringsFromPolygonCoords(polygonCoords) {
+  const rings = polygonCoords.map((ring) => ring.map((p) => [p[1], p[0]]));
   return rings.length === 1 ? rings[0] : rings;
+}
+
+function geoJsonToBoundary(feature) {
+  const { type, coordinates } = feature.geometry;
+  if (type === 'Polygon') {
+    return ringsFromPolygonCoords(coordinates);
+  }
+  if (type === 'MultiPolygon') {
+    return ringsFromPolygonCoords(coordinates[0] ?? []);
+  }
+  return [];
 }
 
 // Tactical Geodata (derived from GeoJSON at import time)

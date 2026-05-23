@@ -60,10 +60,13 @@ class TrackingEngine:
                     loc_name = props.get("location", "").replace("Gaza Strip", "Gaza")
                     geom = feature.get("geometry", {})
                     if geom.get("type") == "Polygon":
-                        # Ring 0 is the outer shell; interior rings (holes) are ignored for ray-cast.
-                        raw_coords = geom.get("coordinates", [[]])[0]
-                        flipped_coords = [[p[1], p[0]] for p in raw_coords]
-                        self.boundaries[loc_name] = flipped_coords
+                        raw_rings = geom.get("coordinates", [])
+                        flipped_rings = [
+                            [[p[1], p[0]] for p in ring] for ring in raw_rings
+                        ]
+                        self.boundaries[loc_name] = (
+                            flipped_rings[0] if len(flipped_rings) == 1 else flipped_rings
+                        )
                         if props.get("depth"): self.strategic_depths[loc_name] = float(props["depth"])
                         if props.get("zoom level"): self.zoom_levels[loc_name] = int(props["zoom level"])
 
@@ -158,10 +161,31 @@ class TrackingEngine:
         except Exception:
             return pts.tolist()
 
+    @staticmethod
+    def _boundary_is_multi_ring(boundary):
+        if not boundary:
+            return False
+        first = boundary[0]
+        return (
+            isinstance(first, (list, tuple))
+            and len(first) > 0
+            and isinstance(first[0], (list, tuple, np.ndarray))
+        )
+
     def is_point_in_polygon(self, point, poly_name, use_tactical=False):
         boundaries = self.boundaries if use_tactical else self.calc_boundaries
-        if poly_name not in boundaries: return False
-        poly = np.array(boundaries[poly_name])
+        if poly_name not in boundaries:
+            return False
+        boundary = boundaries[poly_name]
+        if self._boundary_is_multi_ring(boundary):
+            outer = np.array(boundary[0])
+            if not bool(self._ray_cast_vectorized(np.array([point]), outer)[0]):
+                return False
+            for hole in boundary[1:]:
+                if bool(self._ray_cast_vectorized(np.array([point]), np.array(hole))[0]):
+                    return False
+            return True
+        poly = np.array(boundary)
         return bool(self._ray_cast_vectorized(np.array([point]), poly)[0])
 
     @staticmethod

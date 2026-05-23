@@ -32,6 +32,7 @@ export default function TacticalClock() {
       animate={{ opacity: 1, y: 0 }}
     >
       <div className="clock-date">{dateString}</div>
+      <span className="clock-separator" aria-hidden="true"> | </span>
       <div className="clock-time">{timeString}</div>
     </motion.div>
   );

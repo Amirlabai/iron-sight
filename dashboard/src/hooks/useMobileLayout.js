@@ -1,20 +1,19 @@
 import { useEffect, useState } from 'react';
 import { MOBILE_LAYOUT_BREAKPOINT } from '../utils/constants';
 
+const mobileQuery = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia(`(max-width: ${MOBILE_LAYOUT_BREAKPOINT}px)`).matches;
+
 export function useMobileLayout() {
-  const [isMobile, setIsMobile] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT,
-  );
+  const [isMobile, setIsMobile] = useState(mobileQuery);
 
   useEffect(() => {
-    const update = () => setIsMobile(window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT);
-    window.addEventListener('resize', update);
-    window.addEventListener('orientationchange', update);
+    const mq = window.matchMedia(`(max-width: ${MOBILE_LAYOUT_BREAKPOINT}px)`);
+    const update = () => setIsMobile(mq.matches);
+    mq.addEventListener('change', update);
     update();
-    return () => {
-      window.removeEventListener('resize', update);
-      window.removeEventListener('orientationchange', update);
-    };
+    return () => mq.removeEventListener('change', update);
   }, []);
 
   return isMobile;

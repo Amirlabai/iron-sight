@@ -13,6 +13,7 @@
 - [x] Merged `.incoming/il(2).json` + `.incoming/ps.json` into Israel polygon (outer + Gaza/WB holes) via `scripts/merge_israel_boundary.py`
 - [x] Updated `dashboard/src/assets/countries.json` and `backend/src/data/countries.geojson`
 - [x] Dashboard: cutout fill + interior stroke overlays in `MapViewer.jsx`; `boundaryUtils.js` + timeframe bounds fix
+- [x] Review pass: sidebar return-live gated ≥1025px; origin halos use `getBoundaryOuter`; backend hole-aware ray-cast; simulator session reuse + config dotenv scope
 
 ## Signal Flare (scoped push)
 

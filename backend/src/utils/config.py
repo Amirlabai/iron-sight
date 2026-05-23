@@ -3,8 +3,8 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 _BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+# Load only backend/.env so repo-root .env cannot override mission secrets.
 load_dotenv(os.path.join(_BACKEND_DIR, ".env"))
-load_dotenv()
 
 # --- Network Configuration ---
 WS_PORT = int(os.environ.get("PORT", 8080))

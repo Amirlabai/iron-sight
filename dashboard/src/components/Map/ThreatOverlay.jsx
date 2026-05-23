@@ -1,7 +1,7 @@
 import React from 'react';
 import { Circle, Polyline, Marker, Popup, Polygon, Tooltip, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { TACTICAL_BOUNDARIES, STRATEGIC_METADATA } from '../../utils/constants';
+import { TACTICAL_BOUNDARIES, STRATEGIC_METADATA, getBoundaryOuter } from '../../utils/constants';
 
 // --- Tracking Drone (Animated Interpolation) ---
 const TrackingDrone = ({ positions, color }) => {
@@ -161,23 +161,27 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
         return (
           <React.Fragment key={`${eventKey}-traj-${idx}`}>
             {/* Origin Country Highlight (Restored) */}
-            {boundary && viewMode !== 'timeframe' && (
-              <React.Fragment>
-                <Polygon positions={boundary}
-                  pathOptions={{
-                    color: trajColor,
-                    weight: 15, opacity: 0.05, fill: false, smoothFactor: 2.0, className: 'origin-threat-halo'
-                  }}
-                />
-                <Polygon positions={boundary}
-                  pathOptions={{
-                    fillColor: trajColor,
-                    fillOpacity: 0.1, color: trajColor,
-                    weight: 1, smoothFactor: 2.0, className: 'origin-threat-glow'
-                  }}
-                />
-              </React.Fragment>
-            )}
+            {boundary && viewMode !== 'timeframe' && (() => {
+              const outer = getBoundaryOuter(boundary);
+              if (!outer?.length) return null;
+              return (
+                <React.Fragment>
+                  <Polygon positions={outer}
+                    pathOptions={{
+                      color: trajColor,
+                      weight: 15, opacity: 0.05, fill: false, smoothFactor: 2.0, className: 'origin-threat-halo'
+                    }}
+                  />
+                  <Polygon positions={outer}
+                    pathOptions={{
+                      fillColor: trajColor,
+                      fillOpacity: 0.1, color: trajColor,
+                      weight: 1, smoothFactor: 2.0, className: 'origin-threat-glow'
+                    }}
+                  />
+                </React.Fragment>
+              );
+            })()}
 
             {traj.origin_coords && traj.target_coords && viewMode !== 'timeframe' && (
               <React.Fragment>

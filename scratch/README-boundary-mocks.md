@@ -1,5 +1,10 @@
 # Israel boundary style mocks
 
+Local-only comparison pages (not shipped in production builds). They require
+`.incoming/il(2).json` and `.incoming/ps.json` on disk; CI does not run these HTML files.
+Integrated geodata lives in `dashboard/src/assets/countries.json` and
+`backend/src/data/countries.geojson` (regenerate via `scripts/merge_israel_boundary.py`).
+
 Compare two map styles before integrating into Iron Sight.
 
 | File | Style |

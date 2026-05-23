@@ -9,6 +9,7 @@ import {
   STRATEGIC_METADATA,
   MOBILE_LAYOUT_BREAKPOINT,
   getBoundaryHoles,
+  getBoundaryOuter,
 } from '../../utils/constants';
 import { getFitPadding, boundsKey, resolveOriginPinCoords } from '../../utils/mapGeometry';
 import { useTactical } from '../../context/TacticalContext';
@@ -79,6 +80,43 @@ function MapClickHandler({ onMapClick }) {
   return null;
 }
 
+function IsraelBaseLayer() {
+  const israelBoundary = TACTICAL_BOUNDARIES['Israel'];
+  const israelColor = STRATEGIC_METADATA['Israel']?.color || '#ffffff';
+  const holeStroke = '#8ec5ff';
+  const holes = getBoundaryHoles(israelBoundary);
+
+  return (
+    <>
+      <Polygon
+        key="israel-base-layer"
+        positions={israelBoundary}
+        pathOptions={{
+          color: israelColor,
+          weight: 2,
+          fill: true,
+          fillColor: israelColor,
+          fillOpacity: 0.005,
+          smoothFactor: 1.0,
+          className: 'israel-border-static',
+        }}
+      />
+      {holes.map((ring, i) => (
+        <Polygon
+          key={`israel-hole-stroke-${i}`}
+          positions={ring}
+          pathOptions={{
+            color: holeStroke,
+            weight: 2,
+            fill: false,
+            interactive: false,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
 export default function MapViewer() {
   const {
     mapConfig, renderableEvents, viewMode, archiveEvent,
@@ -110,44 +148,11 @@ export default function MapViewer() {
           maxZoom={mapConfig.maxZoom}
         />
         <ZoomControl position="bottomright" />
-        <MapClickHandler onMapClick={() => { if (window.innerWidth <= 1024) setIsSidebarExpanded(false); }} />
+        <MapClickHandler onMapClick={() => {
+          if (window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT) setIsSidebarExpanded(false);
+        }} />
 
-        {/* Israel Base Layer (cutout fill: outer + Gaza/WB holes) */}
-        {(() => {
-          const israelBoundary = TACTICAL_BOUNDARIES['Israel'];
-          const israelColor = STRATEGIC_METADATA['Israel']?.color || '#ffffff';
-          const holeStroke = '#8ec5ff';
-          const holes = getBoundaryHoles(israelBoundary);
-          return (
-            <>
-              <Polygon
-                key="israel-base-layer"
-                positions={israelBoundary}
-                pathOptions={{
-                  color: israelColor,
-                  weight: 2,
-                  fill: true,
-                  fillColor: israelColor,
-                  fillOpacity: 0.005,
-                  smoothFactor: 1.0,
-                  className: 'israel-border-static',
-                }}
-              />
-              {holes.map((ring, i) => (
-                <Polygon
-                  key={`israel-hole-stroke-${i}`}
-                  positions={ring}
-                  pathOptions={{
-                    color: holeStroke,
-                    weight: 2,
-                    fill: false,
-                    interactive: false,
-                  }}
-                />
-              ))}
-            </>
-          );
-        })()}
+        <IsraelBaseLayer />
 
         {/* Origin Highlights for Timeframe Mode (Unified) */}
         {viewMode === 'timeframe' && (() => {
@@ -160,12 +165,13 @@ export default function MapViewer() {
           });
           return Array.from(uniqueOrigins).map(origin => {
             const boundary = TACTICAL_BOUNDARIES[origin];
+            const outer = getBoundaryOuter(boundary);
             const color = STRATEGIC_METADATA[origin]?.color || tacticalColor;
-            if (!boundary) return null;
+            if (!outer?.length) return null;
             return (
               <React.Fragment key={`timeframe-origin-${origin}`}>
-                <Polygon positions={boundary} pathOptions={{ color, weight: 15, opacity: 0.05, fill: false, className: 'origin-threat-halo' }} />
-                <Polygon positions={boundary} pathOptions={{ fillColor: color, fillOpacity: 0.1, color, weight: 1, className: 'origin-threat-glow' }} />
+                <Polygon positions={outer} pathOptions={{ color, weight: 15, opacity: 0.05, fill: false, className: 'origin-threat-halo' }} />
+                <Polygon positions={outer} pathOptions={{ fillColor: color, fillOpacity: 0.1, color, weight: 1, className: 'origin-threat-glow' }} />
               </React.Fragment>
             );
           });
