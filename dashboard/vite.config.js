@@ -70,6 +70,9 @@ export default defineConfig(async () => ({
   define: {
     __APP_VERSION__: JSON.stringify(versionData.version),
   },
+  build: {
+    sourcemap: false,
+  },
   server: {
     host: true,
     proxy: {
