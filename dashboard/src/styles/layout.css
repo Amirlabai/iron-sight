@@ -339,7 +339,7 @@ body {
     .status-pill.offline,
     .status-pill.sandbox {
         padding: 4px 10px;
-        font-size: 9px;
+        font-size: 6px;
         font-weight: 700;
         letter-spacing: 0.5px;
         gap: 6px;
