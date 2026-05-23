@@ -2,12 +2,12 @@ import {
   ISRAEL_CENTER,
   getDefaultZoom,
   MOBILE_LAYOUT_BREAKPOINT,
-  STRATEGIC_METADATA,
   TACTICAL_BOUNDARIES,
   getTimeframeOverviewZoom,
   flattenBoundary,
   getBoundaryOuter,
 } from './constants';
+import { getZoomLevel, normalizeOriginName, zoomForOrigin } from './mapZoomLevels';
 
 export function getFitPadding() {
   const isMobile = window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT;
@@ -78,32 +78,37 @@ export function getEventTargetPoints(event) {
   return points;
 }
 
-export function calculateBestMapConfig(events) {
+/**
+ * @param {object[]} events
+ * @param {Record<string, number> | null | undefined} mapZoomLevels user overrides from preferences
+ */
+export function calculateBestMapConfig(events, mapZoomLevels = null) {
   const base = { bounds: null, maxZoom: undefined };
+  const overviewZoom = getZoomLevel('overview', mapZoomLevels);
 
   if (!events || events.length === 0) {
-    return { center: ISRAEL_CENTER, zoom: getDefaultZoom(), ...base };
+    return { center: ISRAEL_CENTER, zoom: overviewZoom, ...base };
   }
 
-  const allTrajectories = events.flatMap(e => e.trajectories || []);
+  const allTrajectories = events.flatMap((e) => e.trajectories || []);
 
   if (allTrajectories.length > 0) {
     const allOrigins = [
-      ...allTrajectories.map(t => t.origin),
-      ...events.flatMap(e => e.clusters || []).map(c => c.origin),
+      ...allTrajectories.map((t) => t.origin),
+      ...events.flatMap((e) => e.clusters || []).map((c) => c.origin),
     ];
 
     const uniqueOrigins = new Set(
       allOrigins
-        .filter(o => o && o !== 'Unknown' && o !== 'newsFlash')
-        .map(o => (o === 'North Iran' ? 'Iran' : o))
+        .filter((o) => o && o !== 'Unknown' && o !== 'newsFlash')
+        .map((o) => normalizeOriginName(o)),
     );
 
     let bestTraj = allTrajectories[0];
-    let minZoom = STRATEGIC_METADATA[bestTraj.origin]?.zoom || getDefaultZoom();
+    let minZoom = zoomForOrigin(bestTraj.origin, mapZoomLevels);
 
     for (const traj of allTrajectories) {
-      const z = STRATEGIC_METADATA[traj.origin]?.zoom || getDefaultZoom();
+      const z = zoomForOrigin(traj.origin, mapZoomLevels);
       if (z < minZoom) {
         minZoom = z;
         bestTraj = traj;
@@ -111,7 +116,7 @@ export function calculateBestMapConfig(events) {
     }
 
     if (uniqueOrigins.size > 1) {
-      return { center: ISRAEL_CENTER, zoom: getDefaultZoom(), ...base };
+      return { center: ISRAEL_CENTER, zoom: overviewZoom, ...base };
     }
 
     return {
@@ -124,16 +129,16 @@ export function calculateBestMapConfig(events) {
     };
   }
 
-  const withCenter = events.find(e => e.center);
+  const withCenter = events.find((e) => e.center);
   if (withCenter) {
     return {
       center: withCenter.center,
-      zoom: withCenter.zoom_level || getDefaultZoom(),
+      zoom: withCenter.zoom_level || overviewZoom,
       ...base,
     };
   }
 
-  return { center: ISRAEL_CENTER, zoom: getDefaultZoom(), ...base };
+  return { center: ISRAEL_CENTER, zoom: overviewZoom, ...base };
 }
 
 export function calculateArchiveMapConfig(event) {

@@ -16,6 +16,7 @@ import {
   MOBILE_SIDEBAR_PEEK_PX,
 } from '../../utils/constants';
 import { calculateTimeframeMapConfig } from '../../utils/mapGeometry';
+import { ORIGIN_FILTER_OPTIONS } from '../../utils/mapZoomPresets';
 import { agentDebugBurst, agentDebugLog } from '../../utils/agentDebugLog';
 
 export default function Sidebar() {
@@ -30,9 +31,12 @@ export default function Sidebar() {
     totalClusters, totalTargets, setExpandedRegions,
 
     historyFilter, setHistoryFilter, fetchHistory,
-    timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setViewMode, setMapConfig,
-    renderableEvents, sidebarEvents
+    timeFrame, setTimeFrame, originFilter, setOriginFilter, filteredHistory,
+    mergeTimeFrameClusters, setMergeTimeFrameClusters, setViewMode, setMapConfig,
+    renderableEvents, sidebarEvents,
   } = useTactical();
+
+  const timeframeActive = timeFrame !== 'all';
 
   const [expandedId, setExpandedId] = React.useState(null);
   const seenLiveAlertIds = React.useRef(new Set());
@@ -384,8 +388,40 @@ export default function Sidebar() {
                 )}
               </div>
 
+              <div
+                className={`origin-filters${timeframeActive ? '' : ' origin-filters--inactive'}`}
+                role="group"
+                aria-label="Launch origin filter"
+                aria-disabled={!timeframeActive}
+              >
+                <button
+                  type="button"
+                  className={`filter-tab filter-tab-origin ${originFilter === 'all' ? 'active' : ''}`}
+                  disabled={!timeframeActive}
+                  onClick={() => timeframeActive && setOriginFilter('all')}
+                >
+                  ALL ORIGINS
+                </button>
+                {ORIGIN_FILTER_OPTIONS.map((origin) => (
+                  <button
+                    key={origin}
+                    type="button"
+                    className={`filter-tab filter-tab-origin ${originFilter === origin ? 'active' : ''}`}
+                    disabled={!timeframeActive}
+                    onClick={() => timeframeActive && setOriginFilter(origin)}
+                  >
+                    {origin.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              {!timeframeActive ? (
+                <p className="origin-filters-hint">Select a time window to filter by launch origin.</p>
+              ) : null}
+
               {history.length === 0 ? (
                 <div className="empty-state"><Clock size={48} color="#333" /><p>NO HISTORY RECORDED</p></div>
+              ) : filteredHistory.length === 0 ? (
+                <div className="empty-state"><Clock size={48} color="#333" /><p>NO EVENTS FOR THIS ORIGIN</p></div>
               ) : (
                 <div className="history-list">
                   {sidebarEvents.map((event, i) => {

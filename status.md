@@ -13,7 +13,8 @@
 - [x] Footer: in-flow on desktop; hidden on mobile (bottom sheet zone)
 - [x] Mobile legal nav: header cog menu → About, Accessibility, Privacy, Terms + alert preferences; desktop cog opens preferences panel (not wizard)
 - [x] User map pin: blue dot when GPS inside Israel; opt-out in preferences panel (`showUserLocationOnMap`)
-- [x] `AlertPreferencesPanel`: toggle rows (notify, location, map pin, scope + radius); `israelBounds` + `geoPolygon` utils
+- [x] `AlertPreferencesPanel`: toggle rows (notify, location, map pin, map zoom, scope + radius); `israelBounds` + `geoPolygon` utils
+- [x] Map zoom presets (`mapZoomMode`) and history launch-origin filter (timeframe chips; `mapZoomPresets.js`, `historyFilters.js`)
 - [x] Fast build: `$env:PRERENDER='0'; npm run build` (~10s). Full SEO prerender: default `npm run build` (4 legal routes; may take longer)
 
 ## CSS shell refactor

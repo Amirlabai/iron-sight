@@ -227,6 +227,111 @@ html[data-high-contrast='true'] .pref-switch--on .pref-switch__track {
   background: #ff9500;
 }
 
+.alert-prefs-panel__zoom-levels {
+  padding: 4px 0 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.alert-prefs-panel__zoom-levels-title {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.alert-prefs-panel__zoom-levels-desc {
+  margin: 0 0 10px;
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  line-height: 1.4;
+}
+
+.alert-prefs-panel__zoom-levels-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.alert-prefs-panel__zoom-section {
+  padding: 14px 0 18px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.alert-prefs-panel__zoom-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 4px;
+  border-bottom: none;
+}
+
+.alert-prefs-panel__zoom-section-title {
+  margin: 0 0 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-sub);
+  text-align: left;
+}
+
+.alert-prefs-panel__zoom-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alert-prefs-panel__zoom-group--full .alert-prefs-panel__zoom-level-row {
+  width: 100%;
+}
+
+.alert-prefs-panel__zoom-group--pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+}
+
+.alert-prefs-panel__zoom-level-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.alert-prefs-panel__zoom-level-row label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--text-sub);
+  text-align: left;
+  line-height: 1.3;
+}
+
+.alert-prefs-panel__zoom-input {
+  flex-shrink: 0;
+  width: 4.5rem;
+  min-height: 44px;
+  margin-left: auto;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  text-align: right;
+}
+
+@media (max-width: 1024px) {
+  .alert-prefs-panel__zoom-group--pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+.alert-prefs-panel__zoom-input:focus-visible {
+  outline: 2px solid #ff9500;
+  outline-offset: 2px;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

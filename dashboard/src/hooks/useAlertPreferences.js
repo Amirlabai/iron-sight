@@ -8,6 +8,7 @@ import {
   unsubscribeFromPush,
 } from '../utils/pushClient';
 import { getUserPosition, watchUserPosition, isGeolocationSupported } from '../utils/userLocation';
+import { DEFAULT_MAP_ZOOM_LEVELS } from '../utils/mapZoomLevels';
 
 const STORAGE_KEY = 'iron_sight_alert_prefs';
 
@@ -23,13 +24,19 @@ const DEFAULT_PREFS = {
   pushClientToken: null,
   wizardDismissed: false,
   showUserLocationOnMap: true,
+  mapZoomLevels: { ...DEFAULT_MAP_ZOOM_LEVELS },
 };
 
 function loadPrefs() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_PREFS };
-    return { ...DEFAULT_PREFS, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULT_PREFS,
+      ...parsed,
+      mapZoomLevels: { ...DEFAULT_MAP_ZOOM_LEVELS, ...(parsed.mapZoomLevels || {}) },
+    };
   } catch {
     return { ...DEFAULT_PREFS };
   }

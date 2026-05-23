@@ -6,11 +6,12 @@ import {
   SEEN_ALERTS, GLOBAL_LAST_PLAY_TIME, setGlobalLastPlayTime
 } from '../utils/constants';
 import {
-  calculateBestMapConfig,
   calculateArchiveMapConfig,
   calculateTimeframeMapConfig,
   resolveOriginPinCoords,
 } from '../utils/mapGeometry';
+import { resolveMapConfig } from '../utils/mapZoomPresets';
+import { filterHistoryByOrigin } from '../utils/historyFilters';
 import { getConvexHull, getCentroid, getDistance } from '../utils/geoUtils';
 import missileSound from '../assets/sounds/missile_alert.mp3';
 import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
@@ -131,10 +132,16 @@ export function TacticalProvider({ children }) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('all');
   const [timeFrame, setTimeFrame] = useState('all');
+  const [originFilter, setOriginFilter] = useState('all');
   const [mergeTimeFrameClusters, setMergeTimeFrameClusters] = useState(false);
 
   const alertPrefsApi = useAlertPreferences();
   const { prefs: alertPrefs } = alertPrefsApi;
+  const alertPrefsRef = useRef(alertPrefs);
+
+  useEffect(() => {
+    alertPrefsRef.current = alertPrefs;
+  }, [alertPrefs]);
 
   useAudioEngine(liveEvents, isMuted, alertPrefs);
   useScopedNotifications(liveEvents, alertPrefs);
@@ -243,7 +250,7 @@ export function TacticalProvider({ children }) {
           const events = data.events || [];
           setLiveEvents(events);
 
-          const newConfig = calculateBestMapConfig(events);
+          const newConfig = resolveMapConfig(events, alertPrefsRef.current);
           setMapConfig((prev) => {
             if (
               prev.center[0] === newConfig.center[0] &&
@@ -389,9 +396,14 @@ export function TacticalProvider({ children }) {
     setActiveTab('live');
     setTimeFrame('all');
     setHistoryFilter('all');
-    const newConfig = calculateBestMapConfig(liveEvents);
-    setMapConfig(newConfig);
+    setOriginFilter('all');
+    setMapConfig(resolveMapConfig(liveEvents, alertPrefsRef.current));
   };
+
+  useEffect(() => {
+    if (viewMode !== 'live') return;
+    setMapConfig(resolveMapConfig(liveEvents, alertPrefs));
+  }, [alertPrefs.mapZoomLevels, liveEvents, viewMode]);
 
   const runSandboxAnalysis = async () => {
     if (!sandboxInput.trim()) return;
@@ -425,14 +437,19 @@ export function TacticalProvider({ children }) {
     setActiveTab(tab);
   };
 
+  const filteredHistory = useMemo(
+    () => filterHistoryByOrigin(history, originFilter),
+    [history, originFilter],
+  );
+
   const renderableEvents = useMemo(() => {
     if (viewMode === 'sandbox') return sandboxEvent ? [sandboxEvent] : [];
     if (viewMode === 'archive') return archiveEvent ? [archiveEvent] : [];
     if (viewMode === 'timeframe') {
-      if (!mergeTimeFrameClusters) return history;
+      if (!mergeTimeFrameClusters) return filteredHistory;
 
       const eventGroups = {}; // category_origin -> [events]
-      history.forEach(ev => {
+      filteredHistory.forEach(ev => {
         const category = ev.category || 'missiles';
         const origin = ev.trajectories?.[0]?.origin || ev.clusters?.[0]?.origin || 'unknown';
         const key = `${category}_${origin}`;
@@ -580,13 +597,13 @@ export function TacticalProvider({ children }) {
       return mergedEvents;
     }
     return liveEvents;
-  }, [viewMode, liveEvents, history, archiveEvent, sandboxEvent, mergeTimeFrameClusters]);
+  }, [viewMode, liveEvents, filteredHistory, archiveEvent, sandboxEvent, mergeTimeFrameClusters]);
 
   // Sidebar Logic: Show history stream in sidebar even if viewMode is 'live',
   // but keep the map clean unless a specific event/timeframe is selected.
   const sidebarEvents =
     activeTab === 'archive' && (viewMode === 'live' || viewMode === 'archive')
-      ? history
+      ? filteredHistory
       : renderableEvents;
 
   const hasSimulation = (viewMode === 'live' ? liveEvents : renderableEvents).some(e => e.is_simulation);
@@ -602,9 +619,11 @@ export function TacticalProvider({ children }) {
     citySearch, sandboxInput, tacticalHealth, isSidebarExpanded, historyFilter,
     setViewMode, setActiveTab, setIsMuted, setSandboxEvent,
     setSandboxInput, setCitySearch, setIsSidebarExpanded, setExpandedRegions,
-    setHistoryFilter, selectArchive, toggleCity, toggleRegion, toggleExpand,
+    setHistoryFilter, originFilter, setOriginFilter, filteredHistory,
+    selectArchive, toggleCity, toggleRegion, toggleExpand,
     returnToLive, runSandboxAnalysis, handleTabChange, fetchHistory,
-    renderableEvents, sidebarEvents, hasSimulation, totalClusters, totalTargets,    timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setMapConfig,
+    renderableEvents, sidebarEvents, hasSimulation, totalClusters, totalTargets,
+    timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setMapConfig,
     tacticalColor, highlightColor,
     alertPrefs,
     alertPrefsApi,

@@ -6,6 +6,14 @@ import {
   RADIUS_MIN_KM,
   RADIUS_MAX_KM,
 } from '../../utils/alertMatching';
+import {
+  MAP_ZOOM_LEVEL_SECTIONS,
+  MAP_ZOOM_LEVEL_LABELS,
+  MAP_ZOOM_MIN,
+  MAP_ZOOM_MAX,
+  mergeMapZoomLevels,
+  clampZoomLevel,
+} from '../../utils/mapZoomLevels';
 import PreferenceSwitch from './PreferenceSwitch';
 import './AlertPreferencesPanel.css';
 
@@ -50,6 +58,15 @@ export default function AlertPreferencesPanel({
     setPrefs({ showUserLocationOnMap: on });
   };
 
+  const zoomLevels = mergeMapZoomLevels(prefs.mapZoomLevels);
+
+  const handleZoomLevelChange = (key, raw) => {
+    const value = clampZoomLevel(raw);
+    setPrefs({
+      mapZoomLevels: { ...mergeMapZoomLevels(prefs.mapZoomLevels), [key]: value },
+    });
+  };
+
   const handleScopeChange = (scope) => {
     const effective =
       (scope === 'radius' || scope === 'exact') && !geoGranted ? 'all' : scope;
@@ -61,6 +78,22 @@ export default function AlertPreferencesPanel({
     setPrefs({ radiusKm });
     syncPushFromPrefs?.();
   };
+
+  const renderZoomField = (key) => (
+    <div key={key} className="alert-prefs-panel__zoom-level-row">
+      <label htmlFor={`pref-zoom-${key}`}>{MAP_ZOOM_LEVEL_LABELS[key]}</label>
+      <input
+        id={`pref-zoom-${key}`}
+        type="number"
+        className="alert-prefs-panel__zoom-input"
+        min={MAP_ZOOM_MIN}
+        max={MAP_ZOOM_MAX}
+        step={1}
+        value={zoomLevels[key] ?? MAP_ZOOM_MIN}
+        onChange={(e) => handleZoomLevelChange(key, e.target.value)}
+      />
+    </div>
+  );
 
   return (
     <div
@@ -134,6 +167,42 @@ export default function AlertPreferencesPanel({
                 disabled={!geoGranted}
                 onChange={handleMapPinToggle}
               />
+            </div>
+          </div>
+
+          <div className="alert-prefs-panel__zoom-levels" aria-labelledby="pref-map-zoom-levels-label">
+            <p id="pref-map-zoom-levels-label" className="alert-prefs-panel__zoom-levels-title">
+              Map zoom levels
+            </p>
+            <p className="alert-prefs-panel__zoom-levels-desc">
+              Leaflet zoom 4–14. Live map picks the value for the active threat type or launch country.
+            </p>
+            <div className="alert-prefs-panel__zoom-levels-list">
+              {MAP_ZOOM_LEVEL_SECTIONS.map((section) => (
+                <section
+                  key={section.id}
+                  className={`alert-prefs-panel__zoom-section alert-prefs-panel__zoom-section--${section.id}`}
+                  aria-labelledby={`pref-zoom-section-${section.id}`}
+                >
+                  <h3 id={`pref-zoom-section-${section.id}`} className="alert-prefs-panel__zoom-section-title">
+                    {section.title}
+                  </h3>
+                  <div className="alert-prefs-panel__zoom-section-body">
+                    {section.groups.map((group) => (
+                      <div
+                        key={group.join('-')}
+                        className={
+                          group.length === 1
+                            ? 'alert-prefs-panel__zoom-group alert-prefs-panel__zoom-group--full'
+                            : 'alert-prefs-panel__zoom-group alert-prefs-panel__zoom-group--pair'
+                        }
+                      >
+                        {group.map((key) => renderZoomField(key))}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
             </div>
           </div>
 

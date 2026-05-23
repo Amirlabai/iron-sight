@@ -897,9 +897,48 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.origin-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 15px 10px;
+    overflow: visible;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.origin-filters--inactive {
+    opacity: 0.55;
+}
+
+.origin-filters .filter-tab-origin {
+    flex: 1 1 calc(25% - 5px);
+    min-width: 0;
+    min-height: 40px;
+    justify-content: center;
+    padding: 6px 6px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.origin-filters .filter-tab-origin:first-child {
+    flex: 1 1 100%;
+}
+
+.origin-filters-hint {
+    margin: 0;
+    padding: 0 15px 10px;
+    font-size: 10px;
+    color: var(--text-sub);
+    line-height: 1.4;
+}
+
 @media (max-width: 768px) {
     .history-filters,
-    .timeframe-filters {
+    .timeframe-filters,
+    .origin-filters {
         gap: 6px;
         padding: 8px 12px;
     }
@@ -916,6 +955,16 @@
     }
 
     .timeframe-filters .filter-tab.filter-all-time {
+        flex: 1 1 100%;
+    }
+
+    .origin-filters .filter-tab-origin {
+        flex: 1 1 calc(50% - 4px);
+        min-height: 36px;
+        font-size: 10px;
+    }
+
+    .origin-filters .filter-tab-origin:first-child {
         flex: 1 1 100%;
     }
 

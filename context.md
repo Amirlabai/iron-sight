@@ -208,6 +208,7 @@ Transitioned to Development Alpha.
 - **Alert preferences & scoped push (2026-05-17)**:
     - First visit: step wizard (`AlertPreferencesWizard.jsx`) via `shouldShowAlertWizard`. Later: header cog opens `AlertPreferencesPanel.jsx` (toggle table; mobile bottom sheet, desktop grid rows).
     - Map user pin: `UserLocationMarker.jsx` when GPS granted, `showUserLocationOnMap` not false, and `israelBounds.isLocationInIsrael` (polygon + holes).
+    - Map zoom preset: `mapZoomMode` in prefs (`mapZoomPresets.js` → `resolveMapConfig` on live alerts). History timeframe: `originFilter` + `filterHistoryByOrigin` (client-side; chips in archive sidebar).
     - Post-boot wizard: notification + GPS permissions; scope `all` | `radius` (user slider 3–30 km) | `exact` (hull or 1 km to city).
     - Frontend: `alertMatching.js`, `geoPolygon.js`, `israelBounds.js`, `pushClient.js`, `userLocation.js`, `useAlertPreferences.js`; audio + in-tab notifications filtered by scope.
     - Backend: `push_manager.py`, `alert_matching.py`, Mongo `push_subscriptions`, routes `/api/push/*`; notify on `multi_alert` broadcast with per-subscription dedup.
