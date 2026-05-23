@@ -76,15 +76,17 @@ Includes `pywebpush==2.3.0` and `pytest`.
 - [x] PWA manifest: English description, `lang: en`
 - [x] `.cursor/rules/israeli-accessibility-is5568.mdc`, `review/is-5568-iron-sight.md`
 
-### Search Console (manual after deploy)
+### Search Console (manual — not done in repo)
 
-1. [Google Search Console](https://search.google.com/search-console) — add property `https://iron-sight-drab.vercel.app`, verify (HTML file in `dashboard/public/` when token issued), submit `https://iron-sight-drab.vercel.app/sitemap.xml`
-2. [Bing Webmaster Tools](https://www.bing.com/webmasters) — same sitemap URL
-3. Optional: IndexNow ping on deploy when URLs change
-4. Social card debuggers: validate `/og-image.png` (1200×630)
-5. [Rich Results Test](https://search.google.com/test/rich-results) — WebApplication on `/`, FAQPage on `/about`
+Step-by-step checklist: [docs/GOOGLE_SEARCH_CONSOLE_SETUP.md](docs/GOOGLE_SEARCH_CONSOLE_SETUP.md)
 
-Set `VITE_SITE_URL` in Vercel dashboard env to match production domain.
+1. [ ] Add property `https://iron-sight-drab.vercel.app` in [Google Search Console](https://search.google.com/search-console)
+2. [ ] Verify (HTML file in `dashboard/public/` **or** meta tag in `index.html`)
+3. [ ] Submit sitemap `https://iron-sight-drab.vercel.app/sitemap.xml`
+4. [ ] Optional: URL inspection + request indexing for `/` and `/about`
+5. [ ] Optional: Bing Webmaster Tools, Rich Results Test, OG debugger
+
+Set `VITE_SITE_URL` in Vercel to `https://iron-sight-drab.vercel.app` and redeploy if changed.
 
 ## Dashboard audit fixes (2026-05-23)
 
