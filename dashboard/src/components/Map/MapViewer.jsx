@@ -2,7 +2,14 @@ import React from 'react';
 import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_BOUNDARIES, STRATEGIC_METADATA, MOBILE_LAYOUT_BREAKPOINT } from '../../utils/constants';
+import {
+  ISRAEL_CENTER,
+  DEFAULT_ZOOM,
+  TACTICAL_BOUNDARIES,
+  STRATEGIC_METADATA,
+  MOBILE_LAYOUT_BREAKPOINT,
+  getBoundaryHoles,
+} from '../../utils/constants';
 import { getFitPadding, boundsKey, resolveOriginPinCoords } from '../../utils/mapGeometry';
 import { useTactical } from '../../context/TacticalContext';
 import { formatTime } from '../../utils/formatters';
@@ -105,20 +112,42 @@ export default function MapViewer() {
         <ZoomControl position="bottomright" />
         <MapClickHandler onMapClick={() => { if (window.innerWidth <= 1024) setIsSidebarExpanded(false); }} />
 
-        {/* Israel Base Layer */}
-        <Polygon
-          key="israel-base-layer"
-          positions={TACTICAL_BOUNDARIES['Israel']}
-          pathOptions={{
-            color: STRATEGIC_METADATA['Israel']?.color || '#ffffff',
-            weight: 2,
-            fill: true,
-            fillColor: STRATEGIC_METADATA['Israel']?.color || '#ffffff',
-            fillOpacity: 0.005,
-            smoothFactor: 1.0,
-            className: 'israel-border-static'
-          }}
-        />
+        {/* Israel Base Layer (cutout fill: outer + Gaza/WB holes) */}
+        {(() => {
+          const israelBoundary = TACTICAL_BOUNDARIES['Israel'];
+          const israelColor = STRATEGIC_METADATA['Israel']?.color || '#ffffff';
+          const holeStroke = '#8ec5ff';
+          const holes = getBoundaryHoles(israelBoundary);
+          return (
+            <>
+              <Polygon
+                key="israel-base-layer"
+                positions={israelBoundary}
+                pathOptions={{
+                  color: israelColor,
+                  weight: 2,
+                  fill: true,
+                  fillColor: israelColor,
+                  fillOpacity: 0.005,
+                  smoothFactor: 1.0,
+                  className: 'israel-border-static',
+                }}
+              />
+              {holes.map((ring, i) => (
+                <Polygon
+                  key={`israel-hole-stroke-${i}`}
+                  positions={ring}
+                  pathOptions={{
+                    color: holeStroke,
+                    weight: 2,
+                    fill: false,
+                    interactive: false,
+                  }}
+                />
+              ))}
+            </>
+          );
+        })()}
 
         {/* Origin Highlights for Timeframe Mode (Unified) */}
         {viewMode === 'timeframe' && (() => {

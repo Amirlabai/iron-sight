@@ -78,11 +78,11 @@ Documents **intentional** mobile/dashboard UX decisions so bug fixes do not rein
 
 - `position: absolute; top: 100%; left: …; margin-top: 6px` relative to `.premium-header`.
 - Sits **below** the 45px bar, overlaying the map — **not** inside the bar.
-- Typography: 10px date/time (`layout.css` mobile block). Desktop remains 16px (`App.css` `@media (min-width: 1025px)`).
+- Chip chrome matches `.archive-watermark` (dark glass, 4px radius, blur); colors stay `--text-sub`. Single line: `date | time`, 11px (`layout.css` mobile block). Desktop remains 16px (`layout.css` `@media (min-width: 1025px)`).
 
 ### Desktop header (≥1025px)
 
-- Clock in `.header-bar` between logo and status; `flex: 1` centered. See `App.css` desktop block.
+- Clock in `.header-bar` between logo and status; `flex: 1` centered. See `layout.css` desktop block.
 
 ---
 
@@ -129,7 +129,7 @@ Documents **intentional** mobile/dashboard UX decisions so bug fixes do not rein
 | Concern | Primary files |
 |---------|----------------|
 | Sheet peek / drag | `Sidebar.jsx`, `layout.css` (mobile block), `constants.js` |
-| Header / clock | `layout.css`, `App.css`, `App.jsx` |
+| Header / clock | `layout.css` (shell), `App.css` (clock typography), `App.jsx` |
 | Boot / WS | `TacticalProvider.jsx`, `App.jsx` |
 | PWA colors | `vite.config.js`, `index.html` |
 | Map timing | `MapViewer.jsx` |

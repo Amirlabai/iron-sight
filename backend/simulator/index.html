@@ -279,8 +279,8 @@
         // Loading Data
         async function loadCities() {
             try {
-                const response = await fetch('http://localhost:8080/api/cities');
-                if (!response.ok) throw new Error("Backend not responding or CORS missing");
+                const response = await fetch('/api/cities');
+                if (!response.ok) throw new Error("Backend not responding on :8080");
                 const areas = await response.json();
 
                 for (const area in areas) {
@@ -295,7 +295,7 @@
                 renderCities();
                 log("LOADED " + cities.length + " TACTICAL POINTS.");
             } catch (e) {
-                log("CITIES_ERROR: Ensure main.py is running on :8080 and CORS allows :8081.");
+                log("CITIES_ERROR: Ensure main.py is running on :8080, then refresh. (" + (e.message || e) + ")");
             }
         }
 

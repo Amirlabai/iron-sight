@@ -41,7 +41,8 @@ The frontend for **Iron Sight** is a high-performance, mobile-hardened React app
 | File | Role |
 |------|------|
 | `src/components/Sidebar/Sidebar.jsx` | Bottom sheet drag, peek measurement |
-| `src/styles/layout.css` | Mobile header + sheet CSS (`@media max-width: 1024px`) |
+| `src/styles/layout.css` | Shell layout: desktop (`≥1025px`) + mobile header/sheet (`≤1024px`) |
+| `src/App.css` | Component visuals (colors, panels, map overlays); no shell breakpoint layout |
 | `src/utils/constants.js` | `MOBILE_LAYOUT_BREAKPOINT`, sidebar ratios |
 | `src/App.jsx` | Splash gating, shell mount on `isReady` |
 | `src/context/TacticalProvider.jsx` | WS boot, tab change (no auto-expand) |

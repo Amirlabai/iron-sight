@@ -20,6 +20,7 @@ class TacticalSimulator:
         
         # Simulator Logic Routes
         self.app.router.add_get('/relay', self.relay_handler)
+        self.app.router.add_get('/api/cities', self.cities_proxy_handler)
         self.app.router.add_post('/dispatch', self.dispatch_handler)
         self.app.router.add_post('/end', self.terminate_handler)
         self.app.router.add_get('/active', self.active_handler)
@@ -34,6 +35,28 @@ class TacticalSimulator:
         if os.path.exists(ui_path):
             return web.FileResponse(ui_path)
         return web.Response(text="Dispatcher UI (index.html) not found in simulator directory.", status=404)
+
+    async def cities_proxy_handler(self, request):
+        """Same-origin proxy to the tactical engine city list (avoids browser CORS)."""
+        backend_url = os.getenv("BACKEND_URL", "http://127.0.0.1:8080")
+        try:
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{backend_url.rstrip('/')}/api/cities", timeout=timeout) as resp:
+                    if resp.status != 200:
+                        logger.error(f"CITIES_PROXY: backend returned {resp.status}")
+                        return web.json_response(
+                            {"error": "Backend not responding on :8080"},
+                            status=502,
+                        )
+                    data = await resp.json()
+                    return web.json_response(data)
+        except Exception as e:
+            logger.error(f"CITIES_PROXY_ERROR: {e}")
+            return web.json_response(
+                {"error": "Ensure main.py is running on :8080"},
+                status=502,
+            )
 
     async def relay_handler(self, request):
         """The mock endpoint polled by main.py. Pops all queued payloads."""

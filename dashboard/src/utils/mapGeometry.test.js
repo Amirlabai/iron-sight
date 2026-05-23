@@ -8,7 +8,13 @@ import {
   calculateTimeframeMapConfig,
   getFitPadding,
 } from './mapGeometry.js';
-import { ISRAEL_CENTER, MOBILE_LAYOUT_BREAKPOINT } from './constants.js';
+import {
+  ISRAEL_CENTER,
+  MOBILE_LAYOUT_BREAKPOINT,
+  TACTICAL_BOUNDARIES,
+  isBoundaryWithHoles,
+  flattenBoundary,
+} from './constants.js';
 import { squareHull, missileEventNear, missileEventWithHull } from '../test-utils/fixtures/events.js';
 
 describe('boundsKey', () => {
@@ -126,6 +132,17 @@ describe('calculateTimeframeMapConfig', () => {
     const cfg = calculateTimeframeMapConfig();
     expect(cfg.center).toEqual(ISRAEL_CENTER);
     expect(cfg.zoom).toBeGreaterThan(0);
+  });
+
+  it('should flatten Israel cutout boundary for fit bounds', () => {
+    const israel = TACTICAL_BOUNDARIES['Israel'];
+    expect(isBoundaryWithHoles(israel)).toBe(true);
+    const cfg = calculateTimeframeMapConfig();
+    expect(cfg.bounds).not.toBeNull();
+    expect(cfg.bounds.length).toBeGreaterThan(100);
+    expect(Array.isArray(cfg.bounds[0])).toBe(true);
+    expect(typeof cfg.bounds[0][0]).toBe('number');
+    expect(cfg.bounds).toEqual(flattenBoundary(israel));
   });
 });
 

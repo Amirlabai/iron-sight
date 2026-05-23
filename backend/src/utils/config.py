@@ -2,6 +2,8 @@ import os
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
+_BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+load_dotenv(os.path.join(_BACKEND_DIR, ".env"))
 load_dotenv()
 
 # --- Network Configuration ---
@@ -38,7 +40,11 @@ COLLECTION_LOGS = "event_logs"
 
 # --- Security ---
 MISSION_KEY = os.getenv("MISSION_KEY")
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",")
+    if origin.strip()
+]
 
 # --- Relay Configuration ---
 RELAY_URL = os.getenv("RELAY_URL")

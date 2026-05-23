@@ -60,6 +60,7 @@ class TrackingEngine:
                     loc_name = props.get("location", "").replace("Gaza Strip", "Gaza")
                     geom = feature.get("geometry", {})
                     if geom.get("type") == "Polygon":
+                        # Ring 0 is the outer shell; interior rings (holes) are ignored for ray-cast.
                         raw_coords = geom.get("coordinates", [[]])[0]
                         flipped_coords = [[p[1], p[0]] for p in raw_coords]
                         self.boundaries[loc_name] = flipped_coords

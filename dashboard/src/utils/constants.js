@@ -2,6 +2,12 @@
 // Mobile shell semantics: see .context/MOBILE_SHELL_SPEC.md before changing breakpoints/peek.
 import TACTICAL_GEOJSON from '../assets/countries.json';
 import L from 'leaflet';
+export {
+  isBoundaryWithHoles,
+  flattenBoundary,
+  getBoundaryHoles,
+  getBoundaryOuter,
+} from './boundaryUtils';
 import leafletIcon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
@@ -21,11 +27,17 @@ export const DEFAULT_ZOOM = getDefaultZoom();
 export const getTimeframeOverviewZoom = () => 8;
 
 
+function geoJsonToBoundary(feature) {
+  const rings = feature.geometry.coordinates.map((ring) =>
+    ring.map((p) => [p[1], p[0]])
+  );
+  return rings.length === 1 ? rings[0] : rings;
+}
+
 // Tactical Geodata (derived from GeoJSON at import time)
 export const TACTICAL_BOUNDARIES = TACTICAL_GEOJSON.features.reduce((acc, feature) => {
   const name = feature.properties.location;
-  const coords = feature.geometry.coordinates[0].map(p => [p[1], p[0]]);
-  acc[name] = coords;
+  acc[name] = geoJsonToBoundary(feature);
   return acc;
 }, {});
 

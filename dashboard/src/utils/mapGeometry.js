@@ -5,6 +5,8 @@ import {
   STRATEGIC_METADATA,
   TACTICAL_BOUNDARIES,
   getTimeframeOverviewZoom,
+  flattenBoundary,
+  getBoundaryOuter,
 } from './constants';
 
 export function getFitPadding() {
@@ -35,8 +37,9 @@ export function resolveOriginPinCoords(origin, trajectory = null) {
     return trajectory.marker_coords;
   }
   const boundary = TACTICAL_BOUNDARIES[origin];
-  if (boundary?.length >= 2) {
-    return centroidOf(boundary);
+  const outer = getBoundaryOuter(boundary);
+  if (outer?.length >= 2) {
+    return centroidOf(outer);
   }
   if (trajectory?.origin_coords?.length >= 2) {
     return trajectory.origin_coords;
@@ -158,8 +161,8 @@ export function calculateArchiveMapConfig(event) {
 }
 
 export function calculateTimeframeMapConfig() {
-  const israelBoundary = TACTICAL_BOUNDARIES['Israel'];
-  const bounds = israelBoundary?.length >= 2 ? israelBoundary : null;
+  const flat = flattenBoundary(TACTICAL_BOUNDARIES['Israel']);
+  const bounds = flat.length >= 2 ? flat : null;
 
   return {
     center: ISRAEL_CENTER,

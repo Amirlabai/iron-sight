@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Israel boundary mock — interior outlines</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #0b0f14; color: #e8ecf0; }
+    header { padding: 12px 16px; border-bottom: 1px solid #243040; }
+    h1 { margin: 0 0 6px; font-size: 1.1rem; font-weight: 600; }
+    p { margin: 0; font-size: 0.85rem; color: #9aa8b8; max-width: 52rem; line-height: 1.45; }
+    #map { height: calc(100vh - 88px); width: 100%; }
+    .badge { display: inline-block; margin-top: 8px; padding: 2px 8px; border-radius: 4px; background: #1a2a3d; color: #7eb8ff; font-size: 0.75rem; }
+    a { color: #7eb8ff; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Style A — interior outlines only</h1>
+    <p>
+      High-resolution Israel fill from <code>il(2).json</code>, with Gaza Strip and West Bank from
+      <code>ps.json</code> drawn as inner border lines (no fill cutout). Compare with
+      <a href="israel-boundary-mock-cutout.html">Style B (cutout)</a>.
+    </p>
+    <span class="badge">Open via local server from repo root (see scratch/README-boundary-mocks.md)</span>
+  </header>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const ISRAEL_BLUE = '#4d94ff';
+    const INTERIOR_STROKE = '#8ec5ff';
+
+    function ringToLatLng(ring) {
+      return ring.map(([lng, lat]) => [lat, lng]);
+    }
+
+    async function loadGeo() {
+      const [ilRes, psRes] = await Promise.all([
+        fetch('../.incoming/il(2).json'),
+        fetch('../.incoming/ps.json'),
+      ]);
+      if (!ilRes.ok || !psRes.ok) {
+        throw new Error('Could not load .incoming GeoJSON. Serve the repo root with a local HTTP server.');
+      }
+      const il = await ilRes.json();
+      const ps = await psRes.json();
+      const outer = ringToLatLng(il.features[0].geometry.coordinates[0]);
+      const interiors = ps.features.map((f) => ringToLatLng(f.geometry.coordinates[0]));
+      return { outer, interiors, labels: ps.features.map((f) => f.properties.name) };
+    }
+
+    loadGeo().then(({ outer, interiors, labels }) => {
+      const map = L.map('map', { zoomControl: true }).setView([31.5, 35.2], 8);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OSM &copy; CARTO',
+        maxZoom: 18,
+      }).addTo(map);
+
+      L.polygon(outer, {
+        color: ISRAEL_BLUE,
+        weight: 2,
+        fillColor: ISRAEL_BLUE,
+        fillOpacity: 0.08,
+      }).addTo(map);
+
+      interiors.forEach((ring, i) => {
+        L.polygon(ring, {
+          color: INTERIOR_STROKE,
+          weight: 2,
+          dashArray: '6 4',
+          fill: false,
+        }).addTo(map).bindTooltip(labels[i] || 'Interior', { sticky: true });
+      });
+
+      const all = outer.concat(...interiors);
+      map.fitBounds(L.latLngBounds(all), { padding: [40, 40] });
+    }).catch((err) => {
+      document.getElementById('map').innerHTML =
+        '<div style="padding:24px;color:#f88;">' + err.message + '</div>';
+    });
+  </script>
+</body>
+</html>

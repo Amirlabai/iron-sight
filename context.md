@@ -28,7 +28,7 @@ It converts raw Pikud HaOref API feeds into actionable intelligence through real
 - **Deployment**: Render (Backend) / Vercel (Frontend) / Kamatera (Relay)
 - **`dashboard/` (Intelligence Dashboard)**: Premium Vite + React command interface.
     - **Map Dynamics**: Leaflet-driven strategic view with Origin-to-Israel corridor auto-centering.
-    - **Tactical Silhouettes**: 360° high-res 4K-Tactical border rendering (`tactical_geodata.js`).
+    - **Tactical Silhouettes**: Country borders from `dashboard/src/assets/countries.json` (Israel: high-res outer ring with Gaza/West Bank cutout holes; origin regions unchanged). Regenerate via `scripts/merge_israel_boundary.py` from `.incoming/il(2).json` and `.incoming/ps.json`.
     - **Mission Archive**: Historical rewind and playback telemetry synchronized with backend logs. Streamlined observer-only interface.
     - **Aesthetics**: Military-grade Glassmorphic UI with responsive glows and **calibrated radar scans**.
 
@@ -36,6 +36,7 @@ It converts raw Pikud HaOref API feeds into actionable intelligence through real
 Transitioned to Development Alpha.
 
 ### RECENT OPERATIONS
+- **Israel boundary cutout**: Replaced simplified Israel silhouette with SimpleMaps outer ring plus Gaza/West Bank polygon holes (cutout fill on map); merge script `scripts/merge_israel_boundary.py`.
 - **Uplink Consolidation**: Established the Israeli Relay Bridge as the sole tactical uplink.
 - **Protocol Alignment**: Standardized all cross-system communication via the [SCP](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md).
 - **Reset Protocol Hardening**: Shortened dashboard reset delay to 10s for explicit "Event Ended" signals, with immediate backend state purging.
@@ -196,7 +197,8 @@ Transitioned to Development Alpha.
     - `components/Map/ThreatOverlay.jsx`: Per-event rendering of clusters, trajectories, origin highlights, TrackingDrone.
     - `components/Header/TacticalClock.jsx`: Real-time Jerusalem (Asia) time synchronization.
     - `components/Sidebar/Sidebar.jsx`: Modular drawer with Live/History/Sandbox panels and mobile drag behavior.
-    - `styles/layout.css`: Structural layout rules (grid, flex, mobile breakpoints).
+    - `styles/layout.css`: Shell geometry (grid, flex, desktop ≥1025px + mobile ≤1024px breakpoints).
+    - `App.css`: Component visuals only (no shell `@media` layout).
     - `styles/animations.css`: All @keyframes and animation-applying utility classes.
     - **Security Awareness**: Migrating to server-side secrets for `RELAY_AUTH_KEY`; ensuring zero hardcoded credentials in relay bridge.
     - Plan: [.open_work/frontend_modularization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/frontend_modularization.md)

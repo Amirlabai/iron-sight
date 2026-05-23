@@ -1,6 +1,18 @@
 # Iron Sight — Status
 
-**Updated:** 2026-05-17
+**Updated:** 2026-05-23
+
+## CSS shell refactor
+
+- [x] Desktop header/sidebar shell layout consolidated in `dashboard/src/styles/layout.css` (≥1025px + ≤1024px)
+- [x] `App.css` — component visuals only; `returnLiveFadeIn` in `animations.css`
+- [x] `npm run build` (dashboard) passes
+
+## Israel boundary cutout (map)
+
+- [x] Merged `.incoming/il(2).json` + `.incoming/ps.json` into Israel polygon (outer + Gaza/WB holes) via `scripts/merge_israel_boundary.py`
+- [x] Updated `dashboard/src/assets/countries.json` and `backend/src/data/countries.geojson`
+- [x] Dashboard: cutout fill + interior stroke overlays in `MapViewer.jsx`; `boundaryUtils.js` + timeframe bounds fix
 
 ## Signal Flare (scoped push)
 

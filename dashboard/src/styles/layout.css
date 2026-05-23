@@ -1,4 +1,8 @@
-/* --- IRON SIGHT: Layout Foundation (FE-MODULAR-S1) --- */
+/* --- IRON SIGHT: Layout Foundation (FE-MODULAR-S1) ---
+   Shell geometry: grid/flex, header, sidebar, map structure.
+   Breakpoints: desktop ≥1025px, mobile ≤1024px (see .context/MOBILE_SHELL_SPEC.md).
+   Component colors/chrome -> App.css | Keyframes -> animations.css
+*/
 /* Fonts loaded via index.html preconnect + stylesheet */
 
 :root {
@@ -147,6 +151,60 @@ body {
     display: none;
 }
 
+/* --- Desktop shell (≥1025px) --- */
+@media (min-width: 1025px) {
+    .premium-header {
+        display: block;
+    }
+
+    .header-bar {
+        flex-wrap: nowrap;
+        height: 100%;
+        min-height: 80px;
+        gap: 12px;
+    }
+
+    .logo-section {
+        flex: 0 0 auto;
+        min-width: 0;
+    }
+
+    .tactical-clock {
+        flex: 1 1 auto;
+        order: 0;
+        width: auto;
+        justify-content: center;
+        position: static;
+        top: auto;
+        left: auto;
+        right: auto;
+        margin: 0;
+        transform: none;
+        flex-direction: row;
+        padding: 0;
+        min-width: 0;
+        background: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        pointer-events: auto;
+        z-index: 1;
+    }
+
+    .status-section {
+        flex: 0 0 auto;
+        min-width: 0;
+    }
+
+    .clock-date,
+    .clock-time {
+        display: inline;
+        width: auto;
+        font-size: 16px;
+        line-height: 1.25;
+    }
+}
+
 /* --- Mobile Adaptability (see .context/MOBILE_SHELL_SPEC.md) --- */
 @media (max-width: 1024px) {
     :root {
@@ -264,6 +322,7 @@ body {
         align-self: center;
     }
 
+    /* Map-overlay chip — same chrome as .archive-watermark; clock keeps --text-sub */
     .tactical-clock {
         position: absolute;
         top: 100%;
@@ -275,31 +334,36 @@ body {
         flex: none;
         order: unset;
         width: auto;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 2px;
-        padding: 5px 10px;
-        background: rgba(255, 255, 255, 0.02);
+        flex-direction: row;
+        align-items: center;
+        gap: 0;
+        padding: 8px 15px;
+        background: rgba(0, 0, 0, 0.6);
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: 4px;
         opacity: 1;
         pointer-events: none;
         box-shadow: none;
-        backdrop-filter: none;
+        backdrop-filter: blur(5px);
     }
 
     .clock-date,
     .clock-time {
-        display: block;
-        width: 100%;
+        display: inline;
+        width: auto;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 400;
-        letter-spacing: 0.4px;
-        line-height: 1.15;
+        letter-spacing: 1px;
+        line-height: 1.2;
         color: var(--text-sub);
         min-width: unset;
         text-align: left;
+    }
+
+    .clock-date::after {
+        content: ' | ';
+        opacity: 0.7;
     }
 
     .leaflet-bottom.leaflet-right {
@@ -329,8 +393,18 @@ body {
         height: 12px;
     }
 
-    .icon-btn {
-        padding: 4px;
+    .status-section .icon-btn {
+        padding: 0;
+        min-width: 28px;
+        min-height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .status-section .icon-btn svg {
+        width: 18px;
+        height: 18px;
     }
 
     .status-pill,
@@ -339,12 +413,15 @@ body {
     .status-pill.offline,
     .status-pill.sandbox {
         padding: 4px 10px;
-        font-size: 6px;
+        font-size: 10px;
         font-weight: 700;
         letter-spacing: 0.5px;
         gap: 6px;
         line-height: 1.2;
         white-space: nowrap;
+        max-width: 55vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .status-pill .pulse-dot {
@@ -352,14 +429,36 @@ body {
         height: 5px;
     }
 
-    .status-pill,
-    .status-pill.online,
-    .status-pill.degraded,
-    .status-pill.offline,
-    .status-pill.sandbox {
-        max-width: 55vw;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .return-live-btn.header-return-live-btn {
+        display: none !important;
+    }
+
+    .return-to-live-btn.sidebar-return-live {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 48px;
+        background: #ff3b30;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        border: none;
+        cursor: pointer;
+        z-index: var(--z-return-live, 2700);
+        border-radius: 0;
+        box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+        pointer-events: auto;
+        bottom: calc(var(--mobile-sheet-peek, 44px) + env(safe-area-inset-bottom) + 8px);
+        animation: returnLiveFadeIn 0.25s ease-out;
+    }
+
+    .return-to-live-btn.sidebar-return-live:active {
+        opacity: 0.85;
     }
 
     .sidebar-tabs {

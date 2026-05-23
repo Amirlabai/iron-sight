@@ -8,6 +8,12 @@ import { useTactical } from './context/TacticalContext';
 import MapViewer from './components/Map/MapViewer';
 import Sidebar from './components/Sidebar/Sidebar';
 import TacticalClock from './components/Header/TacticalClock';
+import { useMobileLayout } from './hooks/useMobileLayout';
+import {
+  getLiveStatusPillAriaLabel,
+  getLiveStatusPillLabel,
+  getSandboxStatusPillLabel,
+} from './utils/statusLabels';
 import './styles/layout.css';
 import './styles/animations.css';
 import './App.css';
@@ -59,6 +65,10 @@ function AppShell() {
     completeOnboarding,
   } = alertPrefsApi;
 
+  const isMobile = useMobileLayout();
+  const iconSize = isMobile ? 18 : 20;
+  const statusCompact = isMobile;
+
   return (
     <div className={`dashboard-container ${viewMode} ${isSidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
       <AnimatePresence>
@@ -84,10 +94,10 @@ function AppShell() {
             onClick={openWizard}
             aria-label="Alert notification preferences"
           >
-            <Bell size={20} />
+            <Bell size={iconSize} />
           </button>
           <button className="icon-btn" onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? "Unmute Tactical Audio" : "Mute Tactical Audio"}>
-            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            {isMuted ? <VolumeX size={iconSize} /> : <Volume2 size={iconSize} />}
           </button>
 
           {(viewMode === 'archive' || viewMode === 'timeframe') && (
@@ -97,13 +107,12 @@ function AppShell() {
           )}
 
           {viewMode === 'live' && (
-            <div className={`status-pill ${isConnected ? (tacticalHealth.status === 'DEGRADED' ? 'degraded' : 'online') : 'offline'}`}>
+            <div
+              className={`status-pill ${isConnected ? (tacticalHealth.status === 'DEGRADED' ? 'degraded' : 'online') : 'offline'}`}
+              aria-label={getLiveStatusPillAriaLabel(isConnected, tacticalHealth)}
+            >
               <div className="pulse-dot"></div>
-              {isConnected ? (
-                tacticalHealth.status === 'DEGRADED'
-                  ? `UPLINK DEGRADED`
-                  : `LIVE INTERCEPT: ${tacticalHealth.source}`
-              ) : 'RECONNECTING...'}
+              {getLiveStatusPillLabel(isConnected, tacticalHealth, { compact: statusCompact })}
             </div>
           )}
 
@@ -112,9 +121,9 @@ function AppShell() {
               <button className="return-live-btn sandbox" onClick={() => { setViewMode('live'); setSandboxEvent(null); }}>
                 <RotateCcw size={16} /> TERMINATE ANALYSIS
               </button>
-              <div className="status-pill sandbox">
+              <div className="status-pill sandbox" aria-label={getSandboxStatusPillLabel()}>
                 <div className="pulse-dot"></div>
-                TACTICAL SANDBOX ACTIVE
+                {getSandboxStatusPillLabel({ compact: statusCompact })}
               </div>
             </div>
           )}
