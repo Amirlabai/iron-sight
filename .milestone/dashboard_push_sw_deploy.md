@@ -83,3 +83,25 @@ npm run build
 ## Authorization
 
 Implementation is staged locally. Await explicit user go-ahead to commit, push, and trigger Vercel production deploy.
+
+---
+
+## Implementation Record
+
+Completed: 2026-05-23
+
+### Changes Deployed
+
+| File | Change |
+|---|---|
+| `dashboard/vite.config.js` | `injectRegister: null` |
+| `dashboard/src/main.jsx` | `registerSW({ immediate: true })` |
+| `dashboard/src/sw.js` | `skipWaiting` + `clients.claim` |
+| `dashboard/src/utils/pushClient.js` | `ensureServiceWorkerRegistration`, 20s timeout |
+| `dashboard/src/hooks/useAlertPreferences.js` | `push_sw_pending` deferred path |
+| `dashboard/src/utils/pushClient.test.js` | SW registration mocks |
+| `status.md` | Wizard row + Signal Flare note aligned |
+
+### Summary
+
+Shipped via `a2ecbe9` to Vercel prod. Cold-load wizard no longer hangs on deferred SW; push waits for `reg.active`. Deferred follow-ups: wizard reload copy, optional boot push retry.

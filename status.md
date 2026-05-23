@@ -108,6 +108,6 @@ Set `VITE_SITE_URL` in Vercel to `https://iron-sight-drab.vercel.app` and redepl
 ## Deploy
 
 - [x] **MISSION**: Backend + dashboard production deploy (DEPLOY-2026-05-23) — [.milestone/backend_render_vercel_deploy.md](.milestone/backend_render_vercel_deploy.md)
-- [x] **MISSION**: Dashboard push / SW boot deploy (DASH-PUSH-SW-01) — Vercel bundle `index-C_zZ1TCF.js`; SW active on prod; `/api` proxy + direct WS to Render confirmed
+- [x] **MISSION**: Dashboard push / SW boot deploy (DASH-PUSH-SW-01) — [.milestone/dashboard_push_sw_deploy.md](.milestone/dashboard_push_sw_deploy.md)
 
 Post-deploy smoke (2026-05-23): health OK, VAPID public key matches Render/Vercel, `POST /api/history/update` → 401, dashboard map loads, `/api/history?hours=24` returns data.

@@ -38,7 +38,7 @@ Transitioned to Development Alpha.
 
 ### RECENT OPERATIONS
 - **Production deploy (DEPLOY-2026-05-23, shipped)**: Dashboard push/SW boot fixes live on Vercel (`a2ecbe9`, v0.23.0). Render backend OPERATIONAL with relay ingest, VAPID, `MISSION_KEY`, CORS to `iron-sight-drab.vercel.app`. Prod WS direct to `wss://iron-sight-hjwf.onrender.com/ws`; REST via Vercel `/api` rewrite. Plan: [.milestone/backend_render_vercel_deploy.md](.milestone/backend_render_vercel_deploy.md).
-- **Dashboard push / SW boot (DASH-PUSH-SW-01, shipped)**: Immediate `registerSW`, `skipWaiting`/`clients.claim`, `ensureServiceWorkerRegistration`; deferred `push_sw_pending` when SW not active. Plan: [.open_work/dashboard_push_sw_deploy.md](.open_work/dashboard_push_sw_deploy.md).
+- **Dashboard push / SW boot (DASH-PUSH-SW-01, shipped)**: Immediate `registerSW`, `skipWaiting`/`clients.claim`, `ensureServiceWorkerRegistration`; deferred `push_sw_pending` when SW not active. Plan: [.milestone/dashboard_push_sw_deploy.md](.milestone/dashboard_push_sw_deploy.md).
 - **Israel boundary cutout**: Replaced simplified Israel silhouette with SimpleMaps outer ring plus Gaza/West Bank polygon holes (cutout fill on map); merge script `scripts/merge_israel_boundary.py`.
 - **Uplink Consolidation**: Established the Israeli Relay Bridge as the sole tactical uplink.
 - **Protocol Alignment**: Standardized all cross-system communication via the [SCP](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/COMMUNICATION_PROTOCOL.md).
