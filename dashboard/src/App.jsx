@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Activity, Zap, Volume2, VolumeX, Radio, RotateCcw, Terminal, Shield, Bell } from 'lucide-react';
+import { Activity, Zap, Volume2, VolumeX, Radio, RotateCcw, Terminal, Shield } from 'lucide-react';
+import HeaderSettingsControl from './components/HeaderSettingsControl';
 import { Analytics } from '@vercel/analytics/react';
 import AlertPreferencesWizard from './components/Onboarding/AlertPreferencesWizard';
 import SEO from './components/SEO';
@@ -122,14 +123,12 @@ function TacticalDashboard() {
             <TacticalClock />
 
             <div className="status-section">
-              <button
-                type="button"
-                className={`icon-btn ${alertPrefs.scope !== 'all' ? 'icon-btn-active' : ''}`}
-                onClick={openWizard}
-                aria-label="Alert notification preferences"
-              >
-                <Bell size={iconSize} />
-              </button>
+              <HeaderSettingsControl
+                isMobile={isMobile}
+                iconSize={iconSize}
+                prefsActive={alertPrefs.scope !== 'all'}
+                onOpenPreferences={openWizard}
+              />
               <button type="button" className="icon-btn" onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? 'Unmute Tactical Audio' : 'Mute Tactical Audio'}>
                 {isMuted ? <VolumeX size={iconSize} /> : <Volume2 size={iconSize} />}
               </button>

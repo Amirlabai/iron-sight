@@ -17,6 +17,7 @@ Full summary of SEO, legal pages, accessibility UI, and dashboard fixes on **iro
 | Build | Prerender **legal routes only** (not `/` map). Optional `PRERENDER=0` for fast CI builds |
 | Black screen | Fixed react-helmet-async crash, prerender mismatch, Framer/reduced-motion traps |
 | Legal UX | Single scrollbar, viewport-fixed high-contrast overlay, no splash when returning from legal pages in same session |
+| Legal nav on map | Desktop: in-flow `SiteFooter` (compact). Mobile (≤1024px): footer hidden; legal links in header **Settings** cog menu (`HeaderSettingsControl`) |
 | Map dev | Vite proxy for `/api` and `/ws`; do not point `VITE_WS_URL` at `:8080` in dev (CORS) |
 
 **Language policy (iron-sight):**
@@ -42,12 +43,14 @@ dashboard/
     llms.txt
   src/
     main.jsx              # HelmetProvider; imports a11y toolbar CSS globally
-    App.jsx               # Routes; TacticalDashboard + splash
+    App.jsx               # Routes; TacticalDashboard + splash; header Settings cog
     config/seoConfig.js   # Routes, keywords, JSON-LD helpers
     components/
       SEO.jsx             # Helmet — NO function components inside <Helmet>
       LegalPageLayout.jsx
-      SiteFooter.jsx
+      SiteFooter.jsx      # Full footer on legal pages; compact on desktop map only
+      HeaderSettingsControl.jsx  # Cog: desktop → prefs wizard; mobile → menu + legal links
+      HeaderSettingsControl.css
       CookieNotice.jsx
       AccessibilityToolbar.jsx  # Map vs legal (portal to #a11y-viewport-overlay)
     pages/                  # About, Accessibility, Privacy, Terms, NotFound
@@ -205,9 +208,22 @@ dashboard/
 
     Vite proxy `/api` and `/ws` → backend `localhost:8080`.
 
+28. **Header settings (map route)** — `HeaderSettingsControl` in `App.jsx` (`useMobileLayout`, breakpoint ≤1024px):
+
+    | Viewport | Cog behavior |
+    |----------|----------------|
+    | Desktop (≥1025px) | Single click opens **Alert preferences** wizard (`openWizard` from `useAlertPreferences`). Same as former bell button. `aria-label`: “Alert notification preferences”. |
+    | Mobile (≤1024px) | Click toggles dropdown `role="menu"`: **Alert preferences** + links to `/about`, `/accessibility`, `/privacy`, `/terms`. Escape or outside click closes. `aria-expanded` / `aria-haspopup="menu"`. |
+
+    **Why:** `layout.css` hides `.dashboard-container .site-footer--compact` on mobile so the bottom sheet is unobstructed. Legal pages still use full `SiteFooter` via `LegalPageLayout`.
+
+    **Active state:** `icon-btn-active` when alert scope ≠ `all` (scoped prefs), desktop and mobile.
+
+    **Cookie banner:** Still links to `/privacy#cookies` on first visit; not a substitute for ongoing legal nav on mobile.
+
 ### Phase G — Build and deploy
 
-28. Local:
+29. Local:
 
     ```powershell
     cd dashboard
@@ -217,9 +233,9 @@ dashboard/
     npm run dev
     ```
 
-29. Vercel: set `VITE_SITE_URL`, framework preset Vite, `vercel.json` API rewrites if needed.
+30. Vercel: set `VITE_SITE_URL`, framework preset Vite, `vercel.json` API rewrites if needed.
 
-30. After deploy — Search Console:
+31. After deploy — Search Console:
 
     - Add property, verify, submit `sitemap.xml`
     - Rich Results Test on `/` and `/about`
@@ -238,7 +254,8 @@ Use this when something looks “broken” or pitch black.
 | Black after production build, OK in dev | Prerendered `/` HTML ≠ SPA | Remove `/` from prerender routes |
 | Black + splash forever | `isReady` never true, WS down | Backend up; 6s fallback; check WS URL |
 | Black but header visible, no map tiles | Carto CDN blocked | Network tab `basemaps.cartocdn.com` |
-| Wizard/fullscreen dark overlay | Alert prefs wizard open | Bell icon / dismiss wizard |
+| Wizard/fullscreen dark overlay | Alert prefs wizard open | Header **Settings** cog → Alert preferences, or dismiss wizard |
+| Mobile: no legal links on map | Footer hidden ≤1024px | Header cog menu → About / Accessibility / Privacy / Terms |
 | Two scrollbars on legal pages | `body` + `.legal-page-shell` both scroll | Single scroll on `body` only |
 | High contrast at footer, scrolls away | Overlay CSS not loaded | `import './AccessibilityToolbar.css'` + `main.jsx` import |
 | High contrast not fixed on legal | Same as above | `#a11y-viewport-overlay` + portal + inline fixed styles |
@@ -266,7 +283,9 @@ getComputedStyle(document.getElementById('a11y-viewport-overlay')).position  // 
 - [ ] High contrast on map still works
 - [ ] Legal → map: no splash (same tab, after first boot)
 - [ ] Cookie accept enables analytics only after accept
-- [ ] All footer links resolve
+- [ ] Desktop map: compact footer links resolve (About, Accessibility, Privacy, Terms)
+- [ ] Desktop map: header Settings cog opens alert preferences wizard only
+- [ ] Mobile map: header Settings cog menu lists preferences + all four legal routes
 
 ### SEO
 
@@ -283,7 +302,9 @@ getComputedStyle(document.getElementById('a11y-viewport-overlay')).position  // 
 
 ### Mobile
 
-- [ ] Legal pages scroll on phone
+- [ ] Legal pages scroll on phone; full footer on legal routes
+- [ ] Map (≤1024px): compact footer not shown; cog menu reaches legal pages
+- [ ] Cog menu closes on outside tap and Escape
 - [ ] Overlay button not hidden behind home indicator (safe-area)
 - [ ] Map tested on LAN via `vite --host` if needed
 
@@ -308,6 +329,7 @@ If tournament shares the **same Vercel + React stack**, copy file-by-file:
 | `LegalPageLayout.jsx` | Adjust branding links |
 | `LegalPage.css` | Reuse scroll + overlay rules |
 | `AccessibilityToolbar.jsx` + `.css` | Reuse portal pattern |
+| `HeaderSettingsControl.jsx` + `.css` | Copy if map hides footer on mobile; adjust `LEGAL_LINKS` |
 | `vite.config.js` prerender list | Match your static routes |
 | `generate-sitemap.mjs` | Update route list |
 
@@ -334,4 +356,4 @@ If tournament shares the **same Vercel + React stack**, copy file-by-file:
 
 ---
 
-*Last updated: 2026-05-23 — iron-sight dashboard SEO v1.2 + legal UI fixes.*
+*Last updated: 2026-05-23 — iron-sight dashboard SEO v1.2 + legal UI fixes + mobile header Settings menu (legal nav).*

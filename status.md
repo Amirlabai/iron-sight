@@ -11,6 +11,7 @@
 - [x] Splash: plain DOM overlay; dashboard header/map mount underneath; no wizard auto-open
 - [x] `prefers-reduced-motion` guard for splash/wizard opacity
 - [x] Footer: in-flow on desktop; hidden on mobile (bottom sheet zone)
+- [x] Mobile legal nav: header cog menu → About, Accessibility, Privacy, Terms + alert preferences; desktop cog opens preferences only
 - [x] Fast build: `$env:PRERENDER='0'; npm run build` (~10s). Full SEO prerender: default `npm run build` (4 legal routes; may take longer)
 
 ## CSS shell refactor
