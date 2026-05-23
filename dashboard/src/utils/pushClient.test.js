@@ -130,7 +130,7 @@ describe('patchPushLocation', () => {
   it('should return ok true when patch succeeds', async () => {
     fetch.mockResolvedValue({ ok: true, status: 200 });
     const result = await patchPushLocation('http://ep', [32.0, 34.0], 'tok');
-    expect(result).toEqual({ ok: true });
+    expect(result).toEqual({ ok: true, status: 200 });
   });
 });
 

@@ -231,19 +231,32 @@ export function useAlertPreferences() {
 
   useEffect(() => {
     if (!prefs.geoPermission || prefs.geoPermission === 'denied') return undefined;
-    if (!prefs.location) return undefined;
+
+    let lastPatchAt = 0;
+    const PATCH_MIN_MS = 30_000;
 
     return watchUserPosition((loc) => {
-      setPrefs({
+      setPrefs((prev) => ({
+        ...prev,
         location: loc,
         locationUpdatedAt: new Date().toISOString(),
-      });
+      }));
+
       const { pushEndpoint, pushClientToken } = prefsRef.current;
-      if (pushEndpoint) {
-        patchPushLocation(pushEndpoint, loc, pushClientToken);
-      }
+      if (!pushEndpoint || !pushClientToken) return;
+
+      const now = Date.now();
+      if (now - lastPatchAt < PATCH_MIN_MS) return;
+      lastPatchAt = now;
+
+      patchPushLocation(pushEndpoint, loc, pushClientToken).then((result) => {
+        if (result.ok) return;
+        if (result.status === 401 || result.status === 404) {
+          setPrefs({ pushEndpoint: null, pushClientToken: null });
+        }
+      });
     });
-  }, [prefs.geoPermission, prefs.location, setPrefs]);
+  }, [prefs.geoPermission, setPrefs]);
 
   return {
     prefs,

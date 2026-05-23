@@ -187,5 +187,5 @@ export async function patchPushLocation(endpoint, location, clientToken) {
   if (!res.ok && !import.meta.env.PROD) {
     console.warn('patchPushLocation failed:', res.status, endpoint);
   }
-  return { ok: res.ok };
+  return { ok: res.ok, status: res.status };
 }
