@@ -1,5 +1,6 @@
 import { getEventTargetPoints } from './mapGeometry';
 import { getDistance } from './geoUtils';
+import { pointInPolygon } from './geoPolygon';
 
 export const EXACT_MATCH_KM = 1;
 export const DEFAULT_RADIUS_KM = 10;
@@ -7,21 +8,6 @@ export const RADIUS_MIN_KM = 3;
 export const RADIUS_MAX_KM = 30;
 
 export { getEventTargetPoints };
-
-function pointInPolygon(point, polygon) {
-  if (!polygon || polygon.length < 3) return false;
-  const [lat, lng] = point;
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const [yi, xi] = polygon[i];
-    const [yj, xj] = polygon[j];
-    const intersect =
-      yi > lat !== yj > lat &&
-      lng < ((xj - xi) * (lat - yi)) / (yj - yi + 1e-12) + xi;
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
 
 function getClusterHulls(event) {
   const hulls = [];

@@ -4,6 +4,8 @@ import { Activity, Zap, Volume2, VolumeX, Radio, RotateCcw, Terminal, Shield } f
 import HeaderSettingsControl from './components/HeaderSettingsControl';
 import { Analytics } from '@vercel/analytics/react';
 import AlertPreferencesWizard from './components/Onboarding/AlertPreferencesWizard';
+import AlertPreferencesPanel from './components/Settings/AlertPreferencesPanel';
+import { shouldShowAlertWizard } from './hooks/useAlertPreferences';
 import SEO from './components/SEO';
 import SiteFooter from './components/SiteFooter';
 import CookieNotice from './components/CookieNotice';
@@ -72,15 +74,26 @@ function TacticalDashboard() {
   const {
     showWizard,
     openWizard,
+    showPreferencesPanel,
+    openPreferencesPanel,
+    closePreferencesPanel,
     skipOnboarding,
     requestNotificationPermission,
     requestGeolocation,
     completeOnboarding,
+    setPrefs,
+    syncPushFromPrefs,
   } = alertPrefsApi;
 
   const isMobile = useMobileLayout();
   const iconSize = isMobile ? 18 : 20;
   const statusCompact = isMobile;
+
+  React.useEffect(() => {
+    if (shouldShowAlertWizard(isReady, alertPrefs)) {
+      openWizard();
+    }
+  }, [isReady, alertPrefs.complete, alertPrefs.wizardDismissed, openWizard]);
 
   React.useEffect(() => {
     if (typeof PerformanceObserver === 'undefined') return undefined;
@@ -127,7 +140,7 @@ function TacticalDashboard() {
                 isMobile={isMobile}
                 iconSize={iconSize}
                 prefsActive={alertPrefs.scope !== 'all'}
-                onOpenPreferences={openWizard}
+                onOpenPreferences={openPreferencesPanel}
               />
               <button type="button" className="icon-btn" onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? 'Unmute Tactical Audio' : 'Mute Tactical Audio'}>
                 {isMuted ? <VolumeX size={iconSize} /> : <Volume2 size={iconSize} />}
@@ -189,6 +202,17 @@ function TacticalDashboard() {
             requestNotificationPermission={requestNotificationPermission}
             requestGeolocation={requestGeolocation}
             completeOnboarding={completeOnboarding}
+          />
+        )}
+
+        {showPreferencesPanel && (
+          <AlertPreferencesPanel
+            prefs={alertPrefs}
+            onClose={closePreferencesPanel}
+            setPrefs={setPrefs}
+            requestNotificationPermission={requestNotificationPermission}
+            requestGeolocation={requestGeolocation}
+            syncPushFromPrefs={syncPushFromPrefs}
           />
         )}
 

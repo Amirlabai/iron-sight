@@ -206,8 +206,10 @@ Transitioned to Development Alpha.
     - **Security Awareness**: Migrating to server-side secrets for `RELAY_AUTH_KEY`; ensuring zero hardcoded credentials in relay bridge.
     - Plan: [.open_work/frontend_modularization.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/frontend_modularization.md)
 - **Alert preferences & scoped push (2026-05-17)**:
+    - First visit: step wizard (`AlertPreferencesWizard.jsx`) via `shouldShowAlertWizard`. Later: header cog opens `AlertPreferencesPanel.jsx` (toggle table; mobile bottom sheet, desktop grid rows).
+    - Map user pin: `UserLocationMarker.jsx` when GPS granted, `showUserLocationOnMap` not false, and `israelBounds.isLocationInIsrael` (polygon + holes).
     - Post-boot wizard: notification + GPS permissions; scope `all` | `radius` (user slider 3–30 km) | `exact` (hull or 1 km to city).
-    - Frontend: `alertMatching.js`, `pushClient.js`, `userLocation.js`, `useAlertPreferences.js`, `AlertPreferencesWizard.jsx`; audio + in-tab notifications filtered by scope.
+    - Frontend: `alertMatching.js`, `geoPolygon.js`, `israelBounds.js`, `pushClient.js`, `userLocation.js`, `useAlertPreferences.js`; audio + in-tab notifications filtered by scope.
     - Backend: `push_manager.py`, `alert_matching.py`, Mongo `push_subscriptions`, routes `/api/push/*`; notify on `multi_alert` broadcast with per-subscription dedup.
     - Env: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VITE_VAPID_PUBLIC_KEY`; `sw.js` push click opens app.
 - **Signal Flare hardening (2026-05-17)**:

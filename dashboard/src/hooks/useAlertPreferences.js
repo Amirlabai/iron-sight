@@ -22,6 +22,7 @@ const DEFAULT_PREFS = {
   pushEndpoint: null,
   pushClientToken: null,
   wizardDismissed: false,
+  showUserLocationOnMap: true,
 };
 
 function loadPrefs() {
@@ -41,6 +42,7 @@ function savePrefs(prefs) {
 export function useAlertPreferences() {
   const [prefs, setPrefsState] = useState(loadPrefs);
   const [showWizard, setShowWizard] = useState(false);
+  const [showPreferencesPanel, setShowPreferencesPanel] = useState(false);
   const prefsRef = useRef(prefs);
 
   useEffect(() => {
@@ -57,6 +59,8 @@ export function useAlertPreferences() {
 
   const openWizard = useCallback(() => setShowWizard(true), []);
   const closeWizard = useCallback(() => setShowWizard(false), []);
+  const openPreferencesPanel = useCallback(() => setShowPreferencesPanel(true), []);
+  const closePreferencesPanel = useCallback(() => setShowPreferencesPanel(false), []);
 
   const requestNotificationPermission = useCallback(async () => {
     if (!('Notification' in window)) {
@@ -160,6 +164,16 @@ export function useAlertPreferences() {
     },
     [setPrefs]
   );
+
+  const syncPushFromPrefs = useCallback(async () => {
+    const current = prefsRef.current;
+    if (current.notifyPermission !== 'granted' || !current.pushEndpoint) return;
+    await registerPush({
+      scope: current.scope,
+      radiusKm: current.radiusKm,
+      location: current.location,
+    });
+  }, [registerPush]);
 
   const completeOnboarding = useCallback(
     async ({ scope, radiusKm, skipPush = false }) => {
@@ -265,9 +279,13 @@ export function useAlertPreferences() {
     setShowWizard,
     openWizard,
     closeWizard,
+    showPreferencesPanel,
+    openPreferencesPanel,
+    closePreferencesPanel,
     requestNotificationPermission,
     requestGeolocation,
     registerPush,
+    syncPushFromPrefs,
     completeOnboarding,
     skipOnboarding,
     unsubscribeFromPush,

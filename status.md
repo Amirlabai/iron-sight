@@ -8,10 +8,12 @@
 - [x] Dev networking: use Vite origin in dev so `/api` + `/ws` proxy work (ignore `VITE_WS_URL` when `import.meta.env.DEV`)
 - [x] Removed `/` from prerender routes (legal pages only); home stays empty `#root` until SPA mounts
 - [x] **Prod splash stuck:** Vercel `/ws` rewrite still serves `index.html` on GET; prod WS now uses `wss://iron-sight-hjwf.onrender.com/ws` directly. Vercel `PRERENDER=0` + no sourcemaps for faster deploys. Confirm live bundle hash after deploy (not stuck on old `index-*.js`)
-- [x] Splash: plain DOM overlay; dashboard header/map mount underneath; no wizard auto-open
+- [x] Splash: plain DOM overlay; dashboard header/map mount underneath; first-visit alert wizard only (`shouldShowAlertWizard`)
 - [x] `prefers-reduced-motion` guard for splash/wizard opacity
 - [x] Footer: in-flow on desktop; hidden on mobile (bottom sheet zone)
-- [x] Mobile legal nav: header cog menu → About, Accessibility, Privacy, Terms + alert preferences; desktop cog opens preferences only
+- [x] Mobile legal nav: header cog menu → About, Accessibility, Privacy, Terms + alert preferences; desktop cog opens preferences panel (not wizard)
+- [x] User map pin: blue dot when GPS inside Israel; opt-out in preferences panel (`showUserLocationOnMap`)
+- [x] `AlertPreferencesPanel`: toggle rows (notify, location, map pin, scope + radius); `israelBounds` + `geoPolygon` utils
 - [x] Fast build: `$env:PRERENDER='0'; npm run build` (~10s). Full SEO prerender: default `npm run build` (4 legal routes; may take longer)
 
 ## CSS shell refactor

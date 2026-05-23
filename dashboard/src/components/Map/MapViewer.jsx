@@ -15,6 +15,7 @@ import { getFitPadding, boundsKey, resolveOriginPinCoords } from '../../utils/ma
 import { useTactical } from '../../context/TacticalContext';
 import { formatTime } from '../../utils/formatters';
 import ThreatOverlay from './ThreatOverlay';
+import UserLocationMarker from './UserLocationMarker';
 import { agentDebugBurst, agentDebugLog, MAP_RESIZE_BURST } from '../../utils/agentDebugLog';
 
 function refitMap(map, { center, zoom, bounds, maxZoom }) {
@@ -211,6 +212,7 @@ export default function MapViewer() {
         }} />
 
         <IsraelBaseLayer />
+        <UserLocationMarker />
 
         {/* Origin Highlights for Timeframe Mode (Unified) */}
         {viewMode === 'timeframe' && (() => {

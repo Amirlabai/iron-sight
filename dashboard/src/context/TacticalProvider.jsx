@@ -18,6 +18,7 @@ import { filterEventsByScope, matchesAlertScope, buildAlertNotifyKey } from '../
 import { useAlertPreferences } from '../hooks/useAlertPreferences';
 import { agentDebugBurst, agentDebugLog, WS_MESSAGE_BURST } from '../utils/agentDebugLog';
 import { hasSessionBooted, markSessionBooted } from '../utils/sessionBoot';
+import { consumeWsReconnectDelayMs, resetWsFailStreak } from '../utils/wsReconnect';
 
 // --- Tactical Audio Engine ---
 const useAudioEngine = (liveEvents, isMuted, alertPrefs) => {
@@ -138,6 +139,10 @@ export function TacticalProvider({ children }) {
   useAudioEngine(liveEvents, isMuted, alertPrefs);
   useScopedNotifications(liveEvents, alertPrefs);
   const ws = useRef(null);
+  const wsConnectingRef = useRef(false);
+  const wsReconnectTimerRef = useRef(null);
+  const historyFilterRef = useRef(historyFilter);
+  const timeFrameRef = useRef(timeFrame);
   const viewModeRef = useRef(viewMode);
   const isReadyRef = useRef(isReady);
 
@@ -146,72 +151,163 @@ export function TacticalProvider({ children }) {
   }, [viewMode]);
 
   useEffect(() => {
+    historyFilterRef.current = historyFilter;
+  }, [historyFilter]);
+
+  useEffect(() => {
+    timeFrameRef.current = timeFrame;
+  }, [timeFrame]);
+
+  useEffect(() => {
     isReadyRef.current = isReady;
     if (isReady) markSessionBooted();
   }, [isReady]);
 
-  const connect = useCallback(() => {
-    if (ws.current?.readyState === WebSocket.OPEN) return;
-    ws.current = new WebSocket(WEBSOCKET_URL);
-    ws.current.onopen = () => { setIsConnected(true); setLoadingProgress(p => p + 30); };
-    ws.current.onmessage = (event) => {
-      let data;
-      try {
-        data = JSON.parse(event.data);
-      } catch {
-        if (!IS_PROD) console.warn('WS_MESSAGE_PARSE_FAILED', event.data);
-        return;
-      }
-      // #region agent log
-      agentDebugBurst(
-        'ws-message',
-        'TacticalProvider.jsx:onmessage',
-        'websocket message burst',
-        { type: data.type },
-        'E',
-        WS_MESSAGE_BURST.threshold,
-        WS_MESSAGE_BURST.windowMs,
-      );
-      if (data.type === 'multi_alert') {
-        agentDebugLog(
-          'TacticalProvider.jsx:multi_alert',
-          'multi_alert received',
-          { eventCount: (data.events || []).length },
-          'E',
-        );
-      }
-      // #endregion
-      if (data.type === 'history_sync') {
-        // Only overwrite history if no filter is active to prevent 'reverting to all' bug
-        if (historyFilter === 'all' && timeFrame === 'all') {
-          setHistory(data.data);
-        }
-        setLoadingProgress(100);
-        setIsReady(true);
-      } else if (data.type === 'multi_alert') {
-        const events = data.events || [];
-        setLiveEvents(events);
+  useEffect(() => {
+    let disposed = false;
 
-        const newConfig = calculateBestMapConfig(events);
-        setMapConfig(prev => {
-          if (prev.center[0] === newConfig.center[0] &&
-            prev.center[1] === newConfig.center[1] &&
-            prev.zoom === newConfig.zoom) {
-            return prev;
-          }
-          return newConfig;
-        });
-      } else if (data.type === 'reset') {
-        setLiveEvents([]);
-        if (viewMode === 'live') {
-          setMapConfig({ center: ISRAEL_CENTER, zoom: getDefaultZoom(), bounds: null, maxZoom: undefined });
-        }
-      } else if (data.type === 'health_status') {
-        setTacticalHealth({ status: data.status, source: data.upstream_source || 'OPERATIONAL' });
+    const scheduleReconnect = () => {
+      if (disposed || wsReconnectTimerRef.current) return;
+      const delayMs = consumeWsReconnectDelayMs();
+      if (!IS_PROD) {
+        console.warn(`TACTICAL_UPLINK: reconnect in ${Math.round(delayMs / 1000)}s`);
       }
+      wsReconnectTimerRef.current = setTimeout(() => {
+        wsReconnectTimerRef.current = null;
+        openSocket();
+      }, delayMs);
     };
-    ws.current.onclose = () => { setIsConnected(false); setTimeout(connect, 3000); };
-  }, [historyFilter, timeFrame]);
+
+    const openSocket = () => {
+      if (disposed) return;
+      if (wsConnectingRef.current) return;
+      const state = ws.current?.readyState;
+      if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return;
+
+      if (wsReconnectTimerRef.current) {
+        clearTimeout(wsReconnectTimerRef.current);
+        wsReconnectTimerRef.current = null;
+      }
+
+      if (ws.current) {
+        ws.current.onclose = null;
+        ws.current.onerror = null;
+        ws.current.close();
+        ws.current = null;
+      }
+
+      wsConnectingRef.current = true;
+      const socket = new WebSocket(WEBSOCKET_URL);
+      ws.current = socket;
+
+      socket.onopen = () => {
+        if (disposed) return;
+        wsConnectingRef.current = false;
+        resetWsFailStreak();
+        setIsConnected(true);
+        setLoadingProgress((p) => p + 30);
+      };
+
+      socket.onmessage = (event) => {
+        let data;
+        try {
+          data = JSON.parse(event.data);
+        } catch {
+          if (!IS_PROD) console.warn('WS_MESSAGE_PARSE_FAILED', event.data);
+          return;
+        }
+        agentDebugBurst(
+          'ws-message',
+          'TacticalProvider.jsx:onmessage',
+          'websocket message burst',
+          { type: data.type },
+          'E',
+          WS_MESSAGE_BURST.threshold,
+          WS_MESSAGE_BURST.windowMs,
+        );
+        if (data.type === 'multi_alert') {
+          agentDebugLog(
+            'TacticalProvider.jsx:multi_alert',
+            'multi_alert received',
+            { eventCount: (data.events || []).length },
+            'E',
+          );
+        }
+        if (data.type === 'history_sync') {
+          if (historyFilterRef.current === 'all' && timeFrameRef.current === 'all') {
+            setHistory(data.data);
+          }
+          setLoadingProgress(100);
+          setIsReady(true);
+        } else if (data.type === 'multi_alert') {
+          const events = data.events || [];
+          setLiveEvents(events);
+
+          const newConfig = calculateBestMapConfig(events);
+          setMapConfig((prev) => {
+            if (
+              prev.center[0] === newConfig.center[0] &&
+              prev.center[1] === newConfig.center[1] &&
+              prev.zoom === newConfig.zoom
+            ) {
+              return prev;
+            }
+            return newConfig;
+          });
+        } else if (data.type === 'reset') {
+          setLiveEvents([]);
+          if (viewModeRef.current === 'live') {
+            setMapConfig({
+              center: ISRAEL_CENTER,
+              zoom: getDefaultZoom(),
+              bounds: null,
+              maxZoom: undefined,
+            });
+          }
+        } else if (data.type === 'health_status') {
+          setTacticalHealth({
+            status: data.status,
+            source: data.upstream_source || 'OPERATIONAL',
+          });
+        }
+      };
+
+      socket.onclose = () => {
+        if (disposed) return;
+        wsConnectingRef.current = false;
+        if (ws.current === socket) ws.current = null;
+        setIsConnected(false);
+        scheduleReconnect();
+      };
+
+      socket.onerror = () => {
+        /* onclose follows */
+      };
+    };
+
+    openSocket();
+    fetch(`${TACTICAL_API_URL}/api/cities`)
+      .then((res) => res.json())
+      .then((data) => setRegionalData(data))
+      .catch((err) => {
+        if (!IS_PROD) console.error('CITIES_FETCH_FAILED', err);
+      });
+
+    return () => {
+      disposed = true;
+      if (wsReconnectTimerRef.current) {
+        clearTimeout(wsReconnectTimerRef.current);
+        wsReconnectTimerRef.current = null;
+      }
+      if (ws.current) {
+        ws.current.onclose = null;
+        ws.current.onerror = null;
+        ws.current.close();
+        ws.current = null;
+      }
+      wsConnectingRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (isReadyRef.current) return undefined;
@@ -224,15 +320,6 @@ export function TacticalProvider({ children }) {
     }, 4000);
     return () => clearTimeout(bootTimer);
   }, []);
-
-  useEffect(() => {
-    connect();
-    fetch(`${TACTICAL_API_URL}/api/cities`).then(res => res.json()).then(data => setRegionalData(data)).catch(err => { if (!IS_PROD) console.error("CITIES_FETCH_FAILED", err); });
-
-    return () => {
-      ws.current?.close();
-    };
-  }, [connect]);
 
   const fetchHistory = useCallback(async (category = 'all', time = 'all') => {
     try {
