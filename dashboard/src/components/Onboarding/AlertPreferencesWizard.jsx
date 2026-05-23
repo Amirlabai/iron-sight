@@ -64,6 +64,12 @@ export default function AlertPreferencesWizard({
       (scope === 'radius' || scope === 'exact') && !geoGranted ? 'all' : scope;
     try {
       const result = await completeOnboarding({ scope: effectiveScope, radiusKm });
+      if (result?.pushDeferred) {
+        setSaveError(
+          'Preferences saved. Close and reopen the app (or reload once) to finish enabling notifications.'
+        );
+        return;
+      }
       if (result && !result.ok) {
         const msg =
           result.reason === 'push_unavailable'

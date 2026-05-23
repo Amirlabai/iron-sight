@@ -3,6 +3,7 @@ import { TACTICAL_API_URL } from './constants';
 const PUSH_TOKEN_HEADER = 'X-Push-Client-Token';
 const SW_URL = '/sw.js';
 const SW_READY_MS = 20000;
+const PUSH_SUBSCRIBE_MS = 15000;
 const FETCH_MS = 15000;
 
 function withTimeout(promise, ms, message) {
@@ -93,6 +94,12 @@ export async function ensureServiceWorkerRegistration() {
       scope: '/',
       updateViaCache: 'none',
     });
+  } else {
+    try {
+      await reg.update();
+    } catch {
+      /* offline or throttled — use existing registration */
+    }
   }
 
   return waitForWorkerActive(reg);
@@ -108,10 +115,14 @@ export async function subscribeToPush(vapidPublicKey) {
 
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-    });
+    sub = await withTimeout(
+      reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      }),
+      PUSH_SUBSCRIBE_MS,
+      'Push subscribe timed out — reload the page or use the installed app'
+    );
   }
   return sub.toJSON();
 }

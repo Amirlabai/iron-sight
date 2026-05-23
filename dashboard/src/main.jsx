@@ -6,7 +6,22 @@ import './index.css';
 import './components/AccessibilityToolbar.css';
 import App from './App.jsx';
 
-registerSW({ immediate: true });
+function isStandalonePwa() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true
+  );
+}
+
+registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    if (!isStandalonePwa()) return;
+    if (sessionStorage.getItem('iron_sight_sw_reload')) return;
+    sessionStorage.setItem('iron_sight_sw_reload', '1');
+    window.location.reload();
+  },
+});
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -11,9 +11,26 @@ const isBuild = process.argv.includes('build')
 /** Legal pages only — do not prerender / (SPA dashboard DOM differs; stale index + SW caused black screen). */
 const PRERENDER_ROUTES = ['/about', '/accessibility', '/privacy', '/terms']
 
+/** vite-prerender + injectManifest can leave timers open; Node never exits (local + Vercel hang). */
+function forceExitAfterBuild() {
+  return {
+    name: 'force-exit-after-build',
+    apply: 'build',
+    enforce: 'post',
+    closeBundle: {
+      sequential: true,
+      order: 'post',
+      handler() {
+        setTimeout(() => process.exit(0), 250)
+      },
+    },
+  }
+}
+
 async function loadPlugins() {
   const plugins = [react()]
-  if (isBuild && process.env.PRERENDER !== '0') {
+  const prerenderEnabled = isBuild && process.env.PRERENDER !== '0'
+  if (prerenderEnabled) {
     const { vitePrerenderPlugin } = await import('vite-prerender-plugin')
     plugins.push(
       vitePrerenderPlugin({
@@ -58,9 +75,13 @@ async function loadPlugins() {
       },
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3}'],
+        sourcemap: false,
       },
     }),
   )
+  if (prerenderEnabled) {
+    plugins.push(forceExitAfterBuild())
+  }
   return plugins
 }
 

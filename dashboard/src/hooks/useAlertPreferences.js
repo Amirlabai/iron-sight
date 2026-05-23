@@ -136,7 +136,9 @@ export function useAlertPreferences() {
         if (!import.meta.env.PROD) console.warn('Push registration failed:', err);
         const swNotReady =
           typeof err?.message === 'string' &&
-          (err.message.includes('Service worker') || err.message.includes('service worker'));
+          (err.message.includes('Service worker') ||
+            err.message.includes('service worker') ||
+            err.message.includes('Push subscribe timed out'));
         if (swNotReady) {
           setPrefs({
             ...basePatch,
@@ -196,6 +198,36 @@ export function useAlertPreferences() {
     setPrefs({ wizardDismissed: true, complete: false });
     closeWizard();
   }, [setPrefs, closeWizard]);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+
+    const p = prefsRef.current;
+    if (p.notifyPermission !== 'granted' || p.pushEndpoint) return undefined;
+    if (!p.complete && !p.wizardDismissed) return undefined;
+
+    let cancelled = false;
+
+    const retryDeferredPush = async () => {
+      if (cancelled || prefsRef.current.pushEndpoint) return;
+      const result = await registerPush();
+      if (!import.meta.env.PROD && !result.ok) {
+        console.warn('Deferred push retry:', result.reason || result.message);
+      }
+    };
+
+    retryDeferredPush();
+
+    const onControllerChange = () => {
+      retryDeferredPush();
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+
+    return () => {
+      cancelled = true;
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+    };
+  }, [registerPush]);
 
   useEffect(() => {
     if (!prefs.geoPermission || prefs.geoPermission === 'denied') return undefined;
