@@ -5,9 +5,11 @@ import { registerSW } from 'virtual:pwa-register';
 import './index.css';
 import './components/AccessibilityToolbar.css';
 import { initThemeFromStorage } from './hooks/useThemeMode';
+import { initHighContrastFromStorage } from './hooks/useHighContrast';
 import App from './App.jsx';
 
 initThemeFromStorage();
+initHighContrastFromStorage();
 
 function isStandalonePwa() {
   return (

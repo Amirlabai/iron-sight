@@ -3,7 +3,7 @@ import { Circle, Polyline, Marker, Popup, Polygon, Tooltip, useMap, useMapEvents
 import L from 'leaflet';
 import { TACTICAL_BOUNDARIES, STRATEGIC_METADATA, getBoundaryOuter } from '../../utils/constants';
 
-const CITY_LABEL_MIN_ZOOM = 12;
+const CITY_LABEL_MIN_ZOOM = 11;
 const LIVE_CITY_LABEL_CAP = 12;
 const CITY_FALLBACK_RADIUS_METERS = 500;
 

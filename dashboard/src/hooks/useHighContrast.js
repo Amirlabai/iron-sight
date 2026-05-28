@@ -19,6 +19,11 @@ function applyToDocument(enabled) {
   }
 }
 
+/** Apply persisted high contrast before React mounts (legal pages, prerender). */
+export function initHighContrastFromStorage() {
+  applyToDocument(readStored());
+}
+
 export function useHighContrast() {
   const [enabled, setEnabled] = useState(() => {
     const stored = readStored();

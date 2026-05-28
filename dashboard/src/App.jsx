@@ -85,6 +85,7 @@ function TacticalDashboard() {
     completeOnboarding,
     setPrefs,
     syncPushFromPrefs,
+    flushPersistPrefs,
   } = alertPrefsApi;
 
   const isMobile = useMobileLayout();
@@ -224,6 +225,7 @@ function TacticalDashboard() {
             prefs={alertPrefs}
             onClose={closePreferencesPanel}
             setPrefs={setPrefs}
+            flushPersistPrefs={flushPersistPrefs}
             requestNotificationPermission={requestNotificationPermission}
             requestGeolocation={requestGeolocation}
             syncPushFromPrefs={syncPushFromPrefs}

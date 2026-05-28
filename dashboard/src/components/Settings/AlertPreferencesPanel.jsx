@@ -21,6 +21,7 @@ export default function AlertPreferencesPanel({
   prefs,
   onClose,
   setPrefs,
+  flushPersistPrefs,
   requestNotificationPermission,
   requestGeolocation,
   syncPushFromPrefs,
@@ -54,8 +55,9 @@ export default function AlertPreferencesPanel({
 
   const handleClose = useCallback(() => {
     commitAllZoomDrafts();
+    flushPersistPrefs?.();
     onClose();
-  }, [commitAllZoomDrafts, onClose]);
+  }, [commitAllZoomDrafts, flushPersistPrefs, onClose]);
 
   useFocusTrap(overlayRef, { active: true, onEscape: handleClose });
 
@@ -77,7 +79,10 @@ export default function AlertPreferencesPanel({
     if (on) {
       await requestGeolocation();
     } else {
-      setPrefs({ geoPermission: 'denied', location: null, locationUpdatedAt: null });
+      setPrefs(
+        { geoPermission: 'denied', location: null, locationUpdatedAt: null },
+        { includeLocation: true },
+      );
     }
     setBusy(false);
     syncPushFromPrefs?.();
@@ -87,14 +92,13 @@ export default function AlertPreferencesPanel({
     setPrefs({ showUserLocationOnMap: on });
   };
 
-  const commitZoomKey = useCallback(
+  const normalizeZoomDraftKey = useCallback(
     (key, raw) => {
       const saved = mergeMapZoomLevels(prefs.mapZoomLevels);
       const value = parseZoomDraft(raw, saved[key]);
-      setPrefs({ mapZoomLevels: { ...saved, [key]: value } });
       setDraftZoom((prev) => ({ ...prev, [key]: String(value) }));
     },
-    [prefs.mapZoomLevels, setPrefs],
+    [prefs.mapZoomLevels],
   );
 
   const handleZoomReset = () => {
@@ -127,7 +131,7 @@ export default function AlertPreferencesPanel({
         value={draftZoom[key] ?? ''}
         aria-describedby="pref-map-zoom-levels-label"
         onChange={(e) => setDraftZoom((prev) => ({ ...prev, [key]: e.target.value }))}
-        onBlur={(e) => commitZoomKey(key, e.target.value)}
+        onBlur={(e) => normalizeZoomDraftKey(key, e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') e.currentTarget.blur();
         }}

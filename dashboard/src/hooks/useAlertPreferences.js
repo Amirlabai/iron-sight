@@ -9,10 +9,16 @@ import {
 } from '../utils/pushClient';
 import { getUserPosition, watchUserPosition, isGeolocationSupported } from '../utils/userLocation';
 import { DEFAULT_MAP_ZOOM_LEVELS } from '../utils/mapZoomLevels';
+import {
+  loadMergedPrefs,
+  schedulePersistPrefs,
+  flushPersistPrefs,
+  disposePersistPrefs,
+  partitionsForPatch,
+  patchIncludesLocation,
+} from '../utils/alertPrefsStorage';
 
-const STORAGE_KEY = 'iron_sight_alert_prefs';
-
-const DEFAULT_PREFS = {
+export const DEFAULT_PREFS = {
   complete: false,
   notifyPermission: 'default',
   geoPermission: 'denied',
@@ -28,22 +34,7 @@ const DEFAULT_PREFS = {
 };
 
 function loadPrefs() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_PREFS };
-    const parsed = JSON.parse(raw);
-    return {
-      ...DEFAULT_PREFS,
-      ...parsed,
-      mapZoomLevels: { ...DEFAULT_MAP_ZOOM_LEVELS, ...(parsed.mapZoomLevels || {}) },
-    };
-  } catch {
-    return { ...DEFAULT_PREFS };
-  }
-}
-
-function savePrefs(prefs) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+  return loadMergedPrefs({ ...DEFAULT_PREFS });
 }
 
 export function useAlertPreferences() {
@@ -56,10 +47,40 @@ export function useAlertPreferences() {
     prefsRef.current = prefs;
   }, [prefs]);
 
-  const setPrefs = useCallback((patch) => {
+  useEffect(() => () => disposePersistPrefs(), []);
+
+  useEffect(() => {
+    const onPageHide = () => {
+      const p = prefsRef.current;
+      if (p.geoPermission === 'granted' && p.location) {
+        flushPersistPrefs(p, { partitions: ['ui'], includeLocation: true });
+      } else {
+        flushPersistPrefs(p);
+      }
+    };
+    window.addEventListener('pagehide', onPageHide);
+    return () => window.removeEventListener('pagehide', onPageHide);
+  }, []);
+
+  const setPrefs = useCallback((patch, options = {}) => {
+    const persist = options.persist !== false;
     setPrefsState((prev) => {
       const next = typeof patch === 'function' ? patch(prev) : { ...prev, ...patch };
-      savePrefs(next);
+      const patchObj = typeof patch === 'function' ? null : patch;
+
+      if (persist) {
+        const partitions = options.partitions ?? (patchObj ? partitionsForPatch(patchObj) : ['ui', 'map', 'push']);
+        const includeLocation =
+          options.includeLocation === true ||
+          (patchObj && patchIncludesLocation(patchObj) && options.includeLocation !== false);
+
+        schedulePersistPrefs(next, {
+          persist: true,
+          partitions,
+          includeLocation,
+        });
+      }
+
       return next;
     });
   }, []);
@@ -67,7 +88,10 @@ export function useAlertPreferences() {
   const openWizard = useCallback(() => setShowWizard(true), []);
   const closeWizard = useCallback(() => setShowWizard(false), []);
   const openPreferencesPanel = useCallback(() => setShowPreferencesPanel(true), []);
-  const closePreferencesPanel = useCallback(() => setShowPreferencesPanel(false), []);
+  const closePreferencesPanel = useCallback(() => {
+    flushPersistPrefs(prefsRef.current);
+    setShowPreferencesPanel(false);
+  }, []);
 
   const requestNotificationPermission = useCallback(async () => {
     if (!('Notification' in window)) {
@@ -86,14 +110,17 @@ export function useAlertPreferences() {
     }
     try {
       const loc = await getUserPosition();
-      setPrefs({
-        geoPermission: 'granted',
-        location: loc,
-        locationUpdatedAt: new Date().toISOString(),
-      });
+      setPrefs(
+        {
+          geoPermission: 'granted',
+          location: loc,
+          locationUpdatedAt: new Date().toISOString(),
+        },
+        { includeLocation: true },
+      );
       return loc;
     } catch {
-      setPrefs({ geoPermission: 'denied' });
+      setPrefs({ geoPermission: 'denied', location: null, locationUpdatedAt: null }, { includeLocation: true });
       return null;
     }
   }, [setPrefs]);
@@ -126,21 +153,27 @@ export function useAlertPreferences() {
         });
 
         if (!syncResult.ok) {
-          setPrefs({
-            ...basePatch,
-            pushEndpoint: subscription.endpoint,
-            complete: false,
-          });
+          setPrefs(
+            {
+              ...basePatch,
+              pushEndpoint: subscription.endpoint,
+              complete: false,
+            },
+            { includeLocation: false },
+          );
           return syncResult;
         }
 
-        setPrefs({
-          ...basePatch,
-          pushEndpoint: subscription.endpoint,
-          pushClientToken: syncResult.clientToken,
-          complete: true,
-          wizardDismissed: true,
-        });
+        setPrefs(
+          {
+            ...basePatch,
+            pushEndpoint: subscription.endpoint,
+            pushClientToken: syncResult.clientToken,
+            complete: true,
+            wizardDismissed: true,
+          },
+          { includeLocation: false },
+        );
 
         return syncResult;
       } catch (err) {
@@ -151,30 +184,30 @@ export function useAlertPreferences() {
             err.message.includes('service worker') ||
             err.message.includes('Push subscribe timed out'));
         if (swNotReady) {
-          setPrefs({
-            ...basePatch,
-            complete: true,
-            wizardDismissed: true,
-          });
+          setPrefs(
+            {
+              ...basePatch,
+              complete: true,
+              wizardDismissed: true,
+            },
+            { includeLocation: false },
+          );
           return {
             ok: false,
             reason: 'push_sw_pending',
             message: err.message,
           };
         }
-        setPrefs({
-          ...basePatch,
-          complete: false,
-        });
+        setPrefs({ ...basePatch, complete: false }, { includeLocation: false });
         return { ok: false, reason: err.message };
       }
     },
-    [setPrefs]
+    [setPrefs],
   );
 
   const syncPushFromPrefs = useCallback(async () => {
     const current = prefsRef.current;
-    if (current.notifyPermission !== 'granted' || !current.pushEndpoint) return;
+    if (current.notifyPermission !== 'granted') return;
     await registerPush({
       scope: current.scope,
       radiusKm: current.radiusKm,
@@ -203,16 +236,16 @@ export function useAlertPreferences() {
             closeWizard();
             return { ok: true, pushDeferred: true };
           }
-          setPrefs({ ...basePatch, complete: false });
+          setPrefs({ ...basePatch, complete: false }, { includeLocation: true });
           return result;
         }
       } else {
-        setPrefs({ ...basePatch, complete: true });
+        setPrefs({ ...basePatch, complete: true }, { includeLocation: true });
       }
       closeWizard();
       return { ok: true };
     },
-    [registerPush, requestGeolocation, setPrefs, closeWizard]
+    [registerPush, requestGeolocation, setPrefs, closeWizard],
   );
 
   const skipOnboarding = useCallback(() => {
@@ -256,27 +289,30 @@ export function useAlertPreferences() {
     let lastPatchAt = 0;
     const PATCH_MIN_MS = 30_000;
 
-    return watchUserPosition((loc) => {
-      setPrefs((prev) => ({
-        ...prev,
-        location: loc,
-        locationUpdatedAt: new Date().toISOString(),
-      }));
+    return watchUserPosition(
+      (loc) => {
+        setPrefsState((prev) => ({
+          ...prev,
+          location: loc,
+          locationUpdatedAt: new Date().toISOString(),
+        }));
 
-      const { pushEndpoint, pushClientToken } = prefsRef.current;
-      if (!pushEndpoint || !pushClientToken) return;
+        const { pushEndpoint, pushClientToken } = prefsRef.current;
+        if (!pushEndpoint || !pushClientToken) return;
 
-      const now = Date.now();
-      if (now - lastPatchAt < PATCH_MIN_MS) return;
-      lastPatchAt = now;
+        const now = Date.now();
+        if (now - lastPatchAt < PATCH_MIN_MS) return;
+        lastPatchAt = now;
 
-      patchPushLocation(pushEndpoint, loc, pushClientToken).then((result) => {
-        if (result.ok) return;
-        if (result.status === 401 || result.status === 404) {
-          setPrefs({ pushEndpoint: null, pushClientToken: null });
-        }
-      });
-    });
+        patchPushLocation(pushEndpoint, loc, pushClientToken).then((result) => {
+          if (result.ok) return;
+          if (result.status === 401 || result.status === 404) {
+            setPrefs({ pushEndpoint: null, pushClientToken: null });
+          }
+        });
+      },
+      { minDeltaM: 50 },
+    );
   }, [prefs.geoPermission, setPrefs]);
 
   return {
@@ -296,6 +332,7 @@ export function useAlertPreferences() {
     completeOnboarding,
     skipOnboarding,
     unsubscribeFromPush,
+    flushPersistPrefs,
   };
 }
 

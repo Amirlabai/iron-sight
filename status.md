@@ -2,6 +2,17 @@
 
 **Updated:** 2026-05-28
 
+## Alert preferences storage optimization (2026-05-28)
+
+- [x] Partitioned prefs: `iron_sight_prefs_ui` and `iron_sight_map_zoom` (localStorage), `iron_sight_push` (sessionStorage); one-time migrate from `iron_sight_alert_prefs`.
+- [x] Debounced persist (300ms) with skip-if-unchanged per partition (`dashboard/src/utils/alertPrefsStorage.js`).
+- [x] GPS watch updates React state only (no localStorage); `watchUserPosition` minDeltaM 50; push location PATCH still 30s.
+- [x] Zoom panel: persist `mapZoomLevels` on close only, not per-field blur.
+- [x] `initHighContrastFromStorage()` in `main.jsx` (legal FOUC).
+- [x] LRU cap (~500) on `SEEN_ALERTS` / `NOTIFIED_KEYS`; clear on WS `reset`.
+- [x] Follow-up: debounce unions partitions; `flushPersistPrefs` on panel close / `pagehide` (last GPS to UI); push flows omit `includeLocation`; tests in `alertPrefsStorage.test.js`.
+- [x] Validation: `npm run build` in `dashboard` (successful).
+
 ## NewsFlash strategic guard follow-up (2026-05-28)
 
 - [x] Refined backend pre-scan in `backend/src/main.py` so strategic mode is enabled only by warning-shaped `newsFlash` payloads (`type == newsFlash` with non-empty `data` or `cities`).

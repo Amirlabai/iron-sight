@@ -228,7 +228,9 @@ Transitioned to Development Alpha.
     - Map user pin: `UserLocationMarker.jsx` when GPS granted, `showUserLocationOnMap` not false, and `israelBounds.isLocationInIsrael` (polygon + holes).
     - Map zoom preset: `mapZoomMode` in prefs (`mapZoomPresets.js` → `resolveMapConfig` on live alerts). History timeframe: `originFilter` + `filterHistoryByOrigin` (client-side; chips in archive sidebar).
     - Post-boot wizard: notification + GPS permissions; scope `all` | `radius` (user slider 3–30 km) | `exact` (hull or 1 km to city).
-    - Frontend: `alertMatching.js`, `geoPolygon.js`, `israelBounds.js`, `pushClient.js`, `userLocation.js`, `useAlertPreferences.js`; audio + in-tab notifications filtered by scope.
+    - Frontend: `alertMatching.js`, `geoPolygon.js`, `israelBounds.js`, `pushClient.js`, `userLocation.js`, `useAlertPreferences.js`, `alertPrefsStorage.js`; audio + in-tab notifications filtered by scope.
+    - Client storage (2026-05-28): UI prefs `iron_sight_prefs_ui`, map zoom `iron_sight_map_zoom` (localStorage); push endpoint/token `iron_sight_push` (sessionStorage); legacy `iron_sight_alert_prefs` migrated once. GPS watch updates React only; last known coords written to UI partition on `pagehide` / explicit geolocation (not on each watch tick). Debounced 300ms partitioned writes union touched partitions per window. Theme `iron-sight-theme-mode`, high contrast `iron-sight-a11y-high-contrast`, cookie `iron-sight-cookie-consent` unchanged.
+    - Session dedupe: `SEEN_ALERTS` / `NOTIFIED_KEYS` capped at 500 (`lruSet.js`), cleared on WS `reset`.
     - Backend: `push_manager.py`, `alert_matching.py`, Mongo `push_subscriptions`, routes `/api/push/*`; notify on `multi_alert` broadcast with per-subscription dedup.
     - Env: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VITE_VAPID_PUBLIC_KEY`; `sw.js` push click opens app.
 - **Signal Flare hardening (2026-05-17)**:

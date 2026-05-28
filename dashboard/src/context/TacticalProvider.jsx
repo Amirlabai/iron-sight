@@ -21,6 +21,7 @@ import { useThemeMode } from '../hooks/useThemeMode';
 import { agentDebugBurst, agentDebugLog, WS_MESSAGE_BURST } from '../utils/agentDebugLog';
 import { hasSessionBooted, markSessionBooted } from '../utils/sessionBoot';
 import { consumeWsReconnectDelayMs, resetWsFailStreak } from '../utils/wsReconnect';
+import { lruAdd, clearLruSet } from '../utils/lruSet';
 
 const HISTORY_PAGE_SIZE = 50;
 
@@ -44,8 +45,7 @@ const useAudioEngine = (liveEvents, isMuted, alertPrefs) => {
     });
 
     scoped.forEach(event => {
-      if (!SEEN_ALERTS.has(event.id)) {
-        SEEN_ALERTS.add(event.id);
+      if (lruAdd(SEEN_ALERTS, event.id)) {
         if (event.category === 'newsFlash') return;
         const category = (event.category === 'missiles') ? 'missiles' : 'drones';
         const now = Date.now();
@@ -86,15 +86,13 @@ function useScopedNotifications(liveEvents, alertPrefs) {
     liveEvents.forEach((event) => {
       if (event.category === 'newsFlash') return;
       const key = buildAlertNotifyKey(event);
-      if (NOTIFIED_KEYS.has(key)) return;
+      if (!lruAdd(NOTIFIED_KEYS, key)) return;
 
       const match = matchesAlertScope(alertPrefs?.location, event, {
         scope: alertPrefs?.scope || 'all',
         radiusKm: alertPrefs?.radiusKm,
       });
       if (!match) return;
-
-      NOTIFIED_KEYS.add(key);
       const cities = (event.all_cities || []).slice(0, 3).map((c) => (typeof c === 'object' ? c.name : c)).filter(Boolean);
       const body = cities.length ? cities.join(', ') : 'Active threat detected';
 
@@ -276,6 +274,8 @@ export function TacticalProvider({ children }) {
           });
         } else if (data.type === 'reset') {
           setLiveEvents([]);
+          clearLruSet(SEEN_ALERTS);
+          clearLruSet(NOTIFIED_KEYS);
           if (viewModeRef.current === 'live') {
             setMapConfig({
               center: ISRAEL_CENTER,
