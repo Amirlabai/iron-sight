@@ -250,7 +250,7 @@ function TacticalDashboard() {
         <button
           type="button"
           className="sidebar-expand-btn"
-          onClick={() => setIsSidebarExpanded(true)}
+          onClick={(e) => { e.stopPropagation(); setIsSidebarExpanded(true); }} onPointerDown={(e) => e.stopPropagation()}
           aria-label="Expand Sidebar"
         >
           <ChevronUp size={24} />
