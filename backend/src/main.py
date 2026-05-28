@@ -131,8 +131,11 @@ async def main():
                             data = json.loads(await resp.text())
                             alerts = data if isinstance(data, list) else [data] if data else []
                             
-                            # Pre-scan: detect if any alert in this batch is a newsFlash
-                            has_newsflash_in_batch = any(a.get('type') == 'newsFlash' for a in alerts)
+                            # Pre-scan: strategic mode is enabled only by warning-shaped newsFlash payloads
+                            has_newsflash_in_batch = any(
+                                a.get('type') == 'newsFlash' and (a.get('data') or a.get('cities'))
+                                for a in alerts
+                            )
                             relay_batch_changed = False
 
                             for alert_payload in alerts:

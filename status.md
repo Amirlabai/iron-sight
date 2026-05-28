@@ -1,6 +1,12 @@
 # Iron Sight — Status
 
-**Updated:** 2026-05-23
+**Updated:** 2026-05-28
+
+## NewsFlash strategic guard follow-up (2026-05-28)
+
+- [x] Refined backend pre-scan in `backend/src/main.py` so strategic mode is enabled only by warning-shaped `newsFlash` payloads (`type == newsFlash` with non-empty `data` or `cities`).
+- [x] Added regression test in `backend/tests/test_threat_processor.py` to ensure Lebanon-aligned missile vectors stay `Lebanon` even when `allow_strategic=True`.
+- [x] Verified with `backend\\.venv\\Scripts\\python.exe -m pytest tests/test_threat_processor.py` (4 passed).
 
 ## Dashboard black screen / build
 

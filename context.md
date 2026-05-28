@@ -136,7 +136,9 @@ Transitioned to Development Alpha.
     - Gated Iran/Yemen origin detection behind `allow_strategic` flag derived from newsFlash context.
     - `engine.get_origin` skips long-range polygon projection when `allow_strategic=False`.
     - `threat_processor._process_missiles` calculates `allow_strategic` from batch pre-scan and active newsFlash events.
-    - `main.py` pre-scans each alert batch for newsFlash presence and passes context through the pipeline.
+    - `main.py` pre-scans each alert batch for warning-shaped newsFlash presence (`data` or `cities`) and passes context through the pipeline.
+    - Clearance-only `newsFlash` payloads no longer unlock strategic origin evaluation.
+    - Regression coverage in `backend/tests/test_threat_processor.py` enforces Lebanon-first preservation under strategic-enabled context.
     - Plan: [.open_work/strategic_origin_filtering.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/strategic_origin_filtering.md)
 - **Multi-Origin Tactical Zoom & Centering (v1.0.6 - Complete)**:
     - Integrated `calculateBestMapConfig` for multi-threat awareness.
