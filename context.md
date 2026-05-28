@@ -151,6 +151,11 @@ Transitioned to Development Alpha.
     - Frontend cluster overlays now render per-city boundary strokes with cluster color and zoom-gated city labels.
     - Live-mode density guard caps permanent city labels per cluster to reduce DOM/load pressure during dense events; archive/timeframe behavior remains unchanged.
     - `_map_cities` fallback contract is regression-tested: when mapping data is missing, payload shape remains stable with `city_id=None` and/or `boundary=None`.
+- **History Bounds Backfill and Paging (v1.0.8 - Complete)**:
+    - Added `/api/history` pagination query support with `limit` and `offset` and threaded this through DB history loaders.
+    - Consolidated history paging now slices deterministically after global sort.
+    - Added one-time migration script `backend/scripts/backfill_history_city_bounds.py` for backfilling `city_id` and `boundary` fields in persisted history alerts.
+    - Dashboard archive now supports manual bottom `SHOW MORE` paging with append semantics.
 - **Relay Integration Brief (v1.2)**:
     - Protocol: GET `/alerts` with `x-relay-auth` header.
     - **Smart Categorization**:

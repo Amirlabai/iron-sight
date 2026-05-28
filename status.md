@@ -29,6 +29,20 @@
 - [x] Validation:
   - `backend\\.venv\\Scripts\\python.exe -m pytest tests/test_threat_processor.py` (7 passed)
 
+## History bounds backfill and paging (2026-05-28)
+
+- [x] Added `limit`/`offset` pagination support for `GET /api/history` in `backend/src/api/ws_manager.py`.
+- [x] Added offset-aware paging support in `backend/src/db/mongo_manager.py` for both category and consolidated history fetches.
+- [x] Added one-time migration script `backend/scripts/backfill_history_city_bounds.py` to backfill `city_id` and `boundary` into stored history events (`--dry-run` supported).
+- [x] Added archive `SHOW MORE` pagination flow in dashboard:
+  - Provider paging state and append loading in `dashboard/src/context/TacticalProvider.jsx`
+  - Bottom button in `dashboard/src/components/Sidebar/Sidebar.jsx`
+  - Button styling in `dashboard/src/App.css`
+- [x] Validation:
+  - `backend\\.venv\\Scripts\\python.exe -m pytest tests/test_mongo_manager.py tests/test_history_migration.py tests/test_threat_processor.py` (15 passed)
+  - `backend\\.venv\\Scripts\\python.exe scripts/backfill_history_city_bounds.py --dry-run --limit 5` (`DRY_RUN_SUMMARY scanned=14 updated=11`)
+  - `npm run build` in `dashboard` (successful)
+
 ## Dashboard black screen / build
 
 - [x] **Root cause:** `JsonLdScript` function component inside `<Helmet>` — react-helmet-async v3 throws and React never mounts (empty `#root`). Fixed: inline `<script type="application/ld+json">` in `SEO.jsx`

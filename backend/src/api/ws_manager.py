@@ -157,15 +157,28 @@ class WebSocketManager:
         # Support both 'category' (new protocol) and 'type' (legacy)
         category = request.query.get("category") or request.query.get("type")
         hours = request.query.get("hours")
+        limit_raw = request.query.get("limit")
+        offset_raw = request.query.get("offset")
 
         limit = 50
         if hours and hours != 'all':
             limit = 1000 # Increase limit when searching by time
+        if limit_raw is not None:
+            try:
+                limit = max(1, min(1000, int(limit_raw)))
+            except ValueError:
+                pass
+        offset = 0
+        if offset_raw is not None:
+            try:
+                offset = max(0, int(offset_raw))
+            except ValueError:
+                pass
 
         if category:
-            history = await self.db.get_history(alert_type=category, limit=limit, hours=hours)
+            history = await self.db.get_history(alert_type=category, limit=limit, hours=hours, offset=offset)
         else:
-            history = await self.db.get_consolidated_history(limit=limit, hours=hours)
+            history = await self.db.get_consolidated_history(limit=limit, hours=hours, offset=offset)
         return web.json_response(history)
 
     async def cities_handler(self, request):
