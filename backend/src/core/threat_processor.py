@@ -254,9 +254,14 @@ class ThreatProcessor:
         for c in cities_raw:
             std = standardize_name(c)
             if std in self.engine.dm.city_map:
+                city_entry = self.engine.dm.city_map[std]
+                city_id = self.engine.dm.city_to_id.get(std)
+                city_boundary = self.engine.city_polygons.get(str(city_id)) if city_id is not None else None
                 mapped.append({
-                    "name": c, 
-                    "coords": [self.engine.dm.city_map[std]['lat'], self.engine.dm.city_map[std]['lon']],
-                    "area": self.engine.dm.city_map[std].get('area', 'Other')
+                    "name": city_entry.get("name") or c,
+                    "coords": [city_entry['lat'], city_entry['lon']],
+                    "area": city_entry.get('area', 'Other'),
+                    "city_id": city_id,
+                    "boundary": city_boundary
                 })
         return mapped

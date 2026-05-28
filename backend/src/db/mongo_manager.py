@@ -160,7 +160,7 @@ class MongoManager:
         except Exception as e:
             logger.error(f"LOG_EVENT_FAILURE: {event_id} {status} - {e}")
 
-    async def get_history(self, alert_type="missiles", limit=50, hours=None):
+    async def get_history(self, alert_type="missiles", limit=50, hours=None, offset=0):
         """Retrieve archive for a specific threat category."""
         collection = self.collections.get(alert_type)
         if collection is None: return []
@@ -188,7 +188,7 @@ class MongoManager:
                     except ValueError:
                         pass
 
-            cursor = collection.find(query).sort("_id", -1).limit(limit)
+            cursor = collection.find(query).sort("_id", -1).skip(max(0, int(offset))).limit(limit)
             history = await cursor.to_list(length=limit)
             # Remove MongoDB _id for clean JSON serialization
             for item in history:
@@ -210,12 +210,14 @@ class MongoManager:
             logger.error(f"DB_FETCH_FAILURE for alert {alert_id}: {e}")
             return None
 
-    async def get_consolidated_history(self, limit=50, hours=None):
+    async def get_consolidated_history(self, limit=50, hours=None, offset=0):
         """Retrieve archive across all tactical categories, unified and sorted."""
         import asyncio
         try:
-            # Parallel fetch from all collections
-            tasks = [self.get_history(alert_type, limit=limit, hours=hours) for alert_type in self.collections]
+            offset = max(0, int(offset))
+            fetch_limit = limit + offset
+            # Parallel fetch from all collections. Fetch enough rows to page after consolidation sort.
+            tasks = [self.get_history(alert_type, limit=fetch_limit, hours=hours, offset=0) for alert_type in self.collections]
             results = await asyncio.gather(*tasks)
             
             # Combine all results
@@ -227,7 +229,7 @@ class MongoManager:
             # Ensure consistent sorting across all categories
             unified.sort(key=lambda x: str(x.get("id", "")), reverse=True)
             
-            return unified[:limit]
+            return unified[offset:offset + limit]
         except Exception as e:
             logger.error(f"DB_CONSOLIDATED_FETCH_FAILURE: {e}")
             return []

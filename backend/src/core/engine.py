@@ -352,6 +352,12 @@ class TrackingEngine:
             dist_next = self.get_distance([centroid[0] + v_lat*0.1, centroid[1] + v_lon*0.1], isr)
             if dist_next < dist_now and len(cluster_cities) <= MIN_IRAN_THRESHOLD:
                 v_lat, v_lon = -v_lat, -v_lon
+            # Check regional origins first so that a local newsFlash doesn't overshoot into strategic origins
+            depth = 0.5
+            proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
+            for territory in ["Lebanon", "Gaza"]:
+                if self.is_point_in_polygon(proj, territory): return territory.strip(), depth
+
             # Vector Projections Strategy (Strategic origins gated by newsFlash context)
             if allow_strategic:
                 depth = 7
@@ -359,10 +365,6 @@ class TrackingEngine:
                 for territory in ["North Iran", "Iran", "Yemen"]:
                     if self.is_point_in_polygon(proj, territory):
                         return ("Iran", 16.0) if territory.endswith("Iran") else ("Yemen", depth)
-            depth = 0.5
-            proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
-            for territory in ["Lebanon", "Gaza"]:
-                if self.is_point_in_polygon(proj, territory): return territory.strip(), depth
         # Fallback Heuristics
         dist_gaza = self.get_distance(centroid, self.origins["Gaza"])
         dist_lebanon = self.get_distance(centroid, self.origins["Lebanon"])

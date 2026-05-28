@@ -17,9 +17,12 @@ import missileSound from '../assets/sounds/missile_alert.mp3';
 import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
 import { filterEventsByScope, matchesAlertScope, buildAlertNotifyKey } from '../utils/alertMatching';
 import { useAlertPreferences } from '../hooks/useAlertPreferences';
+import { useThemeMode } from '../hooks/useThemeMode';
 import { agentDebugBurst, agentDebugLog, WS_MESSAGE_BURST } from '../utils/agentDebugLog';
 import { hasSessionBooted, markSessionBooted } from '../utils/sessionBoot';
 import { consumeWsReconnectDelayMs, resetWsFailStreak } from '../utils/wsReconnect';
+
+const HISTORY_PAGE_SIZE = 50;
 
 // --- Tactical Audio Engine ---
 const useAudioEngine = (liveEvents, isMuted, alertPrefs) => {
@@ -133,11 +136,15 @@ export function TacticalProvider({ children }) {
   const [historyFilter, setHistoryFilter] = useState('all');
   const [timeFrame, setTimeFrame] = useState('all');
   const [originFilter, setOriginFilter] = useState('all');
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
   const [mergeTimeFrameClusters, setMergeTimeFrameClusters] = useState(false);
   const [mapAutoFollowToken, setMapAutoFollowToken] = useState(0);
 
   const alertPrefsApi = useAlertPreferences();
   const { prefs: alertPrefs } = alertPrefsApi;
+  const { themeMode, isLightMode, toggleThemeMode } = useThemeMode();
   const alertPrefsRef = useRef(alertPrefs);
 
   useEffect(() => {
@@ -151,6 +158,7 @@ export function TacticalProvider({ children }) {
   const wsReconnectTimerRef = useRef(null);
   const historyFilterRef = useRef(historyFilter);
   const timeFrameRef = useRef(timeFrame);
+  const historyOffsetRef = useRef(historyOffset);
   const viewModeRef = useRef(viewMode);
   const isReadyRef = useRef(isReady);
 
@@ -165,6 +173,10 @@ export function TacticalProvider({ children }) {
   useEffect(() => {
     timeFrameRef.current = timeFrame;
   }, [timeFrame]);
+
+  useEffect(() => {
+    historyOffsetRef.current = historyOffset;
+  }, [historyOffset]);
 
   useEffect(() => {
     isReadyRef.current = isReady;
@@ -329,19 +341,45 @@ export function TacticalProvider({ children }) {
     return () => clearTimeout(bootTimer);
   }, []);
 
-  const fetchHistory = useCallback(async (category = 'all', time = 'all') => {
+  const fetchHistory = useCallback(async (
+    category = 'all',
+    time = 'all',
+    options = {},
+  ) => {
+    const {
+      append = false,
+      offset = 0,
+      limit = HISTORY_PAGE_SIZE,
+    } = options;
     try {
+      if (append) {
+        setHistoryLoadingMore(true);
+      }
       const baseUrl = `${TACTICAL_API_URL}/api/history`;
       const params = new URLSearchParams();
       if (category !== 'all') params.append('category', category);
       if (time !== 'all') params.append('hours', time);
+      params.append('limit', String(limit));
+      params.append('offset', String(offset));
       const url = `${baseUrl}?${params.toString()}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setHistory(Array.isArray(data) ? data : []);
+        const rows = Array.isArray(data) ? data : [];
+        if (append) {
+          setHistory((prev) => [...prev, ...rows]);
+        } else {
+          setHistory(rows);
+        }
+        const nextOffset = offset + rows.length;
+        setHistoryOffset(nextOffset);
+        setHistoryHasMore(rows.length === limit);
       } else {
-        setHistory([]);
+        if (!append) {
+          setHistory([]);
+          setHistoryOffset(0);
+        }
+        setHistoryHasMore(false);
       }
 
       if (viewModeRef.current === 'timeframe') {
@@ -349,13 +387,29 @@ export function TacticalProvider({ children }) {
       }
     } catch (err) {
       if (!IS_PROD) console.error("HISTORY_FETCH_FAILED", err);
+      if (!append) {
+        setHistoryHasMore(false);
+      }
+    } finally {
+      if (append) {
+        setHistoryLoadingMore(false);
+      }
     }
   }, []);
+
+  const loadMoreHistory = useCallback(() => {
+    if (historyLoadingMore || !historyHasMore) return;
+    fetchHistory(historyFilterRef.current, timeFrameRef.current, {
+      append: true,
+      offset: historyOffsetRef.current,
+      limit: HISTORY_PAGE_SIZE,
+    });
+  }, [fetchHistory, historyHasMore, historyLoadingMore]);
 
   useEffect(() => {
     // Fetch history whenever filters change, regardless of isReady state
     // to ensure user-initiated filters 'get it right the first time'
-    fetchHistory(historyFilter, timeFrame);
+    fetchHistory(historyFilter, timeFrame, { append: false, offset: 0, limit: HISTORY_PAGE_SIZE });
   }, [historyFilter, timeFrame, fetchHistory]);
 
   const selectArchive = (event) => {
@@ -626,10 +680,14 @@ export function TacticalProvider({ children }) {
     returnToLive, runSandboxAnalysis, handleTabChange, fetchHistory,
     renderableEvents, sidebarEvents, hasSimulation, totalClusters, totalTargets,
     timeFrame, setTimeFrame, mergeTimeFrameClusters, setMergeTimeFrameClusters, setMapConfig,
+    historyOffset, historyHasMore, historyLoadingMore, loadMoreHistory,
     mapAutoFollowToken,
     tacticalColor, highlightColor,
     alertPrefs,
     alertPrefsApi,
+    themeMode,
+    isLightMode,
+    toggleThemeMode,
   };
 
   return (

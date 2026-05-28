@@ -136,10 +136,26 @@ Transitioned to Development Alpha.
     - Gated Iran/Yemen origin detection behind `allow_strategic` flag derived from newsFlash context.
     - `engine.get_origin` skips long-range polygon projection when `allow_strategic=False`.
     - `threat_processor._process_missiles` calculates `allow_strategic` from batch pre-scan and active newsFlash events.
-    - `main.py` pre-scans each alert batch for newsFlash presence and passes context through the pipeline.
+    - `main.py` pre-scans each alert batch for warning-shaped newsFlash presence (`data` or `cities`) and passes context through the pipeline.
+    - Clearance-only `newsFlash` payloads no longer unlock strategic origin evaluation.
+    - Regression coverage in `backend/tests/test_threat_processor.py` enforces Lebanon-first preservation under strategic-enabled context.
     - Plan: [.open_work/strategic_origin_filtering.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/strategic_origin_filtering.md)
 - **Multi-Origin Tactical Zoom & Centering (v1.0.6 - Complete)**:
     - Integrated `calculateBestMapConfig` for multi-threat awareness.
+- **Theme and City Boundary Layering (v1.0.7 - Complete)**:
+    - Added persisted `light|dark` runtime mode via root `data-theme` state.
+    - Control placement: desktop header quick toggle and mobile cog-dropdown bottom action.
+    - Map tiles switch with theme mode (`dark_nolabels` / `light_nolabels`).
+    - Live missile framing now prioritizes affected target area geometry (bounds/centroid) instead of origin-corridor midpoint fallback.
+    - Backend city mapping now includes `city_id` and `boundary` polygon data from helper files (`cities.json`, `polygons.json`).
+    - Frontend cluster overlays now render per-city boundary strokes with cluster color and zoom-gated city labels.
+    - Live-mode density guard caps permanent city labels per cluster to reduce DOM/load pressure during dense events; archive/timeframe behavior remains unchanged.
+    - `_map_cities` fallback contract is regression-tested: when mapping data is missing, payload shape remains stable with `city_id=None` and/or `boundary=None`.
+- **History Bounds Backfill and Paging (v1.0.8 - Complete)**:
+    - Added `/api/history` pagination query support with `limit` and `offset` and threaded this through DB history loaders.
+    - Consolidated history paging now slices deterministically after global sort.
+    - Added one-time migration script `backend/scripts/backfill_history_city_bounds.py` for backfilling `city_id` and `boundary` fields in persisted history alerts.
+    - Dashboard archive now supports manual bottom `SHOW MORE` paging with append semantics.
 - **Relay Integration Brief (v1.2)**:
     - Protocol: GET `/alerts` with `x-relay-auth` header.
     - **Smart Categorization**:

@@ -13,6 +13,12 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+html[data-theme='light'] {
+  color-scheme: light;
+  color: #1f2937;
+  background-color: #f3f6fb;
+}
+
 #root {
   width: 100vw;
   height: 100vh;

@@ -30,10 +30,11 @@ export default function Sidebar() {
     toggleExpand, runSandboxAnalysis,
     totalClusters, totalTargets, setExpandedRegions,
 
-    historyFilter, setHistoryFilter, fetchHistory,
+    historyFilter, setHistoryFilter,
     timeFrame, setTimeFrame, originFilter, setOriginFilter, filteredHistory,
     mergeTimeFrameClusters, setMergeTimeFrameClusters, setViewMode, setMapConfig,
     renderableEvents, sidebarEvents,
+    historyHasMore, historyLoadingMore, loadMoreHistory,
   } = useTactical();
 
   const timeframeActive = timeFrame !== 'all';
@@ -536,6 +537,16 @@ export default function Sidebar() {
                       </motion.div>
                     );
                   })}
+                  {historyHasMore ? (
+                    <button
+                      type="button"
+                      className="history-show-more-btn"
+                      onClick={loadMoreHistory}
+                      disabled={historyLoadingMore}
+                    >
+                      {historyLoadingMore ? 'LOADING...' : 'SHOW MORE'}
+                    </button>
+                  ) : null}
                 </div>
               )}
             </motion.div>

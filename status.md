@@ -1,6 +1,47 @@
 # Iron Sight — Status
 
-**Updated:** 2026-05-23
+**Updated:** 2026-05-28
+
+## NewsFlash strategic guard follow-up (2026-05-28)
+
+- [x] Refined backend pre-scan in `backend/src/main.py` so strategic mode is enabled only by warning-shaped `newsFlash` payloads (`type == newsFlash` with non-empty `data` or `cities`).
+- [x] Added regression test in `backend/tests/test_threat_processor.py` to ensure Lebanon-aligned missile vectors stay `Lebanon` even when `allow_strategic=True`.
+- [x] Verified with `backend\\.venv\\Scripts\\python.exe -m pytest tests/test_threat_processor.py` (4 passed).
+
+## Theme and city boundary rendering (2026-05-28)
+
+- [x] Added persisted light/dark mode (`dashboard/src/hooks/useThemeMode.js`) with controls in desktop header and mobile cog dropdown menu.
+- [x] Added light-theme token overrides and map tile switching (Carto dark/light no-labels) based on active theme.
+- [x] Updated live map framing to prioritize affected missile area using target geometry bounds/centroid during active missile events.
+- [x] Extended backend city payload in `backend/src/core/threat_processor.py` with `city_id` and `boundary` polygon geometry from helper geodata.
+- [x] Added per-city boundary stroke rendering in cluster overlays with zoom-gated city labels in `dashboard/src/components/Map/ThreatOverlay.jsx`.
+- [x] Validation:
+  - `backend\\.venv\\Scripts\\python.exe -m pytest tests/test_threat_processor.py` (5 passed)
+  - `npm run build` in `dashboard` (successful)
+
+## Label density and fallback guards (2026-05-28)
+
+- [x] Added live label density guard in `dashboard/src/components/Map/ThreatOverlay.jsx` with `LIVE_CITY_LABEL_CAP` so permanent city labels are capped in live mode while retaining zoom gating and full boundary strokes.
+- [x] Added `_map_cities` fallback coverage in `backend/tests/test_threat_processor.py`:
+  - missing `city_to_id` mapping -> `city_id=None`, `boundary=None`
+  - missing `city_polygons` entry -> preserves `city_id`, sets `boundary=None`
+  - stable payload key assertions for mapped city objects.
+- [x] Validation:
+  - `backend\\.venv\\Scripts\\python.exe -m pytest tests/test_threat_processor.py` (7 passed)
+
+## History bounds backfill and paging (2026-05-28)
+
+- [x] Added `limit`/`offset` pagination support for `GET /api/history` in `backend/src/api/ws_manager.py`.
+- [x] Added offset-aware paging support in `backend/src/db/mongo_manager.py` for both category and consolidated history fetches.
+- [x] Added one-time migration script `backend/scripts/backfill_history_city_bounds.py` to backfill `city_id` and `boundary` into stored history events (`--dry-run` supported).
+- [x] Added archive `SHOW MORE` pagination flow in dashboard:
+  - Provider paging state and append loading in `dashboard/src/context/TacticalProvider.jsx`
+  - Bottom button in `dashboard/src/components/Sidebar/Sidebar.jsx`
+  - Button styling in `dashboard/src/App.css`
+- [x] Validation:
+  - `backend\\.venv\\Scripts\\python.exe -m pytest tests/test_mongo_manager.py tests/test_history_migration.py tests/test_threat_processor.py` (15 passed)
+  - `backend\\.venv\\Scripts\\python.exe scripts/backfill_history_city_bounds.py --dry-run --limit 5` (`DRY_RUN_SUMMARY scanned=14 updated=11`)
+  - `npm run build` in `dashboard` (successful)
 
 ## Dashboard black screen / build
 

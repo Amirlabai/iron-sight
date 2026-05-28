@@ -1,7 +1,11 @@
 import React from 'react';
-import { Circle, Polyline, Marker, Popup, Polygon, Tooltip, useMapEvents } from 'react-leaflet';
+import { Circle, Polyline, Marker, Popup, Polygon, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { TACTICAL_BOUNDARIES, STRATEGIC_METADATA, getBoundaryOuter } from '../../utils/constants';
+
+const CITY_LABEL_MIN_ZOOM = 12;
+const LIVE_CITY_LABEL_CAP = 12;
+const CITY_FALLBACK_RADIUS_METERS = 500;
 
 // --- Tracking Drone (Animated Interpolation) ---
 const TrackingDrone = ({ positions, color }) => {
@@ -91,6 +95,14 @@ const TrackingDrone = ({ positions, color }) => {
 // --- Threat Overlay (renders clusters, trajectories, origin highlights for a single event) ---
 export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor, highlightColor }) {
   if (!event) return null;
+  const map = useMap();
+  const [mapZoom, setMapZoom] = React.useState(() => map.getZoom());
+
+  React.useEffect(() => {
+    const handleZoomEnd = () => setMapZoom(map.getZoom());
+    map.on('zoomend', handleZoomEnd);
+    return () => map.off('zoomend', handleZoomEnd);
+  }, [map]);
 
   return (
     <React.Fragment>
@@ -133,6 +145,63 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                 />
               </React.Fragment>
             ) : null}
+            {cluster.cities?.map((city, cityIdx) => {
+              if (!city?.coords) return null;
+              const shouldMountLabel = mapZoom >= CITY_LABEL_MIN_ZOOM
+                && (viewMode !== 'live' || cityIdx < LIVE_CITY_LABEL_CAP);
+              const cityKey = `${eventKey}-cluster-${idx}-city-${city.city_id || city.name || cityIdx}`;
+              if (!city?.boundary || city.boundary.length < 3) {
+                return (
+                  <Circle
+                    key={cityKey}
+                    center={city.coords}
+                    radius={CITY_FALLBACK_RADIUS_METERS}
+                    pathOptions={{
+                      color: clusterColor,
+                      weight: 1.5,
+                      opacity: 0.85,
+                      fill: false,
+                      interactive: false,
+                    }}
+                  >
+                    {shouldMountLabel ? (
+                      <Tooltip
+                        permanent
+                        direction="center"
+                        className="city-boundary-label"
+                      >
+                        {city.name}
+                      </Tooltip>
+                    ) : null}
+                  </Circle>
+                );
+              }
+              return (
+                <Polygon
+                  key={cityKey}
+                  positions={city.boundary}
+                  pathOptions={{
+                    color: clusterColor,
+                    weight: 1.5,
+                    opacity: 0.85,
+                    fill: false,
+                    lineJoin: 'round',
+                    lineCap: 'round',
+                    interactive: false,
+                  }}
+                >
+                  {shouldMountLabel ? (
+                    <Tooltip
+                      permanent
+                      direction="center"
+                      className="city-boundary-label"
+                    >
+                      {city.name}
+                    </Tooltip>
+                  ) : null}
+                </Polygon>
+              );
+            })}
             {viewMode === 'live' && event.visual_config && event.visual_config.movement !== 'linear' && (() => {
               const movement = event.visual_config.movement;
               if (movement === 'circular_sweep' && cluster.cities) {
