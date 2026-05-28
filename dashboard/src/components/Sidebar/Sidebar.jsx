@@ -205,8 +205,11 @@ export default function Sidebar() {
         className="sidebar-drag-zone"
         role="button"
         tabIndex={0}
-        aria-label="Drag to expand or collapse panel"
+        aria-label="Drag or click to expand/collapse panel"
         onPointerDown={startSheetDrag}
+        onClick={() => {
+          if (isMobile) setIsSidebarExpanded(!isSidebarExpanded);
+        }}
       >
         <div className="sidebar-drag-handle" aria-hidden="true" />
       </div>
