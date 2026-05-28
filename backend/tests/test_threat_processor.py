@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.core.threat_processor import ThreatProcessor
+from src.utils.text_utils import standardize_name
 
 
 class TestThreatProcessorProcess:
@@ -74,3 +75,56 @@ class TestThreatProcessorMissileOrigins:
         assert result["trajectories"][0]["origin"] == "Lebanon"
         engine.get_origin.assert_awaited_once()
         assert engine.get_origin.await_args.kwargs["allow_strategic"] is True
+
+
+class TestThreatProcessorMapCities:
+    def test_should_include_city_boundary_geometry_when_available(self):
+        engine = MagicMock()
+        std_name = standardize_name("North City")
+        engine.dm.city_map = {
+            std_name: {"lat": 33.3, "lon": 35.6, "area": "North", "name": "North City"},
+        }
+        engine.dm.city_to_id = {std_name: 101}
+        engine.city_polygons = {"101": [[33.31, 35.61], [33.32, 35.62], [33.30, 35.63]]}
+
+        processor = ThreatProcessor(engine)
+        mapped = processor._map_cities(["North City"])
+
+        assert len(mapped) == 1
+        assert mapped[0]["name"] == "North City"
+        assert mapped[0]["city_id"] == 101
+        assert mapped[0]["boundary"] == [[33.31, 35.61], [33.32, 35.62], [33.30, 35.63]]
+
+    def test_should_fallback_to_none_when_city_id_mapping_missing(self):
+        engine = MagicMock()
+        std_name = standardize_name("North City")
+        engine.dm.city_map = {
+            std_name: {"lat": 33.3, "lon": 35.6, "area": "North", "name": "North City"},
+        }
+        engine.dm.city_to_id = {}
+        engine.city_polygons = {"101": [[33.31, 35.61], [33.32, 35.62], [33.30, 35.63]]}
+
+        processor = ThreatProcessor(engine)
+        mapped = processor._map_cities(["North City"])
+
+        assert len(mapped) == 1
+        assert set(mapped[0].keys()) == {"name", "coords", "area", "city_id", "boundary"}
+        assert mapped[0]["city_id"] is None
+        assert mapped[0]["boundary"] is None
+
+    def test_should_keep_city_id_and_fallback_boundary_none_when_polygon_missing(self):
+        engine = MagicMock()
+        std_name = standardize_name("North City")
+        engine.dm.city_map = {
+            std_name: {"lat": 33.3, "lon": 35.6, "area": "North", "name": "North City"},
+        }
+        engine.dm.city_to_id = {std_name: 101}
+        engine.city_polygons = {}
+
+        processor = ThreatProcessor(engine)
+        mapped = processor._map_cities(["North City"])
+
+        assert len(mapped) == 1
+        assert set(mapped[0].keys()) == {"name", "coords", "area", "city_id", "boundary"}
+        assert mapped[0]["city_id"] == 101
+        assert mapped[0]["boundary"] is None

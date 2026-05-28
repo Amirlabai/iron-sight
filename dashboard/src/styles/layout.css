@@ -32,6 +32,15 @@
     --sidebar-width: 400px;
 }
 
+html[data-theme='light'] {
+    --bg-primary: #f3f6fb;
+    --bg-secondary: rgba(255, 255, 255, 0.92);
+    --accent: #d92c2c;
+    --text-main: #1f2937;
+    --text-sub: #5f6b7a;
+    --border: rgba(17, 24, 39, 0.15);
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -65,6 +74,10 @@ body {
     border-bottom: 1px solid var(--border);
     backdrop-filter: blur(20px);
     z-index: 1000;
+}
+
+html[data-theme='light'] .premium-header {
+    background: rgba(255, 255, 255, 0.9);
 }
 
 .header-bar {
@@ -134,6 +147,10 @@ body {
     display: flex;
     flex-direction: column;
     backdrop-filter: blur(15px);
+}
+
+html[data-theme='light'] .sidebar {
+    background: rgba(255, 255, 255, 0.92);
 }
 
 .sidebar-tabs {
@@ -238,6 +255,11 @@ body {
         box-sizing: border-box;
     }
 
+    html[data-theme='light'] .sidebar {
+        background: rgba(255, 255, 255, 0.98);
+        border-top: 2px solid rgba(17, 24, 39, 0.2);
+    }
+
     /* Peek strip: pill only; safe-area padding keeps handle flush above home indicator */
     .sidebar-drag-zone {
         order: 0;
@@ -293,6 +315,10 @@ body {
         padding-left: 10px;
         padding-right: 10px;
         padding-bottom: 0;
+    }
+
+    html[data-theme='light'] .premium-header {
+        background: rgba(255, 255, 255, 0.98);
     }
 
     .premium-header h1 {

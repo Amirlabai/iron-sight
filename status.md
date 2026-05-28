@@ -8,6 +8,27 @@
 - [x] Added regression test in `backend/tests/test_threat_processor.py` to ensure Lebanon-aligned missile vectors stay `Lebanon` even when `allow_strategic=True`.
 - [x] Verified with `backend\\.venv\\Scripts\\python.exe -m pytest tests/test_threat_processor.py` (4 passed).
 
+## Theme and city boundary rendering (2026-05-28)
+
+- [x] Added persisted light/dark mode (`dashboard/src/hooks/useThemeMode.js`) with controls in desktop header and mobile cog dropdown menu.
+- [x] Added light-theme token overrides and map tile switching (Carto dark/light no-labels) based on active theme.
+- [x] Updated live map framing to prioritize affected missile area using target geometry bounds/centroid during active missile events.
+- [x] Extended backend city payload in `backend/src/core/threat_processor.py` with `city_id` and `boundary` polygon geometry from helper geodata.
+- [x] Added per-city boundary stroke rendering in cluster overlays with zoom-gated city labels in `dashboard/src/components/Map/ThreatOverlay.jsx`.
+- [x] Validation:
+  - `backend\\.venv\\Scripts\\python.exe -m pytest tests/test_threat_processor.py` (5 passed)
+  - `npm run build` in `dashboard` (successful)
+
+## Label density and fallback guards (2026-05-28)
+
+- [x] Added live label density guard in `dashboard/src/components/Map/ThreatOverlay.jsx` with `LIVE_CITY_LABEL_CAP` so permanent city labels are capped in live mode while retaining zoom gating and full boundary strokes.
+- [x] Added `_map_cities` fallback coverage in `backend/tests/test_threat_processor.py`:
+  - missing `city_to_id` mapping -> `city_id=None`, `boundary=None`
+  - missing `city_polygons` entry -> preserves `city_id`, sets `boundary=None`
+  - stable payload key assertions for mapped city objects.
+- [x] Validation:
+  - `backend\\.venv\\Scripts\\python.exe -m pytest tests/test_threat_processor.py` (7 passed)
+
 ## Dashboard black screen / build
 
 - [x] **Root cause:** `JsonLdScript` function component inside `<Helmet>` — react-helmet-async v3 throws and React never mounts (empty `#root`). Fixed: inline `<script type="application/ld+json">` in `SEO.jsx`

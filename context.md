@@ -142,6 +142,15 @@ Transitioned to Development Alpha.
     - Plan: [.open_work/strategic_origin_filtering.md](file:///c:/Users/amirl/OneDrive/Documents/GitHub/iron-sight/.open_work/strategic_origin_filtering.md)
 - **Multi-Origin Tactical Zoom & Centering (v1.0.6 - Complete)**:
     - Integrated `calculateBestMapConfig` for multi-threat awareness.
+- **Theme and City Boundary Layering (v1.0.7 - Complete)**:
+    - Added persisted `light|dark` runtime mode via root `data-theme` state.
+    - Control placement: desktop header quick toggle and mobile cog-dropdown bottom action.
+    - Map tiles switch with theme mode (`dark_nolabels` / `light_nolabels`).
+    - Live missile framing now prioritizes affected target area geometry (bounds/centroid) instead of origin-corridor midpoint fallback.
+    - Backend city mapping now includes `city_id` and `boundary` polygon data from helper files (`cities.json`, `polygons.json`).
+    - Frontend cluster overlays now render per-city boundary strokes with cluster color and zoom-gated city labels.
+    - Live-mode density guard caps permanent city labels per cluster to reduce DOM/load pressure during dense events; archive/timeframe behavior remains unchanged.
+    - `_map_cities` fallback contract is regression-tested: when mapping data is missing, payload shape remains stable with `city_id=None` and/or `boundary=None`.
 - **Relay Integration Brief (v1.2)**:
     - Protocol: GET `/alerts` with `x-relay-auth` header.
     - **Smart Categorization**:

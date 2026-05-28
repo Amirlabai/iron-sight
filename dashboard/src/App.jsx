@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Activity, Zap, Volume2, VolumeX, Radio, RotateCcw, Terminal, Shield } from 'lucide-react';
+import { Activity, Zap, Volume2, VolumeX, Radio, RotateCcw, Terminal, Shield, Sun, Moon } from 'lucide-react';
 import HeaderSettingsControl from './components/HeaderSettingsControl';
 import { Analytics } from '@vercel/analytics/react';
 import AlertPreferencesWizard from './components/Onboarding/AlertPreferencesWizard';
@@ -69,6 +69,8 @@ function TacticalDashboard() {
     isSidebarExpanded,
     alertPrefs,
     alertPrefsApi,
+    isLightMode,
+    toggleThemeMode,
   } = useTactical();
 
   const {
@@ -141,7 +143,19 @@ function TacticalDashboard() {
                 iconSize={iconSize}
                 prefsActive={alertPrefs.scope !== 'all'}
                 onOpenPreferences={openPreferencesPanel}
+                isLightMode={isLightMode}
+                onToggleThemeMode={toggleThemeMode}
               />
+              {!isMobile ? (
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={toggleThemeMode}
+                  aria-label={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+                >
+                  {isLightMode ? <Moon size={iconSize} /> : <Sun size={iconSize} />}
+                </button>
+              ) : null}
               <button type="button" className="icon-btn" onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? 'Unmute Tactical Audio' : 'Mute Tactical Audio'}>
                 {isMuted ? <VolumeX size={iconSize} /> : <Volume2 size={iconSize} />}
               </button>

@@ -17,6 +17,7 @@ import missileSound from '../assets/sounds/missile_alert.mp3';
 import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
 import { filterEventsByScope, matchesAlertScope, buildAlertNotifyKey } from '../utils/alertMatching';
 import { useAlertPreferences } from '../hooks/useAlertPreferences';
+import { useThemeMode } from '../hooks/useThemeMode';
 import { agentDebugBurst, agentDebugLog, WS_MESSAGE_BURST } from '../utils/agentDebugLog';
 import { hasSessionBooted, markSessionBooted } from '../utils/sessionBoot';
 import { consumeWsReconnectDelayMs, resetWsFailStreak } from '../utils/wsReconnect';
@@ -138,6 +139,7 @@ export function TacticalProvider({ children }) {
 
   const alertPrefsApi = useAlertPreferences();
   const { prefs: alertPrefs } = alertPrefsApi;
+  const { themeMode, isLightMode, toggleThemeMode } = useThemeMode();
   const alertPrefsRef = useRef(alertPrefs);
 
   useEffect(() => {
@@ -630,6 +632,9 @@ export function TacticalProvider({ children }) {
     tacticalColor, highlightColor,
     alertPrefs,
     alertPrefsApi,
+    themeMode,
+    isLightMode,
+    toggleThemeMode,
   };
 
   return (

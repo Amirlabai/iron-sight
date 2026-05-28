@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Settings } from 'lucide-react';
+import { Settings, Sun, Moon } from 'lucide-react';
 import './HeaderSettingsControl.css';
 
 const LEGAL_LINKS = [
@@ -15,6 +15,8 @@ export default function HeaderSettingsControl({
   iconSize,
   prefsActive,
   onOpenPreferences,
+  isLightMode,
+  onToggleThemeMode,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const rootRef = useRef(null);
@@ -95,6 +97,18 @@ export default function HeaderSettingsControl({
               {label}
             </Link>
           ))}
+          <button
+            type="button"
+            className="header-settings__item header-settings__item--theme"
+            role="menuitem"
+            onClick={onToggleThemeMode}
+            aria-label={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+          >
+            <span className="header-settings__theme-icon" aria-hidden="true">
+              {isLightMode ? <Moon size={14} /> : <Sun size={14} />}
+            </span>
+            <span>{isLightMode ? 'Dark mode' : 'Light mode'}</span>
+          </button>
         </div>
       ) : null}
     </div>

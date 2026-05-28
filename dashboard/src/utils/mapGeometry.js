@@ -7,7 +7,7 @@ import {
   flattenBoundary,
   getBoundaryOuter,
 } from './constants';
-import { getZoomLevel, normalizeOriginName, zoomForOrigin } from './mapZoomLevels';
+import { getZoomLevel, normalizeOriginName, zoomForCategory, zoomForOrigin } from './mapZoomLevels';
 
 export function getFitPadding() {
   const isMobile = window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT;
@@ -88,6 +88,27 @@ export function calculateBestMapConfig(events, mapZoomLevels = null) {
 
   if (!events || events.length === 0) {
     return { center: ISRAEL_CENTER, zoom: overviewZoom, ...base };
+  }
+
+  // For active missile alerts, prioritize affected target area centering over origin corridors.
+  const missileEvents = events.filter((e) => e?.category === 'missiles');
+  if (missileEvents.length > 0) {
+    const missilePoints = missileEvents.flatMap((e) => getEventTargetPoints(e));
+    if (missilePoints.length >= 2) {
+      return {
+        center: centroidOf(missilePoints),
+        zoom: zoomForCategory('missiles', mapZoomLevels),
+        bounds: missilePoints,
+        maxZoom: window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT ? 10 : 12,
+      };
+    }
+    if (missilePoints.length === 1) {
+      return {
+        center: missilePoints[0],
+        zoom: zoomForCategory('missiles', mapZoomLevels),
+        ...base,
+      };
+    }
   }
 
   const allTrajectories = events.flatMap((e) => e.trajectories || []);

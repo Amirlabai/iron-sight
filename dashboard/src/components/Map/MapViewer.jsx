@@ -210,8 +210,11 @@ export default function MapViewer() {
   const {
     mapConfig, renderableEvents, viewMode, archiveEvent,
     hasSimulation, tacticalColor, highlightColor,
-    setIsSidebarExpanded, mapAutoFollowToken,
+    setIsSidebarExpanded, mapAutoFollowToken, isLightMode,
   } = useTactical();
+  const tileUrl = isLightMode
+    ? 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
 
   const [mapFollowAuto, setMapFollowAuto] = useState(true);
   const suppressProgrammaticRef = useRef(false);
@@ -272,7 +275,7 @@ export default function MapViewer() {
         attributionControl={false}
         preferCanvas={true}
       >
-        <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png" />
+        <TileLayer url={tileUrl} />
 
         <MapInstanceBridge />
         <MapController
