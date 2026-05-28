@@ -3,8 +3,9 @@ import { Circle, Polyline, Marker, Popup, Polygon, Tooltip, useMap, useMapEvents
 import L from 'leaflet';
 import { TACTICAL_BOUNDARIES, STRATEGIC_METADATA, getBoundaryOuter } from '../../utils/constants';
 
-const CITY_LABEL_MIN_ZOOM = 9;
+const CITY_LABEL_MIN_ZOOM = 12;
 const LIVE_CITY_LABEL_CAP = 12;
+const CITY_FALLBACK_RADIUS_METERS = 500;
 
 // --- Tracking Drone (Animated Interpolation) ---
 const TrackingDrone = ({ positions, color }) => {
@@ -145,12 +146,39 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
               </React.Fragment>
             ) : null}
             {cluster.cities?.map((city, cityIdx) => {
-              if (!city?.boundary || city.boundary.length < 3) return null;
+              if (!city?.coords) return null;
               const shouldMountLabel = mapZoom >= CITY_LABEL_MIN_ZOOM
                 && (viewMode !== 'live' || cityIdx < LIVE_CITY_LABEL_CAP);
+              const cityKey = `${eventKey}-cluster-${idx}-city-${city.city_id || city.name || cityIdx}`;
+              if (!city?.boundary || city.boundary.length < 3) {
+                return (
+                  <Circle
+                    key={cityKey}
+                    center={city.coords}
+                    radius={CITY_FALLBACK_RADIUS_METERS}
+                    pathOptions={{
+                      color: clusterColor,
+                      weight: 1.5,
+                      opacity: 0.85,
+                      fill: false,
+                      interactive: false,
+                    }}
+                  >
+                    {shouldMountLabel ? (
+                      <Tooltip
+                        permanent
+                        direction="center"
+                        className="city-boundary-label"
+                      >
+                        {city.name}
+                      </Tooltip>
+                    ) : null}
+                  </Circle>
+                );
+              }
               return (
                 <Polygon
-                  key={`${eventKey}-cluster-${idx}-city-${city.city_id || city.name || cityIdx}`}
+                  key={cityKey}
                   positions={city.boundary}
                   pathOptions={{
                     color: clusterColor,
