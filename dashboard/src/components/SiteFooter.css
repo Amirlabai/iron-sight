@@ -2,11 +2,11 @@
   flex-shrink: 0;
   padding: 10px 16px;
   padding-bottom: max(10px, env(safe-area-inset-bottom));
-  background: rgba(10, 10, 12, 0.92);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
   text-align: center;
   font-size: 0.75rem;
-  color: #888;
+  color: var(--text-sub);
   z-index: 100;
 }
 
@@ -23,13 +23,13 @@
 }
 
 .site-footer__nav a {
-  color: #aaa;
+  color: var(--text-sub);
   text-decoration: none;
 }
 
 .site-footer__nav a:hover,
 .site-footer__nav a:focus-visible {
-  color: #e0e0e0;
+  color: var(--text-main);
   text-decoration: underline;
 }
 

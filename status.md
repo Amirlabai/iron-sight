@@ -19,6 +19,13 @@
   - `backend\\.venv\\Scripts\\python.exe -m pytest tests/test_threat_processor.py` (5 passed)
   - `npm run build` in `dashboard` (successful)
 
+## Light mode UI polish (2026-05-28)
+
+- [x] Footer, accessibility toolbar, map recenter button, and header status pill now use theme tokens instead of hardcoded dark surfaces.
+- [x] Added `html[data-theme='light']` contrast overrides for status pills (online/degraded/sandbox/offline).
+- [x] Extended light theme tokens (`--success`, `--tactical-blue`, stronger `--border`).
+- [x] Legal pages (`About`, `Accessibility`, `Privacy`, `Terms`, 404): theme tokens in `LegalPage.css`, `initThemeFromStorage()` on boot, light/dark toggle in legal header.
+
 ## Label density and fallback guards (2026-05-28)
 
 - [x] Added live label density guard in `dashboard/src/components/Map/ThreatOverlay.jsx` with `LIVE_CITY_LABEL_CAP` so permanent city labels are capped in live mode while retaining zoom gating and full boundary strokes.

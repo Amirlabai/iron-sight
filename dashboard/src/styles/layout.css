@@ -34,11 +34,14 @@
 
 html[data-theme='light'] {
     --bg-primary: #f3f6fb;
-    --bg-secondary: rgba(255, 255, 255, 0.92);
+    --bg-secondary: rgba(255, 255, 255, 0.96);
     --accent: #d92c2c;
     --text-main: #1f2937;
     --text-sub: #5f6b7a;
-    --border: rgba(17, 24, 39, 0.15);
+    --border: rgba(17, 24, 39, 0.18);
+    --success: #047857;
+    --tactical-blue: #1d4ed8;
+    --highlight-blue: #1d4ed8;
 }
 
 * {
@@ -585,8 +588,9 @@ html[data-theme='light'] .sidebar {
     flex-shrink: 0;
     padding: 0.35rem 0.75rem;
     padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
-    background: rgba(10, 10, 12, 0.92);
+    background: var(--bg-secondary);
     border-top: 1px solid var(--border);
+    color: var(--text-sub);
 }
 
 .dashboard-container .site-footer--compact .site-footer__nav {

@@ -143,8 +143,10 @@ Transitioned to Development Alpha.
 - **Multi-Origin Tactical Zoom & Centering (v1.0.6 - Complete)**:
     - Integrated `calculateBestMapConfig` for multi-threat awareness.
 - **Theme and City Boundary Layering (v1.0.7 - Complete)**:
-    - Added persisted `light|dark` runtime mode via root `data-theme` state.
-    - Control placement: desktop header quick toggle and mobile cog-dropdown bottom action.
+    - Added persisted `light|dark` runtime mode via root `data-theme` state (`iron-sight-theme-mode` in localStorage).
+    - `initThemeFromStorage()` runs in `main.jsx` before React mount so legal routes respect saved theme on direct entry.
+    - Control placement: desktop header quick toggle, mobile cog-dropdown bottom action, and legal-page header toggle (`LegalPageLayout`).
+    - Legal pages (`/about`, `/accessibility`, `/privacy`, `/terms`, 404) use theme tokens in `LegalPage.css` (no hardcoded dark text surfaces).
     - Map tiles switch with theme mode (`dark_nolabels` / `light_nolabels`).
     - Live missile framing now prioritizes affected target area geometry (bounds/centroid) instead of origin-corridor midpoint fallback.
     - Backend city mapping now includes `city_id` and `boundary` polygon data from helper files (`cities.json`, `polygons.json`).

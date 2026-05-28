@@ -34,16 +34,27 @@
   min-width: 44px;
   padding: 8px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(20, 20, 22, 0.92);
-  color: #e0e0e0;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-main);
   font-size: 0.8rem;
   cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+.a11y-toolbar__btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+}
+
+html[data-theme='light'] .a11y-toolbar__btn:hover {
+  background: rgba(15, 23, 42, 0.06);
 }
 
 .a11y-toolbar__btn[aria-pressed='true'] {
-  border-color: #7eb8ff;
-  background: rgba(46, 90, 158, 0.5);
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.18);
+  color: var(--text-main);
 }
 
 .a11y-toolbar__btn:focus-visible {

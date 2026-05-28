@@ -4,7 +4,10 @@ import { HelmetProvider } from 'react-helmet-async';
 import { registerSW } from 'virtual:pwa-register';
 import './index.css';
 import './components/AccessibilityToolbar.css';
+import { initThemeFromStorage } from './hooks/useThemeMode';
 import App from './App.jsx';
+
+initThemeFromStorage();
 
 function isStandalonePwa() {
   return (

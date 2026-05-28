@@ -21,6 +21,11 @@ function applyTheme(themeMode) {
   root.setAttribute('data-theme', mode);
 }
 
+/** Apply persisted theme before React mounts (legal pages, prerender). */
+export function initThemeFromStorage() {
+  applyTheme(readStoredTheme());
+}
+
 export function useThemeMode() {
   const [themeMode, setThemeMode] = useState(() => {
     const stored = readStoredTheme();

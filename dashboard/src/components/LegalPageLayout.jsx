@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
+import { Moon, Sun } from 'lucide-react';
 import SEO from './SEO';
 import SiteFooter from './SiteFooter';
 import AccessibilityToolbar from './AccessibilityToolbar';
+import { useThemeMode } from '../hooks/useThemeMode';
 import '../pages/LegalPage.css';
 
 export default function LegalPageLayout({
@@ -21,6 +23,7 @@ export default function LegalPageLayout({
   } = seoExtras;
 
   const crumbItems = [{ name: 'Home', url: '/' }, ...breadcrumbs];
+  const { isLightMode, toggleThemeMode } = useThemeMode();
 
   return (
     <>
@@ -42,6 +45,18 @@ export default function LegalPageLayout({
           <Link to="/" className="legal-page-home-link">
             ← IRON SIGHT
           </Link>
+          <button
+            type="button"
+            className="legal-page-theme-btn"
+            onClick={toggleThemeMode}
+            aria-label={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+            title={isLightMode ? 'Dark mode' : 'Light mode'}
+          >
+            {isLightMode ? <Moon size={18} aria-hidden /> : <Sun size={18} aria-hidden />}
+            <span className="legal-page-theme-btn__label">
+              {isLightMode ? 'Dark' : 'Light'}
+            </span>
+          </button>
         </header>
         <main id="legal-main" className="legal-page-main">
           {children}
