@@ -14,7 +14,7 @@ import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 // Geographic Constants
 export const ISRAEL_CENTER = [31.7683, 35.2137];
 export const MOBILE_LAYOUT_BREAKPOINT = 1024;
-export const MOBILE_SIDEBAR_HEIGHT_RATIO = 0.98;
+export const MOBILE_SIDEBAR_HEIGHT_RATIO = 0.6;
 /** Collapsed bottom-sheet peek — drag handle only (tabs hidden until expanded). */
 export const MOBILE_SIDEBAR_PEEK_PX = 44;
 
