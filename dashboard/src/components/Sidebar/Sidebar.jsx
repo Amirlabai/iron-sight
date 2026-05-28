@@ -111,9 +111,7 @@ export default function Sidebar() {
 
     const measure = () => {
       const sidebarH = el.getBoundingClientRect().height;
-      const peekH = peek
-        ? peek.getBoundingClientRect().height
-        : MOBILE_SIDEBAR_PEEK_PX;
+      const peekH = 0;
       const nextY = Math.max(0, sidebarH - peekH);
       // #region agent log
       agentDebugBurst(
@@ -200,27 +198,15 @@ export default function Sidebar() {
         height: isMobile ? sidebarHeight : '100%',
       }}
     >
-      <div
-        ref={peekChromeRef}
-        className="sidebar-drag-zone"
-        role="button"
-        tabIndex={0}
-        aria-label="Drag or click to expand/collapse panel"
-        onPointerDown={startSheetDrag}
-        onClick={() => {
-          if (isMobile) setIsSidebarExpanded(!isSidebarExpanded);
-        }}
-      >
-        <div className="sidebar-drag-handle" aria-hidden="true" />
-      </div>
-      <div className="sidebar-tabs">
-        <button className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={() => handleTabChange('live')}>
+
+      <div className="sidebar-tabs" onPointerDown={startSheetDrag}>
+        <button className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); handleTabChange('live'); }}>
           <Activity size={18} /> LIVE
         </button>
-        <button className={`tab-btn ${activeTab === 'archive' ? 'active' : ''}`} onClick={() => handleTabChange('archive')}>
+        <button className={`tab-btn ${activeTab === 'archive' ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); handleTabChange('archive'); }}>
           <History size={18} /> HISTORY
         </button>
-        <button className={`tab-btn ${activeTab === 'sandbox' ? 'active' : ''}`} onClick={() => handleTabChange('sandbox')}>
+        <button className={`tab-btn ${activeTab === 'sandbox' ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); handleTabChange('sandbox'); }}>
           <Shield size={18} /> SANDBOX
         </button>
       </div>

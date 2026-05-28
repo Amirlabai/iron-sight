@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Activity, Zap, Volume2, VolumeX, Radio, RotateCcw, Terminal, Shield, Sun, Moon } from 'lucide-react';
+import { Activity, Zap, Volume2, VolumeX, Radio, RotateCcw, Terminal, Shield, Sun, Moon, ChevronUp } from 'lucide-react';
 import HeaderSettingsControl from './components/HeaderSettingsControl';
 import { Analytics } from '@vercel/analytics/react';
 import AlertPreferencesWizard from './components/Onboarding/AlertPreferencesWizard';
@@ -245,7 +245,19 @@ function TacticalDashboard() {
         </svg>
       </div>
 
+
+      {!isSidebarExpanded && isMobile && (
+        <button
+          type="button"
+          className="sidebar-expand-btn"
+          onClick={() => setIsSidebarExpanded(true)}
+          aria-label="Expand Sidebar"
+        >
+          <ChevronUp size={24} />
+        </button>
+      )}
       <AccessibilityToolbar />
+
       <CookieNotice
         show={showBanner}
         onAccept={acceptCookies}
