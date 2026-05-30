@@ -1,9 +1,9 @@
-// Mobile bottom sheet: .context/MOBILE_SHELL_SPEC.md (peek = drag zone only, useMotionValue Y).
+// Mobile bottom sheet: collapsed = fully hidden; expand via sidebar-expand-btn.
 import React from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, animate } from 'framer-motion';
 import {
   Activity, ShieldAlert, Navigation2, RotateCcw, History,
-  Clock, Shield, ChevronDown, ChevronRight, Terminal,
+  Clock,
   Rocket, Plane, Zap, Wind, Users, Waves
 } from 'lucide-react';
 import { useTactical } from '../../context/TacticalContext';
@@ -13,7 +13,6 @@ import {
   categoryTint,
   MOBILE_LAYOUT_BREAKPOINT,
   MOBILE_SIDEBAR_HEIGHT_RATIO,
-  MOBILE_SIDEBAR_PEEK_PX,
 } from '../../utils/constants';
 import { calculateTimeframeMapConfig } from '../../utils/mapGeometry';
 import { ORIGIN_FILTER_OPTIONS } from '../../utils/mapZoomPresets';
@@ -23,12 +22,10 @@ export default function Sidebar() {
   const {
     activeTab, handleTabChange, liveEvents, history,
     viewMode, archiveEvent, selectArchive,
-    sandboxEvent, sandboxInput, setSandboxInput,
-    citySearch, setCitySearch, regionalData,
-    expandedRegions, isAnalyzing, isSidebarExpanded,
-    setIsSidebarExpanded, toggleCity, toggleRegion,
-    toggleExpand, runSandboxAnalysis,
-    totalClusters, totalTargets, setExpandedRegions,
+    regionalData,
+    isSidebarExpanded,
+    setIsSidebarExpanded,
+    totalClusters, totalTargets,
 
     historyFilter, setHistoryFilter,
     timeFrame, setTimeFrame, originFilter, setOriginFilter, filteredHistory,
@@ -95,7 +92,6 @@ export default function Sidebar() {
   const isMobile = viewport.width <= MOBILE_LAYOUT_BREAKPOINT;
   const sidebarHeight = `${MOBILE_SIDEBAR_HEIGHT_RATIO * 100}%`;
   const sidebarRef = React.useRef(null);
-  const peekChromeRef = React.useRef(null);
   const collapsedYDebugRef = React.useRef(0);
   const collapsedYRef = React.useRef(0);
   const [collapsedY, setCollapsedY] = React.useState(0);
@@ -106,21 +102,17 @@ export default function Sidebar() {
       return;
     }
     const el = sidebarRef.current;
-    const peek = peekChromeRef.current;
     if (!el) return;
 
     const measure = () => {
       const sidebarH = el.getBoundingClientRect().height;
-      const peekH = peek
-        ? peek.getBoundingClientRect().height
-        : MOBILE_SIDEBAR_PEEK_PX;
-      const nextY = Math.max(0, sidebarH - peekH);
+      const nextY = sidebarH;
       // #region agent log
       agentDebugBurst(
         'sidebar-measure',
         'Sidebar.jsx:measure',
         'ResizeObserver measure burst',
-        { sidebarH, peekH, nextY },
+        { sidebarH, nextY },
         'A',
       );
       // #endregion
@@ -138,13 +130,12 @@ export default function Sidebar() {
       }
       collapsedYRef.current = nextY;
       setCollapsedY((prev) => (prev === nextY ? prev : nextY));
-      document.documentElement.style.setProperty('--mobile-sheet-peek', `${Math.ceil(peekH)}px`);
+      document.documentElement.style.setProperty('--mobile-sheet-peek', '0px');
     };
 
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    if (peek) ro.observe(peek);
     window.addEventListener('resize', measure);
     window.addEventListener('orientationchange', measure);
     return () => {
@@ -166,11 +157,11 @@ export default function Sidebar() {
 
   React.useEffect(() => {
     if (!isMobile) return;
-    const y = collapsedYRef.current;
+    const y = collapsedYRef.current || collapsedY;
     const target = isSidebarExpanded ? 0 : y;
     if (!isSidebarExpanded && y <= 0) return;
     animate(sheetY, target, { type: 'spring', damping: 40, stiffness: 600 });
-  }, [isSidebarExpanded, isMobile, sheetY]);
+  }, [isSidebarExpanded, isMobile, sheetY, collapsedY]);
 
   const startSheetDrag = (e) => {
     if (!isMobile) return;
@@ -200,28 +191,13 @@ export default function Sidebar() {
         height: isMobile ? sidebarHeight : '100%',
       }}
     >
-      <div
-        ref={peekChromeRef}
-        className="sidebar-drag-zone"
-        role="button"
-        tabIndex={0}
-        aria-label="Drag or click to expand/collapse panel"
-        onPointerDown={startSheetDrag}
-        onClick={() => {
-          if (isMobile) setIsSidebarExpanded(!isSidebarExpanded);
-        }}
-      >
-        <div className="sidebar-drag-handle" aria-hidden="true" />
-      </div>
-      <div className="sidebar-tabs">
-        <button className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={() => handleTabChange('live')}>
+
+      <div className="sidebar-tabs" onPointerDown={startSheetDrag}>
+        <button className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); handleTabChange('live'); }}>
           <Activity size={18} /> LIVE
         </button>
-        <button className={`tab-btn ${activeTab === 'archive' ? 'active' : ''}`} onClick={() => handleTabChange('archive')}>
+        <button className={`tab-btn ${activeTab === 'archive' ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); handleTabChange('archive'); }}>
           <History size={18} /> HISTORY
-        </button>
-        <button className={`tab-btn ${activeTab === 'sandbox' ? 'active' : ''}`} onClick={() => handleTabChange('sandbox')}>
-          <Shield size={18} /> SANDBOX
         </button>
       </div>
 
@@ -285,7 +261,7 @@ export default function Sidebar() {
                 </div>
               )}
             </motion.div>
-          ) : activeTab === 'archive' ? (
+          ) : (
             <motion.div key="history-tab" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="archive-panel">
               <div className="history-filters">
                 {[
@@ -550,104 +526,6 @@ export default function Sidebar() {
                       {historyLoadingMore ? 'LOADING...' : 'SHOW MORE'}
                     </button>
                   ) : null}
-                </div>
-              )}
-            </motion.div>
-          ) : (
-            <motion.div key="sandbox-tab" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="sandbox-panel">
-              <div className="stats-card sandbox">
-                <div className="card-header"><Shield size={20} /><h2>TACTICAL SANDBOX</h2></div>
-                <p className="text-xs text-sub mb-4 italic">Hypothesize threat vectors by plotting city clusters.</p>
-
-                {/* Regional Selection Suite */}
-                <div className="regional-picker">
-                  <div className="picker-controls">
-                    <div className="search-box">
-                      <Terminal size={14} />
-                      <input
-                        type="text"
-                        placeholder="Filter regions or cities..."
-                        value={citySearch}
-                        onChange={(e) => setCitySearch(e.target.value)}
-                      />
-                    </div>
-                    <div className="master-toggles">
-                      <button onClick={() => setExpandedRegions(new Set(Object.keys(regionalData)))}>EXPAND ALL</button>
-                      <button onClick={() => setExpandedRegions(new Set())}>COLLAPSE</button>
-                    </div>
-                  </div>
-
-                  <div className="regions-container">
-                    {Object.entries(regionalData)
-                      .filter(([name, cities]) =>
-                        name.includes(citySearch) ||
-                        Object.keys(cities).some(c => c.includes(citySearch))
-                      )
-                      .map(([region, cities]) => {
-                        const regionCities = Object.keys(cities);
-                        const currentCities = sandboxInput.split(/[;\n]/).map(c => c.trim()).filter(c => c);
-                        const selectedInRegion = regionCities.filter(c => currentCities.includes(c));
-                        const isExpanded = expandedRegions.has(region) || citySearch.length > 0;
-
-                        return (
-                          <div key={region} className={`region-group ${isExpanded ? 'expanded' : ''}`}>
-                            <div className="region-header" onClick={() => toggleExpand(region)}>
-                              <div className="region-info">
-                                {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                <span className="region-name">{region}</span>
-                                <span className="count-pill">{selectedInRegion.length}/{regionCities.length}</span>
-                              </div>
-                              <button
-                                className={`select-all-btn ${selectedInRegion.length === regionCities.length ? 'all' : ''}`}
-                                onClick={(e) => toggleRegion(region, e)}
-                              >
-                                {selectedInRegion.length === regionCities.length ? 'DESELECT' : 'SELECT ALL'}
-                              </button>
-                            </div>
-                            {isExpanded && (
-                              <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} className="region-cities">
-                                {regionCities
-                                  .filter(c => c.includes(citySearch))
-                                  .map(city => (
-                                    <button
-                                      key={city}
-                                      className={`city-pill ${currentCities.includes(city) ? 'active' : ''}`}
-                                      onClick={() => toggleCity(city)}
-                                    >
-                                      {city}
-                                    </button>
-                                  ))}
-                              </motion.div>
-                            )}
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-
-                <textarea
-                  className="sandbox-textarea"
-                  placeholder="Targets (separated by ; or New-Line)..."
-                  value={sandboxInput}
-                  onChange={(e) => setSandboxInput(e.target.value)}
-                />
-                <button
-                  className="analyze-btn"
-                  onClick={runSandboxAnalysis}
-                  disabled={isAnalyzing}
-                >
-                  {isAnalyzing ? 'ENGINE PROCESSING...' : 'EXECUTE ANALYSIS'}
-                </button>
-              </div>
-              {sandboxEvent && (
-                <div className="sandbox-results">
-                  <div className="alert-item sandbox">
-                    <div className="alert-marker sandbox"></div>
-                    <div className="alert-info">
-                      <h3>{sandboxEvent.title}</h3>
-                      <p>Origin mapped to {sandboxEvent.trajectories?.[0]?.origin}</p>
-                    </div>
-                  </div>
                 </div>
               )}
             </motion.div>

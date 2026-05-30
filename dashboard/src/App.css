@@ -263,7 +263,7 @@ html[data-theme='light'] .status-pill.offline {
 /* --- Map recenter (after user pan/zoom); fixed to match a11y toolbar stack --- */
 .map-recenter-btn {
     position: fixed;
-    left: max(16px, env(safe-area-inset-left));
+    left: max(68px, env(safe-area-inset-left) + 56px);
     bottom: var(--dashboard-map-recenter-offset);
     z-index: 1000;
     display: flex;
@@ -301,6 +301,12 @@ html[data-theme='light'] .map-recenter-btn:hover {
 .map-recenter-btn:focus-visible {
     outline: 2px solid #ff9500;
     outline-offset: 2px;
+}
+
+@media (min-width: 1025px) {
+    .map-recenter-btn {
+        left: max(16px, env(safe-area-inset-left));
+    }
 }
 
 /* --- Map Overlays --- */
@@ -1509,4 +1515,33 @@ html[data-theme='light'] .filter-tab:hover {
 .icon-btn-active {
     color: #ff9500;
     border-color: rgba(255, 149, 0, 0.4);
+}
+/* --- Sidebar Expand Button (Mobile) --- */
+.sidebar-expand-btn {
+    position: fixed;
+    left: max(12px, env(safe-area-inset-left));
+    bottom: var(--dashboard-map-recenter-offset);
+    z-index: var(--z-a11y-toolbar);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: var(--bg-secondary);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-expand-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme='light'] .sidebar-expand-btn { box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12); }
+
+html[data-theme='light'] .sidebar-expand-btn:hover {
+    background: rgba(15, 23, 42, 0.06);
 }

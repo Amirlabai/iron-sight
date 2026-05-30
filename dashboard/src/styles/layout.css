@@ -168,15 +168,6 @@ html[data-theme='light'] .sidebar {
     padding: 25px;
 }
 
-/* --- Sidebar drag handle (mobile) --- */
-.sidebar-drag-handle {
-    display: none;
-}
-
-.sidebar-drag-zone {
-    display: none;
-}
-
 /* --- Desktop shell (≥1025px) --- */
 @media (min-width: 1025px) {
     .premium-header {
@@ -234,7 +225,7 @@ html[data-theme='light'] .sidebar {
 /* --- Mobile Adaptability (see .context/MOBILE_SHELL_SPEC.md) --- */
 @media (max-width: 1024px) {
     :root {
-        --mobile-sheet-peek: 44px;
+        --mobile-sheet-peek: 0px;
         --z-mobile-sheet: 2600;
         --z-return-live: 2700;
     }
@@ -261,39 +252,6 @@ html[data-theme='light'] .sidebar {
     html[data-theme='light'] .sidebar {
         background: rgba(255, 255, 255, 0.98);
         border-top: 2px solid rgba(17, 24, 39, 0.2);
-    }
-
-    /* Peek strip: pill only; safe-area padding keeps handle flush above home indicator */
-    .sidebar-drag-zone {
-        order: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        width: 100%;
-        min-height: 0;
-        padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
-        background: rgba(20, 20, 22, 0.97);
-        border: none;
-        cursor: grab;
-        touch-action: none;
-        position: relative;
-        z-index: 2;
-    }
-
-    .sidebar-drag-zone::after {
-        content: '';
-        display: block;
-        width: 40px;
-        height: 5px;
-        border-radius: 999px;
-        background: rgba(220, 220, 228, 0.85);
-        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
-        flex-shrink: 0;
-    }
-
-    .sidebar-drag-handle {
-        display: none;
     }
 
     .sidebar-tabs {
@@ -401,6 +359,17 @@ html[data-theme='light'] .sidebar {
     }
 
     :root {
+        --dashboard-map-recenter-offset: max(
+            180px,
+            calc(65px + 48px + 16px + env(safe-area-inset-bottom))
+        );
+    }
+
+    .dashboard-container.sidebar-collapsed {
+        --dashboard-map-recenter-offset: max(12px, env(safe-area-inset-bottom));
+    }
+
+    .dashboard-container.sidebar-expanded {
         --dashboard-map-recenter-offset: max(
             180px,
             calc(65px + 48px + 16px + env(safe-area-inset-bottom))

@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Activity, Zap, Volume2, VolumeX, Radio, RotateCcw, Terminal, Shield, Sun, Moon } from 'lucide-react';
+import { Activity, Zap, Volume2, VolumeX, Radio, RotateCcw, Terminal, Shield, Sun, Moon, ChevronUp } from 'lucide-react';
 import HeaderSettingsControl from './components/HeaderSettingsControl';
 import { Analytics } from '@vercel/analytics/react';
 import AlertPreferencesWizard from './components/Onboarding/AlertPreferencesWizard';
@@ -21,7 +21,6 @@ import { agentDebugLogThrottled } from './utils/agentDebugLog';
 import {
   getLiveStatusPillAriaLabel,
   getLiveStatusPillLabel,
-  getSandboxStatusPillLabel,
 } from './utils/statusLabels';
 import About from './pages/About';
 import Accessibility from './pages/Accessibility';
@@ -65,8 +64,9 @@ function TacticalDashboard() {
   const {
     isReady, loadingProgress, liveEvents, viewMode,
     isConnected, isMuted, setIsMuted, tacticalHealth,
-    returnToLive, setViewMode, setSandboxEvent,
+    returnToLive, setViewMode,
     isSidebarExpanded,
+    setIsSidebarExpanded,
     alertPrefs,
     alertPrefsApi,
     isLightMode,
@@ -177,17 +177,6 @@ function TacticalDashboard() {
                 </div>
               )}
 
-              {viewMode === 'sandbox' && (
-                <div className="flex gap-2">
-                  <button type="button" className="return-live-btn sandbox" onClick={() => { setViewMode('live'); setSandboxEvent(null); }}>
-                    <RotateCcw size={16} /> TERMINATE ANALYSIS
-                  </button>
-                  <div className="status-pill sandbox" aria-label={getSandboxStatusPillLabel()}>
-                    <div className="pulse-dot"></div>
-                    {getSandboxStatusPillLabel({ compact: statusCompact })}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </header>
@@ -245,7 +234,24 @@ function TacticalDashboard() {
         </svg>
       </div>
 
+
+      {!isSidebarExpanded && isMobile && (
+        <button
+          type="button"
+          className="sidebar-expand-btn"
+          onClick={(e) => { e.stopPropagation(); setIsSidebarExpanded(true); }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          aria-label="Expand Sidebar"
+        >
+          <ChevronUp size={24} />
+        </button>
+      )}
       <AccessibilityToolbar />
+
       <CookieNotice
         show={showBanner}
         onAccept={acceptCookies}
