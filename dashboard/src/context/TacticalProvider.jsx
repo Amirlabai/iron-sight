@@ -554,7 +554,7 @@ export function TacticalProvider({ children }) {
               // Proximity check (centroids)
               if (c1.centroid && c2.centroid) {
                 const dist = getDistance(c1.centroid, c2.centroid);
-                if (dist < 12) shouldMerge = true;
+                if (dist < 8) shouldMerge = true;
               }
 
               // Shared city check

@@ -2,6 +2,13 @@
 
 **Updated:** 2026-05-28
 
+## Timeframe merge visualization (2026-05-28)
+
+- [x] Simplified merge: 8 km centroid proximity only (removed shared-city BFS chaining that linked distant alerts).
+- [x] Merged hull built from city coordinates only (not inflated source hull vertices).
+- [x] Timeframe merged events hide per-city boundary strokes; show one hull per nearby group.
+- [x] Validation: `npm run build` in `dashboard` (successful).
+
 ## Alert preferences storage optimization (2026-05-28)
 
 - [x] Partitioned prefs: `iron_sight_prefs_ui` and `iron_sight_map_zoom` (localStorage), `iron_sight_push` (sessionStorage); one-time migrate from `iron_sight_alert_prefs`.
