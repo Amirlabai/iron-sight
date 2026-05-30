@@ -1,102 +1,24 @@
-import React from 'react';
-import { Circle, Polyline, Marker, Popup, Polygon, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import React, { useMemo } from 'react';
+import { Circle, Polyline, Marker, Popup, Polygon, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { TACTICAL_BOUNDARIES, STRATEGIC_METADATA, getBoundaryOuter } from '../../utils/constants';
+import { resolveCanvasColor, resolveMarkerColor } from '../../utils/mapColors';
+import { getSvgPathRenderer } from '../../utils/mapRenderers';
+import { normalizeDroneWaypoints, resolveMissileEndpoints } from '../../utils/motionEndpoints';
+import { MissileMotionRegistrar } from './MotionRegistrars';
+import TrackingDrone from './TrackingDrone';
+import { PulsingInfiltrationCircle, PulsingInfiltrationHull } from './PulsingInfiltrationHull';
 
 const CITY_LABEL_MIN_ZOOM = 11;
 const LIVE_CITY_LABEL_CAP = 12;
 const CITY_FALLBACK_RADIUS_METERS = 500;
 
-// --- Tracking Drone (Animated Interpolation) ---
-const TrackingDrone = ({ positions, color }) => {
-  const [currentIdx, setCurrentIdx] = React.useState(0);
-  const [progress, setProgress] = React.useState(0);
-  const [zoom, setZoom] = React.useState(12);
+const SVG_PATH_RENDERER = getSvgPathRenderer();
 
-  const map = useMapEvents({
-    zoom() { setZoom(map.getZoom()); }
-  });
-
-  React.useEffect(() => {
-    if (!positions || positions.length < 2) return;
-    let animationFrameId;
-    let startTime = Date.now();
-    const duration = 2000;
-
-    const animate = () => {
-      const now = Date.now();
-      const elapsed = now - startTime;
-      const p = Math.min(elapsed / duration, 1);
-      setProgress(p);
-      if (p >= 1) {
-        startTime = Date.now();
-        setCurrentIdx((prev) => (prev + 1) % positions.length);
-      }
-      animationFrameId = requestAnimationFrame(animate);
-    };
-
-    animationFrameId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [positions]);
-
-  if (!positions || positions.length === 0) return null;
-
-  const baseZoom = 12;
-  const geoScale = Math.pow(2, zoom - baseZoom);
-  const clampedScale = Math.min(Math.max(geoScale, 0.25), 1.2);
-  const pathWeight = Math.max(1, 2 * (zoom / 12));
-
-  if (positions.length === 1) {
-    return (
-      <Marker position={positions[0]} icon={L.divIcon({
-        className: 'drone-tracker-marker',
-        html: `<div class="drone-container" style="--threat-color: ${color}; transform: translate(-50%, -50%) scale(${clampedScale});">
-                 <div class="drone-body-premium"></div>
-               </div>`,
-        iconSize: [0, 0],
-        iconAnchor: [0, 0]
-      })} />
-    );
-  }
-
-  const p1 = positions[currentIdx];
-  const p2 = positions[(currentIdx + 1) % positions.length];
-  const lat = p1[0] + (p2[0] - p1[0]) * progress;
-  const lng = p1[1] + (p2[1] - p1[1]) * progress;
-  const dx = p2[1] - p1[1];
-  const dyScreen = -(p2[0] - p1[0]);
-  const angle = Math.atan2(dyScreen, dx) * (180 / Math.PI);
-
-  return (
-    <React.Fragment>
-      <Polyline
-        positions={positions}
-        pathOptions={{
-          color: color,
-          weight: pathWeight,
-          dashArray: '5, 10',
-          opacity: 0.5,
-          className: 'trajectory-line'
-        }}
-      />
-      <Marker position={[lat, lng]} icon={L.divIcon({
-        className: 'drone-tracker-marker',
-        html: `<div class="drone-container" style="transform: translate(-50%, -50%) rotate(${angle}deg) scale(${clampedScale}); --threat-color: ${color};">
-                 <div class="drone-tail"></div>
-                 <div class="drone-body-premium"></div>
-               </div>`,
-        iconSize: [0, 0],
-        iconAnchor: [0, 0]
-      })} />
-    </React.Fragment>
-  );
-};
-
-// --- Threat Overlay (renders clusters, trajectories, origin highlights for a single event) ---
 export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor, highlightColor }) {
-  if (!event) return null;
   const map = useMap();
   const [mapZoom, setMapZoom] = React.useState(() => map.getZoom());
+  const isLive = viewMode === 'live';
 
   React.useEffect(() => {
     const handleZoomEnd = () => setMapZoom(map.getZoom());
@@ -104,21 +26,55 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
     return () => map.off('zoomend', handleZoomEnd);
   }, [map]);
 
+  const baseZoom = 12;
+  const pathWeight = Math.max(1, 2 * (mapZoom / baseZoom));
+
+  const animatedPathOptions = useMemo(
+    () => ({ renderer: SVG_PATH_RENDERER }),
+    [],
+  );
+
+  if (!event) return null;
+
+  const isNewsFlash = event.category === 'newsFlash';
+  const isInfiltration = event.category === 'terroristInfiltration';
+  const liveClusterAnimClass = isLive && !isNewsFlash
+    ? (event.visual_config?.movement || 'pulse-animation')
+    : '';
+  const clusterHaloClass = isNewsFlash ? 'organic-hull' : 'organic-hull origin-threat-halo';
+
   return (
     <React.Fragment>
       {/* Clusters */}
       {event.clusters?.map((cluster, idx) => {
-        const clusterColor = event.visual_config?.color || STRATEGIC_METADATA[cluster.origin]?.color || tacticalColor;
+        const clusterColor = resolveCanvasColor(event, tacticalColor, cluster);
+        const iconColor = resolveMarkerColor(event, tacticalColor, cluster);
+        const movement = event.visual_config?.movement;
+        const rawDroneCoords = cluster.cities?.map((c) => c.coords).filter((c) => c && c.length >= 2) ?? [];
+        const dronePositions = normalizeDroneWaypoints(rawDroneCoords, cluster.centroid);
+        const primaryCity = cluster.cities?.[0];
+        const infiltrationOutline = isInfiltration && primaryCity?.boundary
+          && getBoundaryOuter(primaryCity.boundary).length >= 3
+          ? primaryCity.boundary
+          : null;
+
         return (
           <React.Fragment key={`${eventKey}-cluster-${idx}`}>
-            {cluster.hull && cluster.hull.length > 2 ? (
+            {infiltrationOutline ? (
+              <PulsingInfiltrationHull
+                positions={infiltrationOutline}
+                color={clusterColor}
+                pulse={isLive}
+                tooltip={primaryCity?.name || 'Infiltration Alert'}
+              />
+            ) : cluster.hull && cluster.hull.length > 2 && !isInfiltration ? (
               <React.Fragment>
                 <Polygon
                   positions={cluster.hull}
                   pathOptions={{
                     color: clusterColor, weight: 15, opacity: 0.1, fill: false,
                     smoothFactor: 2.0, lineJoin: 'round', lineCap: 'round',
-                    className: 'organic-hull origin-threat-halo'
+                    className: clusterHaloClass
                   }}
                 />
                 <Polygon
@@ -126,21 +82,21 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                   pathOptions={{
                     fillColor: clusterColor, fillOpacity: 0.3, color: clusterColor,
                     weight: 3, smoothFactor: 2.0, lineJoin: 'round', lineCap: 'round',
-                    className: `organic-hull ${viewMode === 'live' ? (event.visual_config?.movement || 'pulse-animation') : ''}`
+                    className: `organic-hull ${liveClusterAnimClass}`
                   }}
                 >
                   <Tooltip sticky>Threat Area: {cluster.cities?.length || 0} Targets</Tooltip>
                 </Polygon>
               </React.Fragment>
-            ) : cluster.centroid ? (
+            ) : cluster.centroid && !isInfiltration ? (
               <React.Fragment>
                 <Circle center={cluster.centroid} radius={2000}
-                  pathOptions={{ color: clusterColor, weight: 12, opacity: 0.1, fill: false, className: 'origin-threat-halo' }}
+                  pathOptions={{ color: clusterColor, weight: 12, opacity: 0.1, fill: false, className: isNewsFlash ? '' : 'origin-threat-halo' }}
                 />
                 <Circle center={cluster.centroid} radius={2000}
                   pathOptions={{
                     fillColor: clusterColor, fillOpacity: 0.4, color: clusterColor, weight: 2,
-                    className: viewMode === 'live' ? (event.visual_config?.movement || 'pulse-animation') : ''
+                    className: liveClusterAnimClass
                   }}
                 />
               </React.Fragment>
@@ -150,7 +106,44 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
               const shouldMountLabel = mapZoom >= CITY_LABEL_MIN_ZOOM
                 && (viewMode !== 'live' || cityIdx < LIVE_CITY_LABEL_CAP);
               const cityKey = `${eventKey}-cluster-${idx}-city-${city.city_id || city.name || cityIdx}`;
-              if (!city?.boundary || city.boundary.length < 3) {
+              const cityOuter = city?.boundary ? getBoundaryOuter(city.boundary) : null;
+              const hasCityOutline = cityOuter && cityOuter.length >= 3;
+
+              if (isInfiltration && hasCityOutline) {
+                if (!shouldMountLabel) return null;
+                return (
+                  <Polygon
+                    key={`${cityKey}-label`}
+                    positions={city.boundary}
+                    pathOptions={{
+                      color: clusterColor,
+                      weight: 0,
+                      opacity: 0,
+                      fill: false,
+                      fillOpacity: 0,
+                      interactive: false,
+                    }}
+                  >
+                    <Tooltip permanent direction="center" className="city-boundary-label">
+                      {city.name}
+                    </Tooltip>
+                  </Polygon>
+                );
+              }
+
+              if (!hasCityOutline) {
+                if (isInfiltration) {
+                  return (
+                    <PulsingInfiltrationCircle
+                      key={cityKey}
+                      center={city.coords}
+                      radius={CITY_FALLBACK_RADIUS_METERS}
+                      color={clusterColor}
+                      pulse={isLive}
+                      tooltip={shouldMountLabel ? city.name : undefined}
+                    />
+                  );
+                }
                 return (
                   <Circle
                     key={cityKey}
@@ -202,11 +195,10 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                 </Polygon>
               );
             })}
-            {viewMode === 'live' && event.visual_config && event.visual_config.movement !== 'linear' && (() => {
-              const movement = event.visual_config.movement;
-              if (movement === 'circular_sweep' && cluster.cities) {
-                return <TrackingDrone positions={cluster.cities.map(c => c.coords).filter(c => c)} color={clusterColor} />;
-              }
+            {isLive && movement === 'circular_sweep' && dronePositions.length >= 2 ? (
+              <TrackingDrone positions={dronePositions} color={iconColor} />
+            ) : null}
+            {isLive && !isNewsFlash && !isInfiltration && event.visual_config && movement !== 'linear' && movement !== 'circular_sweep' && (() => {
               if (cluster.centroid) {
                 return (
                   <Marker position={cluster.centroid} icon={L.divIcon({
@@ -224,12 +216,17 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
 
       {/* Trajectories */}
       {event.trajectories?.map((traj, idx) => {
-        const trajColor = (event.category && `var(--${event.category})`) || event.visual_config?.color || STRATEGIC_METADATA[traj.origin]?.color || tacticalColor;
+        const trajColor = resolveCanvasColor(event, tacticalColor, traj);
+        const iconColor = resolveMarkerColor(event, tacticalColor, traj);
         const boundary = TACTICAL_BOUNDARIES[traj.origin];
+        const motionEndpoints = resolveMissileEndpoints(traj, event);
+        const hasLine = Boolean(motionEndpoints);
+        const showMissileMotion = isLive
+          && event.category === 'missiles'
+          && motionEndpoints;
 
         return (
           <React.Fragment key={`${eventKey}-traj-${idx}`}>
-            {/* Origin Country Highlight (Restored) */}
             {boundary && viewMode !== 'timeframe' && (() => {
               const outer = getBoundaryOuter(boundary);
               if (!outer?.length) return null;
@@ -237,14 +234,12 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                 <React.Fragment>
                   <Polygon positions={outer}
                     pathOptions={{
-                      color: trajColor,
-                      weight: 15, opacity: 0.05, fill: false, smoothFactor: 2.0, className: 'origin-threat-halo'
+                      color: trajColor, weight: 15, opacity: 0.05, fill: false, smoothFactor: 2.0, className: 'origin-threat-halo'
                     }}
                   />
                   <Polygon positions={outer}
                     pathOptions={{
-                      fillColor: trajColor,
-                      fillOpacity: 0.1, color: trajColor,
+                      fillColor: trajColor, fillOpacity: 0.1, color: trajColor,
                       weight: 1, smoothFactor: 2.0, className: 'origin-threat-glow'
                     }}
                   />
@@ -252,16 +247,40 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
               );
             })()}
 
-            {traj.origin_coords && traj.target_coords && viewMode !== 'timeframe' && (
+            {hasLine && viewMode !== 'timeframe' && (
               <React.Fragment>
-                <Polyline positions={[traj.origin_coords, traj.target_coords]}
-                  pathOptions={{ color: trajColor, weight: 10, opacity: 0.1, smoothFactor: 2.0, className: 'trajectory-halo' }}
+                <Polyline
+                  positions={[motionEndpoints.origin, motionEndpoints.target]}
+                  pathOptions={{
+                    color: trajColor,
+                    weight: 10,
+                    opacity: 0.1,
+                    smoothFactor: 2.0,
+                    className: 'trajectory-halo',
+                  }}
                 />
-                <Polyline positions={[traj.origin_coords, traj.target_coords]}
-                  pathOptions={{ color: trajColor, weight: 2, dashArray: '10, 10', smoothFactor: 2.0, className: 'trajectory-line' }}
+                <Polyline
+                  positions={[motionEndpoints.origin, motionEndpoints.target]}
+                  pathOptions={{
+                    ...animatedPathOptions,
+                    color: trajColor,
+                    weight: 2,
+                    dashArray: '10, 10',
+                    smoothFactor: 2.0,
+                    className: isLive && event.category === 'missiles' ? 'missile-path-line' : 'trajectory-line',
+                  }}
                 />
               </React.Fragment>
             )}
+            {showMissileMotion ? (
+              <MissileMotionRegistrar
+                id={`${eventKey}-traj-${idx}-motion`}
+                origin={motionEndpoints.origin}
+                target={motionEndpoints.target}
+                color={iconColor}
+                enabled
+              />
+            ) : null}
             {viewMode !== 'timeframe' && (
               <Marker
                 position={traj.marker_coords || traj.origin_coords || traj.target_coords || [31.0, 35.0]}

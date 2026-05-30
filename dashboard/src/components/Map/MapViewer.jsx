@@ -16,6 +16,7 @@ import { getFitPadding, boundsKey, resolveOriginPinCoords } from '../../utils/ma
 import { useTactical } from '../../context/TacticalContext';
 import { formatTime } from '../../utils/formatters';
 import ThreatOverlay from './ThreatOverlay';
+import { TacticalMotionProvider } from './TacticalMotionLayer';
 import UserLocationMarker from './UserLocationMarker';
 import { agentDebugBurst, agentDebugLog, MAP_RESIZE_BURST } from '../../utils/agentDebugLog';
 
@@ -295,6 +296,7 @@ export default function MapViewer() {
           if (window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT) setIsSidebarExpanded(false);
         }} />
 
+        <TacticalMotionProvider>
         <IsraelBaseLayer />
         <UserLocationMarker />
 
@@ -392,6 +394,7 @@ export default function MapViewer() {
             highlightColor={highlightColor}
           />
         ))}
+        </TacticalMotionProvider>
       </MapContainer>
     </div>
   );

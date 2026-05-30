@@ -1,6 +1,16 @@
 # Iron Sight — Status
 
-**Updated:** 2026-05-28
+**Updated:** 2026-05-30
+
+## Tactical motion (2026-05-30)
+
+- [x] Missiles: `TacticalMotionLayer` + `MissileMotionRegistrar` (intercept loop, arc-length speed).
+- [x] Drones: restored `TrackingDrone.jsx` (city-to-city legs, duration = distance / `DRONE_SPEED_MPS`) — same path model as before the motion-layer refactor.
+- [x] Removed drone path from unified motion layer (ring/normalize experiments reverted).
+- [x] Fix: single-city `circular_sweep` drone — `normalizeDroneWaypoints` no longer duplicates closing vertex (zero-length leg / stutter); `TrackingDrone` rebinds color on theme/category change.
+- [x] Fix: missile intercept explosion — live `planKey` updates no longer unregister/remount animation; `leaflet-div-icon` on burst marker; CSS `is-bursting` fallback + imperative burst kept.
+
+## Timeframe merge visualization (2026-05-28)
 
 ## Timeframe merge visualization (2026-05-28)
 

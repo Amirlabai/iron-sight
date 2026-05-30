@@ -89,7 +89,7 @@
 | `map-resize-debounce` | `[ ]` | `MapViewer.jsx:L52-63` | 🟡 Undebounced `refitMap` on resize/orientation → fly spam | Debounce 150–250ms |
 | `watermark-pop` | `[x]` | `MapViewer.jsx`, `App.css` | 🟡 Watermarks mount/unmount instantly with `viewMode` | Opacity transition or persistent strip |
 | `archive-auto-live` | `[x]` | `TacticalProvider.jsx` | 🟡 `multi_alert` in archive forces `viewMode='live'` | Toast + explicit user action |
-| `drone-raf-react` | `[ ]` | `ThreatOverlay.jsx` | 🟡 Per-drone rAF + `setProgress` re-renders React; N threats = jank | Canvas / Leaflet-only motion |
+| `drone-raf-react` | `[x]` | `TacticalMotionLayer.jsx` | 🟡 Per-drone rAF + `setProgress` re-renders React; N threats = jank | Unified map-level rAF + imperative markers |
 | `timeframe-double-polygon` | `[ ]` | `MapViewer.jsx` | 🔵 Double polygon per origin (heavy paint) | Merge pathOptions where possible |
 
 ---

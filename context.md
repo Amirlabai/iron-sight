@@ -51,7 +51,7 @@ Transitioned to Development Alpha.
 - **Backend Modernization**:
     - Migrated to professional `src/` modular architecture.
     - Integrated multi-threat logic for drones, infiltrations, and seismic alerts.
-    - Implemented category-aware visual orchestration (`TrackingDrone` JS Interpolation).
+    - Category-aware map motion via `TacticalMotionLayer` (single rAF, constant m/s arc-length kinematics).
     - Established independent MongoDB collection archives for threat separation.
 - **ID-Driven Architecture**:
     - Replaced scalar `last_alert_id`/`active_salvo` with `active_events{}` dictionary keyed by alert ID.
@@ -215,7 +215,9 @@ Transitioned to Development Alpha.
     - `context/TacticalProvider.jsx`: Global state provider with WebSocket lifecycle, audio engine.
     - `utils/constants.js`: Centralized env detection, WS URLs, geodata derivations, color tokens, Leaflet icon fix.
     - `components/Map/MapViewer.jsx`: Isolated Leaflet container with base layer and coordinate sync.
-    - `components/Map/ThreatOverlay.jsx`: Per-event rendering of clusters, trajectories, origin highlights, TrackingDrone.
+    - `components/Map/ThreatOverlay.jsx`: Clusters, trajectories, origin highlights; registers live motion with `TacticalMotionLayer`.
+    - `components/Map/TacticalMotionLayer.jsx`: Missile intercept loop + drone waypoint patrol (imperative Leaflet markers).
+    - `utils/trajectoryPaths.js`: Arc-length paths, `buildInterceptPlan`, `buildWaypointLoopPlan`.
     - `components/Header/TacticalClock.jsx`: Real-time Jerusalem (Asia) time synchronization.
     - `components/Sidebar/Sidebar.jsx`: Modular drawer with Live/History/Sandbox panels and mobile drag behavior.
     - `styles/layout.css`: Shell geometry (grid, flex, desktop ≥1025px + mobile ≤1024px breakpoints).
