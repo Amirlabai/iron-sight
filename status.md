@@ -10,7 +10,12 @@
 - [x] Fix: single-city `circular_sweep` drone — `normalizeDroneWaypoints` no longer duplicates closing vertex (zero-length leg / stutter); `TrackingDrone` rebinds color on theme/category change.
 - [x] Fix: missile intercept explosion — live `planKey` updates no longer unregister/remount animation; `leaflet-div-icon` on burst marker; CSS `is-bursting` fallback + imperative burst kept.
 
-## Timeframe merge visualization (2026-05-28)
+## Telegram Kfar Kama (2026-05-30)
+
+- [x] ACTIVE (map PNG + caption) and ENDED (text) via `telegram_notifier.py`; skips `is_simulation`.
+- [x] Review batch 2: User-Agent on notifier session; map capture uses own tile session; asyncio lock serializes bursts; `close()` on shutdown; merged sibling ids in `clear_stale_keys`; coords from `config.py` (`_env_float`); city match by id/name only (trajectory endpoints 800 m); photo success gates START tracking; tile index clamp; Telegram 429 retry/backoff; tests (`test_map_screenshot.py`, dedup/close/capture-fail).
+- [x] Review batch 3: revalidate `_terminated_alert_ids` before/at-after ACTIVE send (stale scheduled snapshot); END send + state under one lock; no text ACTIVE on map fail; newsFlash supersede calls `_telegram_kfar_kama_ended`; `Retry-After` on 429; shared tile session; `collect_active_track_ids` unions live raw ids; `ws.stop()` on shutdown.
+- [x] Validation: `backend\\.venv\\Scripts\\python.exe -m pytest tests/` (151 passed).
 
 ## Timeframe merge visualization (2026-05-28)
 

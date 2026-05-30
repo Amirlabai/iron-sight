@@ -235,6 +235,7 @@ Transitioned to Development Alpha.
     - Session dedupe: `SEEN_ALERTS` / `NOTIFIED_KEYS` capped at 500 (`lruSet.js`), cleared on WS `reset`.
     - Backend: `push_manager.py`, `alert_matching.py`, Mongo `push_subscriptions`, routes `/api/push/*`; notify on `multi_alert` broadcast with per-subscription dedup.
     - Env: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VITE_VAPID_PUBLIC_KEY`; `sw.js` push click opens app.
+    - Optional Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_MAP_ZOOM`, `KFAR_KAMA_ALERT_LAT`/`LNG` — when active alert includes Kfar Kama (כפר כמא) by city id/name or trajectory endpoint within 800 m, backend sends map PNG + caption on successful tile capture (text fallback on failure does not arm END); END text on termination; dedup via `asyncio.Lock`; dev deps via `pip install -r requirements-dev.txt`.
 - **Signal Flare hardening (2026-05-17)**:
     - Push sends via `asyncio.to_thread`; one WS/push fanout per relay batch.
     - Subscribe returns `client_token`; PATCH/DELETE require `X-Push-Client-Token`.

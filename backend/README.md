@@ -31,6 +31,7 @@ The **Iron Sight Backend** is a high-availability intelligence engine responsibl
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    pip install -r requirements.txt
+   pip install -r requirements-dev.txt   # pytest (local/CI only)
    ```
 2. **Configuration**:
    Ensure `.env` contains:

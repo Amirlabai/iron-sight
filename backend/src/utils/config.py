@@ -55,3 +55,32 @@ VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY")
 VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY")
 VAPID_CLAIMS_EMAIL = os.getenv("VAPID_CLAIMS_EMAIL", "mailto:ops@iron-sight.local")
 COLLECTION_PUSH = "push_subscriptions"
+
+# --- Telegram (Kfar Kama alerts) ---
+TELEGRAM_BOT_TOKEN = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip() or None
+TELEGRAM_CHAT_ID = (os.getenv("TELEGRAM_CHAT_ID") or "").strip() or None
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or not str(raw).strip():
+        return default
+    try:
+        return int(raw.strip())
+    except ValueError:
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or not str(raw).strip():
+        return default
+    try:
+        return float(raw.strip())
+    except ValueError:
+        return default
+
+
+TELEGRAM_MAP_ZOOM = _env_int("TELEGRAM_MAP_ZOOM", 12)
+KFAR_KAMA_ALERT_LAT = _env_float("KFAR_KAMA_ALERT_LAT", 32.71999)
+KFAR_KAMA_ALERT_LNG = _env_float("KFAR_KAMA_ALERT_LNG", 35.44193)

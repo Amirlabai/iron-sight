@@ -313,7 +313,14 @@ class WebSocketManager:
             except: self.clients.discard(client)
 
     async def start(self):
-        runner = web.AppRunner(self.app)
-        await runner.setup()
-        await web.TCPSite(runner, '0.0.0.0', self.port).start()
+        self._runner = web.AppRunner(self.app)
+        await self._runner.setup()
+        self._site = web.TCPSite(self._runner, '0.0.0.0', self.port)
+        await self._site.start()
         logger.info(f"TACTICAL_API_SERVICES_LISTENING: Port {self.port}")
+
+    async def stop(self):
+        runner = getattr(self, "_runner", None)
+        if runner is not None:
+            await runner.cleanup()
+            self._runner = None

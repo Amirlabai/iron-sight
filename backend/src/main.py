@@ -13,6 +13,8 @@ from src.core.engine import TrackingEngine
 from src.core.threat_processor import ThreatProcessor
 from src.api.ws_manager import WebSocketManager
 from src.services.push_manager import PushManager
+from src.services.telegram_notifier import TelegramNotifier
+from src.utils.kfar_kama import collect_active_track_ids
 from src.utils.cluster_utils import build_merged_payloads, get_cluster_groups, group_events, merge_event_group
 
 # Global Logging Setup
@@ -43,6 +45,7 @@ async def main():
     engine = TrackingEngine(dm, db)
     processor = ThreatProcessor(engine)
     push_manager = PushManager(db)
+    telegram_notifier = TelegramNotifier()
     ws = WebSocketManager(db, engine, VERSION, push_manager)
     
     await ws.start()
@@ -52,253 +55,274 @@ async def main():
     # Structure: { alert_id: { "data": <analysis_payload>, "last_update_time": <float>, "end_time": <float|None>, "category": <str> } }
     active_events = {}
 
-    async with aiohttp.ClientSession(headers={'User-Agent': 'IronSight/0.0.0'}) as session:
-        while True:
-            try:
-                now = time.time()
-                events_changed = False
-
-                # --- Cluster-Aware Lifecycle Maintenance ---
-                clusters = get_cluster_groups(active_events, threshold_km=15) # Only active-only groups for sync
-                all_groups = group_events(active_events, include_all=True) # All groups including ended
-                
-                purged_ids = []
-                for group_ids in all_groups:
-                    members = [active_events[gid] for gid in group_ids if gid in active_events]
-                    if not members: continue
-                    
-                    # 1. Inactivity Timeout (Unchanged)
-                    for gid in group_ids:
-                        ev = active_events[gid]
-                        if ev["end_time"] is None and (now - ev["last_update_time"] > INACTIVITY_TIMEOUT):
-                            ev["end_time"] = now
-                            logger.info(f"EVENT_TIMEOUT: {gid} - Silence depth exceeded. Marking for termination.")
-                            await db.log_event(gid, ev["category"], "TIMEOUT", ev["data"])
-
-                    # 2. Group Persistence Check
-                    # Trigger if ALL members have an end_time AND at least one passed 10s grace
-                    all_ended = all(m["end_time"] is not None for m in members)
-                    any_expired = any(m["end_time"] and (now - m["end_time"] > 10) for m in members)
-                    
-                    if all_ended and any_expired:
-                        # Generate Unified Master Payload
-                        master_payload = await merge_event_group(group_ids, active_events, engine)
-                        
-                        # logic for transient (non-persistent) alerts like newsFlash
-                        is_transient = any(active_events[gid].get("is_transient") for gid in group_ids if gid in active_events)
-
-                        if master_payload and not master_payload.get("is_simulation") and not is_transient:
-                            try:
-                                await db.save_alert(master_payload["category"], master_payload)
-                                logger.info(f"CLUSTER_PERSISTED: {len(group_ids)} IDs unified -> {master_payload['id']}")
-                                
-                                # Broadcast history refresh
-                                history = await db.get_consolidated_history(limit=50)
-                                await ws.broadcast({"type": "history_sync", "data": history})
-                            except Exception as db_err:
-                                logger.error(f"CLUSTER_PERSIST_FAILURE: {master_payload['id']} - {db_err}")
-                        elif is_transient:
-                            logger.info(f"CLUSTER_PURGED_WITHOUT_SAVE: {len(group_ids)} IDs (Transient)")
-                        
-                        # Purge all IDs in the group simultaneously
-                        for gid in group_ids:
-                            purge_ev = active_events[gid]
-                            category = purge_ev["category"]
-                            city_count = len(purge_ev["data"].get("all_cities", []))
-                            
-                            await db.log_event(gid, category, "PURGED", purge_ev["data"])
-                            del active_events[gid]
-                            purged_ids.append(gid)
-                            logger.info(f"EVENT_PURGED: {gid} ({category}, {city_count} cities)")
-                
-                if purged_ids:
-                    events_changed = True
-
-                # If events were purged, broadcast updated state
-                if events_changed:
-                    ws.active_events = active_events
-                    await _broadcast_multi_alert(ws, active_events, engine, push_manager)
-                    if not active_events:
-                        await ws.broadcast({"type": "reset"})
-
-                # --- Fetch Tactical Feeds ---
-                if not RELAY_URL: 
-                    await asyncio.sleep(POLL_INTERVAL); continue
-                
+    try:
+        async with aiohttp.ClientSession(headers={'User-Agent': 'IronSight/0.0.0'}) as session:
+            while True:
                 try:
-                    async with session.get(RELAY_URL, headers={"x-relay-auth": RELAY_AUTH_KEY}, timeout=aiohttp.ClientTimeout(total=5)) as resp:
-                        if resp.status == 200:
-                            data = json.loads(await resp.text())
-                            alerts = data if isinstance(data, list) else [data] if data else []
-                            
-                            # Pre-scan: strategic mode is enabled only by warning-shaped newsFlash payloads
-                            has_newsflash_in_batch = any(
-                                a.get('type') == 'newsFlash' and (a.get('data') or a.get('cities'))
-                                for a in alerts
-                            )
-                            relay_batch_changed = False
+                    now = time.time()
+                    events_changed = False
 
-                            for alert_payload in alerts:
-                                a_type = str(alert_payload.get('type', ''))
-                                instructions = str(alert_payload.get('instructions', ''))
-                                alert_id = alert_payload.get('id')
+                    # --- Cluster-Aware Lifecycle Maintenance ---
+                    clusters = get_cluster_groups(active_events, threshold_km=15) # Only active-only groups for sync
+                    all_groups = group_events(active_events, include_all=True) # All groups including ended
+                
+                    purged_ids = []
+                    for group_ids in all_groups:
+                        members = [active_events[gid] for gid in group_ids if gid in active_events]
+                        if not members: continue
+                    
+                        # 1. Inactivity Timeout (Unchanged)
+                        for gid in group_ids:
+                            ev = active_events[gid]
+                            if ev["end_time"] is None and (now - ev["last_update_time"] > INACTIVITY_TIMEOUT):
+                                ev["end_time"] = now
+                                logger.info(f"EVENT_TIMEOUT: {gid} - Silence depth exceeded. Marking for termination.")
+                                await db.log_event(gid, ev["category"], "TIMEOUT", ev["data"])
+                                await _telegram_kfar_kama_ended(telegram_notifier, gid, ev["data"])
+
+                        # 2. Group Persistence Check
+                        # Trigger if ALL members have an end_time AND at least one passed 10s grace
+                        all_ended = all(m["end_time"] is not None for m in members)
+                        any_expired = any(m["end_time"] and (now - m["end_time"] > 10) for m in members)
+                    
+                        if all_ended and any_expired:
+                            # Generate Unified Master Payload
+                            master_payload = await merge_event_group(group_ids, active_events, engine)
+                        
+                            # logic for transient (non-persistent) alerts like newsFlash
+                            is_transient = any(active_events[gid].get("is_transient") for gid in group_ids if gid in active_events)
+
+                            if master_payload and not master_payload.get("is_simulation") and not is_transient:
+                                try:
+                                    await db.save_alert(master_payload["category"], master_payload)
+                                    logger.info(f"CLUSTER_PERSISTED: {len(group_ids)} IDs unified -> {master_payload['id']}")
                                 
-                                # --- newsFlash Warning OR Threat End Signal (ID-Targeted) ---
-                                is_warning = a_type == "newsFlash" and (alert_payload.get('data') or alert_payload.get('cities'))
-                                is_clearance = "האירוע הסתיים" in instructions or (a_type == "newsFlash" and not is_warning)
-
-                                if is_clearance:
-                                    target_ended_cities = []
-                                    # Parse instructions against geographical nomenclature
-                                    for area, cities_dict in dm.areas.items():
-                                        if area in instructions:
-                                            target_ended_cities.extend(cities_dict.keys())
-                                            
-                                    for city in dm.city_map.keys():
-                                        if city in instructions:
-                                            target_ended_cities.append(city)
-                                            
-                                    ended_ids = []
-                                    if target_ended_cities:
-                                        target_set = set(target_ended_cities)
-                                        target_regions_log = []
-                                        for eid, ev in active_events.items():
-                                            if ev["end_time"] is None:
-                                                ev_cities = {c['name'] for c in ev["data"].get("all_cities", [])}
-                                                if ev_cities and ev_cities.issubset(target_set):
-                                                    ended_ids.append(eid)
-                                        
-                                        for eid in ended_ids:
-                                            active_events[eid]["end_time"] = now
-                                            logger.info(f"GRANULAR_END_SIGNAL: {eid} terminated based on region match in newsFlash.")
-                                            await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
-                                        if ended_ids:
-                                            relay_batch_changed = True
-                                            
-                                    if not ended_ids:
-                                        if alert_id and alert_id in active_events:
-                                            active_events[alert_id]["end_time"] = now
-                                            logger.info(f"END_SIGNAL_RECEIVED: {alert_id}")
-                                            await db.log_event(alert_id, active_events[alert_id]["category"], "END_SIGNAL", active_events[alert_id]["data"])
-                                        elif alert_id is None or alert_id not in active_events:
-                                            for eid in active_events:
-                                                if active_events[eid]["end_time"] is None:
-                                                    active_events[eid]["end_time"] = now
-                                                    await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
-                                            if active_events:
-                                                logger.info(f"END_SIGNAL_BROADCAST: All {len(active_events)} active events marked for termination.")
-                                    relay_batch_changed = True
-                                    continue
-
-                                # --- Multi-Threat Processing ---
-                                if a_type in ["missiles", "hostileAircraftIntrusion", "terroristInfiltration", "earthQuake", "newsFlash"]:
-                                    if not alert_id:
-                                        continue
-                                    
-                                    # Protocol Guard: handle both relay data formats
-                                    cities_raw = alert_payload.get('data') or alert_payload.get('cities', [])
-                                    if isinstance(cities_raw, str):
-                                        cities_raw = [cities_raw]
-                                    if not cities_raw:
-                                        logger.warning(f"EMPTY_PAYLOAD: {alert_id} ({a_type}) - No city data in payload.")
-                                        continue
-                                    
-                                    is_simulation = alert_payload.get("is_simulation", False)
-                                    analysis = await processor.process(a_type, cities_raw, active_events, has_newsflash_in_batch)
-                                    if not analysis:
-                                        continue
-
-                                    # Superseding Logic: Actual missiles supersede overlapping newsFlash ghosts
-                                    if a_type == "missiles":
-                                        incoming_cities = {c['name'] for c in analysis.get("all_cities", [])}
-                                        for gid, gv in list(active_events.items()):
-                                            if gv["category"] == "newsFlash" and gv["end_time"] is None:
-                                                gv_cities = {c['name'] for c in gv["data"].get("all_cities", [])}
-                                                if gv_cities.intersection(incoming_cities):
-                                                    gv["end_time"] = now
-                                                    logger.info(f"NEWSFLASH_SUPERSEDED: {gid} terminated by incoming missile alert {alert_id}")
-                                                    await db.log_event(gid, "newsFlash", "SUPERSEDED", gv["data"])
-                                                    relay_batch_changed = True
-
-                                    if alert_id in active_events:
-                                        # Rolling update: merge new cities into existing event
-                                        existing = active_events[alert_id]
-                                        existing_names_arr = np.array([c['name'] for c in existing["data"]["all_cities"]])
-                                        
-                                        if analysis:
-                                            incoming_names = np.array([c['name'] for c in analysis["all_cities"]])
-                                            is_new = ~np.isin(incoming_names, existing_names_arr)
-                                            new_cities = [c for c, flag in zip(analysis["all_cities"], is_new) if flag]
-                                            existing["data"]["all_cities"].extend(new_cities)
-                                            
-                                            # Recalculate with full city set
-                                            full_analysis = await processor.process(a_type, [c['name'] for c in existing["data"]["all_cities"]], active_events, has_newsflash_in_batch)
-                                            if full_analysis:
-                                                full_analysis["id"] = alert_id
-                                                full_analysis["is_simulation"] = is_simulation
-                                                full_analysis["time"] = existing["data"].get("time") or alert_payload.get("alertDate", "").replace(" ", "T") or datetime.now(TIMEZONE).isoformat()
-                                                existing["data"] = full_analysis
-                                                existing["end_time"] = None  # Reset any pending end
-                                                existing["last_update_time"] = now  # Reset inactivity timer
-                                                
-                                                # Cluster-Aware Timeout Extension:
-                                                # Synchronize last_update_time for all cluster siblings
-                                                cluster_groups = get_cluster_groups(active_events, threshold_km=15)
-                                                for group in cluster_groups:
-                                                    if alert_id in group and len(group) > 1:
-                                                        for sibling_id in group:
-                                                            if sibling_id != alert_id and sibling_id in active_events:
-                                                                active_events[sibling_id]["last_update_time"] = now
-                                                        logger.info(f"CLUSTER_TIMEOUT_SYNC: {len(group)} events synchronized (trigger: {alert_id})")
-                                                        break
-                                                
-                                                total_cities = len(full_analysis.get("all_cities", []))
-                                                logger.info(f"ROLLING_UPDATE: {alert_id} ({a_type}) - +{len(new_cities)} new cities. Total: {total_cities}")
-                                                await db.log_event(alert_id, a_type, "UPDATED", full_analysis)
-                                                relay_batch_changed = True
-                                    else:
-                                        # New event
-                                        
-                                        analysis["id"] = alert_id
-                                        analysis["is_simulation"] = is_simulation
-                                        analysis["time"] = alert_payload.get("alertDate", "").replace(" ", "T") or datetime.now(TIMEZONE).isoformat()
-                                        
-                                        active_events[alert_id] = {
-                                            "data": analysis,
-                                            "last_update_time": now,
-                                            "end_time": None,
-                                            "category": a_type,
-                                            "is_transient": a_type == "newsFlash"
-                                        }
-                                        
-                                        city_count = len(analysis.get("all_cities", []))
-                                        logger.info(f"DETECTION_SIGNAL: {alert_id} ({a_type}) - {city_count} cities detected. Active events: {len(active_events)}")
-                                        await db.log_event(alert_id, a_type, "DETECTED", analysis)
-                                        relay_batch_changed = True
-
-                            if relay_batch_changed:
-                                ws.active_events = active_events
-                                await _broadcast_multi_alert(ws, active_events, engine, push_manager)
+                                    # Broadcast history refresh
+                                    history = await db.get_consolidated_history(limit=50)
+                                    await ws.broadcast({"type": "history_sync", "data": history})
+                                except Exception as db_err:
+                                    logger.error(f"CLUSTER_PERSIST_FAILURE: {master_payload['id']} - {db_err}")
+                            elif is_transient:
+                                logger.info(f"CLUSTER_PURGED_WITHOUT_SAVE: {len(group_ids)} IDs (Transient)")
+                        
+                            # Purge all IDs in the group simultaneously
+                            for gid in group_ids:
+                                purge_ev = active_events[gid]
+                                category = purge_ev["category"]
+                                city_count = len(purge_ev["data"].get("all_cities", []))
                             
-                        await ws.broadcast({
-                            "type": "health_status", 
-                            "status": "OPERATIONAL" if resp.status == 200 else "DEGRADED",
-                            "upstream_source": "LIVE",
-                            "timestamp": datetime.now(TIMEZONE).isoformat(), 
-                            "version": VERSION
-                        })
-                except asyncio.TimeoutError:
-                    logger.warning("RELAY_TIMEOUT: Upstream relay did not respond within 5s.")
-                except aiohttp.ClientError as net_err:
-                    logger.error(f"RELAY_CONNECTION_FAILURE: {net_err}")
+                                await db.log_event(gid, category, "PURGED", purge_ev["data"])
+                                await _telegram_kfar_kama_ended(telegram_notifier, gid, purge_ev["data"])
+                                del active_events[gid]
+                                purged_ids.append(gid)
+                                logger.info(f"EVENT_PURGED: {gid} ({category}, {city_count} cities)")
+                
+                    if purged_ids:
+                        events_changed = True
 
-            except Exception as e:
-                logger.error(f"RUNTIME_ERROR: {e}", exc_info=True)
+                    # If events were purged, broadcast updated state
+                    if events_changed:
+                        ws.active_events = active_events
+                        await _broadcast_multi_alert(ws, active_events, engine, push_manager, telegram_notifier)
+                        if not active_events:
+                            await ws.broadcast({"type": "reset"})
+
+                    # --- Fetch Tactical Feeds ---
+                    if not RELAY_URL: 
+                        await asyncio.sleep(POLL_INTERVAL); continue
+                
+                    try:
+                        async with session.get(RELAY_URL, headers={"x-relay-auth": RELAY_AUTH_KEY}, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                            if resp.status == 200:
+                                data = json.loads(await resp.text())
+                                alerts = data if isinstance(data, list) else [data] if data else []
+                            
+                                # Pre-scan: strategic mode is enabled only by warning-shaped newsFlash payloads
+                                has_newsflash_in_batch = any(
+                                    a.get('type') == 'newsFlash' and (a.get('data') or a.get('cities'))
+                                    for a in alerts
+                                )
+                                relay_batch_changed = False
+
+                                for alert_payload in alerts:
+                                    a_type = str(alert_payload.get('type', ''))
+                                    instructions = str(alert_payload.get('instructions', ''))
+                                    alert_id = alert_payload.get('id')
+                                
+                                    # --- newsFlash Warning OR Threat End Signal (ID-Targeted) ---
+                                    is_warning = a_type == "newsFlash" and (alert_payload.get('data') or alert_payload.get('cities'))
+                                    is_clearance = "האירוע הסתיים" in instructions or (a_type == "newsFlash" and not is_warning)
+
+                                    if is_clearance:
+                                        target_ended_cities = []
+                                        # Parse instructions against geographical nomenclature
+                                        for area, cities_dict in dm.areas.items():
+                                            if area in instructions:
+                                                target_ended_cities.extend(cities_dict.keys())
+                                            
+                                        for city in dm.city_map.keys():
+                                            if city in instructions:
+                                                target_ended_cities.append(city)
+                                            
+                                        ended_ids = []
+                                        if target_ended_cities:
+                                            target_set = set(target_ended_cities)
+                                            target_regions_log = []
+                                            for eid, ev in active_events.items():
+                                                if ev["end_time"] is None:
+                                                    ev_cities = {c['name'] for c in ev["data"].get("all_cities", [])}
+                                                    if ev_cities and ev_cities.issubset(target_set):
+                                                        ended_ids.append(eid)
+                                        
+                                            for eid in ended_ids:
+                                                active_events[eid]["end_time"] = now
+                                                logger.info(f"GRANULAR_END_SIGNAL: {eid} terminated based on region match in newsFlash.")
+                                                await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
+                                                await _telegram_kfar_kama_ended(
+                                                    telegram_notifier, eid, active_events[eid]["data"],
+                                                )
+                                            if ended_ids:
+                                                relay_batch_changed = True
+                                            
+                                        if not ended_ids:
+                                            if alert_id and alert_id in active_events:
+                                                active_events[alert_id]["end_time"] = now
+                                                logger.info(f"END_SIGNAL_RECEIVED: {alert_id}")
+                                                await db.log_event(alert_id, active_events[alert_id]["category"], "END_SIGNAL", active_events[alert_id]["data"])
+                                                await _telegram_kfar_kama_ended(
+                                                    telegram_notifier, alert_id, active_events[alert_id]["data"],
+                                                )
+                                            elif alert_id is None or alert_id not in active_events:
+                                                for eid in active_events:
+                                                    if active_events[eid]["end_time"] is None:
+                                                        active_events[eid]["end_time"] = now
+                                                        await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
+                                                        await _telegram_kfar_kama_ended(
+                                                            telegram_notifier, eid, active_events[eid]["data"],
+                                                        )
+                                                if active_events:
+                                                    logger.info(f"END_SIGNAL_BROADCAST: All {len(active_events)} active events marked for termination.")
+                                        relay_batch_changed = True
+                                        continue
+
+                                    # --- Multi-Threat Processing ---
+                                    if a_type in ["missiles", "hostileAircraftIntrusion", "terroristInfiltration", "earthQuake", "newsFlash"]:
+                                        if not alert_id:
+                                            continue
+                                    
+                                        # Protocol Guard: handle both relay data formats
+                                        cities_raw = alert_payload.get('data') or alert_payload.get('cities', [])
+                                        if isinstance(cities_raw, str):
+                                            cities_raw = [cities_raw]
+                                        if not cities_raw:
+                                            logger.warning(f"EMPTY_PAYLOAD: {alert_id} ({a_type}) - No city data in payload.")
+                                            continue
+                                    
+                                        is_simulation = alert_payload.get("is_simulation", False)
+                                        analysis = await processor.process(a_type, cities_raw, active_events, has_newsflash_in_batch)
+                                        if not analysis:
+                                            continue
+
+                                        # Superseding Logic: Actual missiles supersede overlapping newsFlash ghosts
+                                        if a_type == "missiles":
+                                            incoming_cities = {c['name'] for c in analysis.get("all_cities", [])}
+                                            for gid, gv in list(active_events.items()):
+                                                if gv["category"] == "newsFlash" and gv["end_time"] is None:
+                                                    gv_cities = {c['name'] for c in gv["data"].get("all_cities", [])}
+                                                    if gv_cities.intersection(incoming_cities):
+                                                        gv["end_time"] = now
+                                                        logger.info(f"NEWSFLASH_SUPERSEDED: {gid} terminated by incoming missile alert {alert_id}")
+                                                        await db.log_event(gid, "newsFlash", "SUPERSEDED", gv["data"])
+                                                        await _telegram_kfar_kama_ended(telegram_notifier, gid, gv["data"])
+                                                        relay_batch_changed = True
+
+                                        if alert_id in active_events:
+                                            # Rolling update: merge new cities into existing event
+                                            existing = active_events[alert_id]
+                                            existing_names_arr = np.array([c['name'] for c in existing["data"]["all_cities"]])
+                                        
+                                            if analysis:
+                                                incoming_names = np.array([c['name'] for c in analysis["all_cities"]])
+                                                is_new = ~np.isin(incoming_names, existing_names_arr)
+                                                new_cities = [c for c, flag in zip(analysis["all_cities"], is_new) if flag]
+                                                existing["data"]["all_cities"].extend(new_cities)
+                                            
+                                                # Recalculate with full city set
+                                                full_analysis = await processor.process(a_type, [c['name'] for c in existing["data"]["all_cities"]], active_events, has_newsflash_in_batch)
+                                                if full_analysis:
+                                                    full_analysis["id"] = alert_id
+                                                    full_analysis["is_simulation"] = is_simulation
+                                                    full_analysis["time"] = existing["data"].get("time") or alert_payload.get("alertDate", "").replace(" ", "T") or datetime.now(TIMEZONE).isoformat()
+                                                    existing["data"] = full_analysis
+                                                    existing["end_time"] = None  # Reset any pending end
+                                                    existing["last_update_time"] = now  # Reset inactivity timer
+                                                
+                                                    # Cluster-Aware Timeout Extension:
+                                                    # Synchronize last_update_time for all cluster siblings
+                                                    cluster_groups = get_cluster_groups(active_events, threshold_km=15)
+                                                    for group in cluster_groups:
+                                                        if alert_id in group and len(group) > 1:
+                                                            for sibling_id in group:
+                                                                if sibling_id != alert_id and sibling_id in active_events:
+                                                                    active_events[sibling_id]["last_update_time"] = now
+                                                            logger.info(f"CLUSTER_TIMEOUT_SYNC: {len(group)} events synchronized (trigger: {alert_id})")
+                                                            break
+                                                
+                                                    total_cities = len(full_analysis.get("all_cities", []))
+                                                    logger.info(f"ROLLING_UPDATE: {alert_id} ({a_type}) - +{len(new_cities)} new cities. Total: {total_cities}")
+                                                    await db.log_event(alert_id, a_type, "UPDATED", full_analysis)
+                                                    relay_batch_changed = True
+                                        else:
+                                            # New event
+                                        
+                                            analysis["id"] = alert_id
+                                            analysis["is_simulation"] = is_simulation
+                                            analysis["time"] = alert_payload.get("alertDate", "").replace(" ", "T") or datetime.now(TIMEZONE).isoformat()
+                                        
+                                            active_events[alert_id] = {
+                                                "data": analysis,
+                                                "last_update_time": now,
+                                                "end_time": None,
+                                                "category": a_type,
+                                                "is_transient": a_type == "newsFlash"
+                                            }
+                                        
+                                            city_count = len(analysis.get("all_cities", []))
+                                            logger.info(f"DETECTION_SIGNAL: {alert_id} ({a_type}) - {city_count} cities detected. Active events: {len(active_events)}")
+                                            await db.log_event(alert_id, a_type, "DETECTED", analysis)
+                                            relay_batch_changed = True
+
+                                if relay_batch_changed:
+                                    ws.active_events = active_events
+                                    await _broadcast_multi_alert(ws, active_events, engine, push_manager, telegram_notifier)
+                            
+                            await ws.broadcast({
+                                "type": "health_status", 
+                                "status": "OPERATIONAL" if resp.status == 200 else "DEGRADED",
+                                "upstream_source": "LIVE",
+                                "timestamp": datetime.now(TIMEZONE).isoformat(), 
+                                "version": VERSION
+                            })
+                    except asyncio.TimeoutError:
+                        logger.warning("RELAY_TIMEOUT: Upstream relay did not respond within 5s.")
+                    except aiohttp.ClientError as net_err:
+                        logger.error(f"RELAY_CONNECTION_FAILURE: {net_err}")
+
+                except Exception as e:
+                    logger.error(f"RUNTIME_ERROR: {e}", exc_info=True)
             
-            await asyncio.sleep(POLL_INTERVAL)
+                await asyncio.sleep(POLL_INTERVAL)
+    finally:
+        await telegram_notifier.close()
+        await ws.stop()
 
 
-async def _broadcast_multi_alert(ws, active_events, engine, push_manager=None):
+async def _telegram_kfar_kama_ended(telegram_notifier, alert_id, event_data):
+    if telegram_notifier and event_data:
+        await telegram_notifier.notify_kfar_kama_terminated(event_data, alert_id)
+
+
+async def _broadcast_multi_alert(ws, active_events, engine, push_manager=None, telegram_notifier=None):
     """Push the full active events array to all connected clients."""
     events_list = await build_merged_payloads(active_events, engine, threshold_km=15)
     
@@ -309,6 +333,11 @@ async def _broadcast_multi_alert(ws, active_events, engine, push_manager=None):
 
     if push_manager and events_list:
         await push_manager.notify_matching_subscriptions(events_list)
+
+    if telegram_notifier and events_list:
+        active_ids = collect_active_track_ids(events_list, active_events)
+        telegram_notifier.clear_stale_keys(active_ids)
+        telegram_notifier.schedule_notify_events_if_kfar_kama(events_list)
 
 
 if __name__ == "__main__":
