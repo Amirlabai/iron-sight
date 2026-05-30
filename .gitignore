@@ -25,3 +25,12 @@ backend/tactical_borders.txt
 .agents/
 graphify-out/
 docs/GOOGLE_SEARCH_CONSOLE_SETUP.md
+
+# Agent scratch (repo root)
+/check_sidebar_logic*.py
+/patch_*.py
+/tmp_*
+/test_click.py
+/backend_logs.md
+/custom.json
+/lamas_data.json

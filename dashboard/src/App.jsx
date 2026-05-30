@@ -21,7 +21,6 @@ import { agentDebugLogThrottled } from './utils/agentDebugLog';
 import {
   getLiveStatusPillAriaLabel,
   getLiveStatusPillLabel,
-  getSandboxStatusPillLabel,
 } from './utils/statusLabels';
 import About from './pages/About';
 import Accessibility from './pages/Accessibility';
@@ -65,8 +64,9 @@ function TacticalDashboard() {
   const {
     isReady, loadingProgress, liveEvents, viewMode,
     isConnected, isMuted, setIsMuted, tacticalHealth,
-    returnToLive, setViewMode, setSandboxEvent,
+    returnToLive, setViewMode,
     isSidebarExpanded,
+    setIsSidebarExpanded,
     alertPrefs,
     alertPrefsApi,
     isLightMode,
@@ -177,17 +177,6 @@ function TacticalDashboard() {
                 </div>
               )}
 
-              {viewMode === 'sandbox' && (
-                <div className="flex gap-2">
-                  <button type="button" className="return-live-btn sandbox" onClick={() => { setViewMode('live'); setSandboxEvent(null); }}>
-                    <RotateCcw size={16} /> TERMINATE ANALYSIS
-                  </button>
-                  <div className="status-pill sandbox" aria-label={getSandboxStatusPillLabel()}>
-                    <div className="pulse-dot"></div>
-                    {getSandboxStatusPillLabel({ compact: statusCompact })}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </header>

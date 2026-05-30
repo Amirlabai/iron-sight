@@ -225,7 +225,7 @@ html[data-theme='light'] .sidebar {
 /* --- Mobile Adaptability (see .context/MOBILE_SHELL_SPEC.md) --- */
 @media (max-width: 1024px) {
     :root {
-        --mobile-sheet-peek: 44px;
+        --mobile-sheet-peek: 0px;
         --z-mobile-sheet: 2600;
         --z-return-live: 2700;
     }
@@ -359,6 +359,17 @@ html[data-theme='light'] .sidebar {
     }
 
     :root {
+        --dashboard-map-recenter-offset: max(
+            180px,
+            calc(65px + 48px + 16px + env(safe-area-inset-bottom))
+        );
+    }
+
+    .dashboard-container.sidebar-collapsed {
+        --dashboard-map-recenter-offset: max(12px, env(safe-area-inset-bottom));
+    }
+
+    .dashboard-container.sidebar-expanded {
         --dashboard-map-recenter-offset: max(
             180px,
             calc(65px + 48px + 16px + env(safe-area-inset-bottom))
