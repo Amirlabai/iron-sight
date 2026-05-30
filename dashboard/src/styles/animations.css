@@ -132,6 +132,13 @@ path.infiltration-city-hull.pulse-animation {
     will-change: fill-opacity, stroke-opacity;
 }
 
+path.earthquake-city-hull.pulse-animation {
+    animation: pulse 1.4s ease-in-out infinite;
+    transition: none !important;
+    pointer-events: none;
+    will-change: fill-opacity, stroke-opacity;
+}
+
 .trajectory-line {
     stroke-dasharray: 8;
     animation: dash 2.5s 2 forwards linear;

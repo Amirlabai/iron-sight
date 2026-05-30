@@ -38,8 +38,9 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
 
   const isNewsFlash = event.category === 'newsFlash';
   const isInfiltration = event.category === 'terroristInfiltration';
+  const isEarthquake = event.category === 'earthQuake';
   const liveClusterAnimClass = isLive && !isNewsFlash
-    ? (event.visual_config?.movement || 'pulse-animation')
+    ? (isEarthquake ? 'pulse-animation' : (event.visual_config?.movement || 'pulse-animation'))
     : '';
   const clusterHaloClass = isNewsFlash ? 'organic-hull' : 'organic-hull origin-threat-halo';
 
@@ -57,6 +58,8 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
           && getBoundaryOuter(primaryCity.boundary).length >= 3
           ? primaryCity.boundary
           : null;
+        const earthquakeHasCityBoundary = isEarthquake && primaryCity?.boundary
+          && getBoundaryOuter(primaryCity.boundary).length >= 3;
 
         return (
           <React.Fragment key={`${eventKey}-cluster-${idx}`}>
@@ -67,7 +70,7 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                 pulse={isLive}
                 tooltip={primaryCity?.name || 'Infiltration Alert'}
               />
-            ) : cluster.hull && cluster.hull.length > 2 && !isInfiltration ? (
+            ) : cluster.hull && cluster.hull.length > 2 && !isInfiltration && !earthquakeHasCityBoundary ? (
               <React.Fragment>
                 <Polygon
                   positions={cluster.hull}
@@ -88,7 +91,7 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                   <Tooltip sticky>Threat Area: {cluster.cities?.length || 0} Targets</Tooltip>
                 </Polygon>
               </React.Fragment>
-            ) : cluster.centroid && !isInfiltration ? (
+            ) : cluster.centroid && !isInfiltration && !earthquakeHasCityBoundary ? (
               <React.Fragment>
                 <Circle center={cluster.centroid} radius={2000}
                   pathOptions={{ color: clusterColor, weight: 12, opacity: 0.1, fill: false, className: isNewsFlash ? '' : 'origin-threat-halo' }}
@@ -131,6 +134,33 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                 );
               }
 
+              if (isEarthquake && hasCityOutline) {
+                return (
+                  <Polygon
+                    key={cityKey}
+                    positions={city.boundary}
+                    pathOptions={{
+                      fillColor: clusterColor,
+                      fillOpacity: 0.3,
+                      color: clusterColor,
+                      weight: 2,
+                      opacity: 0.85,
+                      smoothFactor: 1.5,
+                      lineJoin: 'round',
+                      lineCap: 'round',
+                      className: `organic-hull earthquake-city-hull ${liveClusterAnimClass}`,
+                      interactive: false,
+                    }}
+                  >
+                    {shouldMountLabel ? (
+                      <Tooltip permanent direction="center" className="city-boundary-label">
+                        {city.name}
+                      </Tooltip>
+                    ) : null}
+                  </Polygon>
+                );
+              }
+
               if (!hasCityOutline) {
                 if (isInfiltration) {
                   return (
@@ -142,6 +172,29 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                       pulse={isLive}
                       tooltip={shouldMountLabel ? city.name : undefined}
                     />
+                  );
+                }
+                if (isEarthquake) {
+                  return (
+                    <Circle
+                      key={cityKey}
+                      center={city.coords}
+                      radius={CITY_FALLBACK_RADIUS_METERS}
+                      pathOptions={{
+                        fillColor: clusterColor,
+                        fillOpacity: 0.35,
+                        color: clusterColor,
+                        weight: 2,
+                        className: liveClusterAnimClass,
+                        interactive: false,
+                      }}
+                    >
+                      {shouldMountLabel ? (
+                        <Tooltip permanent direction="center" className="city-boundary-label">
+                          {city.name}
+                        </Tooltip>
+                      ) : null}
+                    </Circle>
                   );
                 }
                 return (
@@ -198,7 +251,7 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
             {isLive && movement === 'circular_sweep' && dronePositions.length >= 2 ? (
               <TrackingDrone positions={dronePositions} color={iconColor} />
             ) : null}
-            {isLive && !isNewsFlash && !isInfiltration && event.visual_config && movement !== 'linear' && movement !== 'circular_sweep' && (() => {
+            {isLive && !isNewsFlash && !isInfiltration && !isEarthquake && event.visual_config && movement !== 'linear' && movement !== 'circular_sweep' && (() => {
               if (cluster.centroid) {
                 return (
                   <Marker position={cluster.centroid} icon={L.divIcon({
