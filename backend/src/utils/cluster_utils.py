@@ -4,6 +4,7 @@ import numpy as np
 from scipy.spatial import ConvexHull
 from src.utils.text_utils import standardize_name
 from src.utils.config import DEFAULT_INFLATION_FACTOR, DRONE_INFLATION_FACTOR, MISSILE_INFLATION_FACTOR
+from src.core.origin_ml import resolve_origin_ml, collapse_missile_origins
 
 logger = logging.getLogger("IronSightClustering")
 
@@ -180,8 +181,15 @@ def _compute_adjacency_matrix(items, threshold_km):
     origins = np.array([item.get("origin", "Unknown") for item in items])
     cat_match = (categories[:, None] == categories[None, :])
     origin_match = (origins[:, None] == origins[None, :])
-    
-    return cat_match & origin_match & (proximate | shared_match)
+    spatial_match = proximate | shared_match
+
+    # Missiles with shared cities merge even when geometry disagrees on origin (ML resolves later)
+    is_missile = categories == "missiles"
+    missile_pair = is_missile[:, None] & is_missile[None, :]
+    relaxed_missile = missile_pair & strong_shared & spatial_match
+
+    strict = cat_match & origin_match & spatial_match
+    return strict | relaxed_missile
 
 def _get_connected_components(adj_matrix):
     """Utility to extract components from an adjacency matrix."""
@@ -374,12 +382,21 @@ async def merge_event_group(group_ids, active_events, engine=None):
                     "depth": g_depth
                 })
             
-            # Multi-origin zoom & centering (v1.0.6)
-            if len(origin_groups) > 1:
-                base_data["center"] = [31.7, 35.2]
-                base_data["zoom_level"] = 6
+            if len(origin_groups) >= 2:
+                candidates = list(origin_groups.keys())
+                winner, confidence, scores, resolved_by = await resolve_origin_ml(
+                    engine, merged_all_cities, candidates
+                )
+                base_data["clusters"] = merged_clusters
+                base_data["all_cities"] = merged_all_cities
+                collapse_missile_origins(
+                    base_data, winner, confidence, scores, resolved_by, engine
+                )
+                merged_trajectories = base_data["trajectories"]
             elif len(origin_groups) == 1:
                 org_name = list(origin_groups.keys())[0]
+                display_origin = "Iran" if org_name == "North Iran" else org_name
+                base_data["title"] = f"{display_origin} Salvo"
                 base_data["zoom_level"] = engine.zoom_levels.get(org_name, 6)
     else:
         # Multi-cluster threats (Infiltration, Earthquake) accumulate original markers

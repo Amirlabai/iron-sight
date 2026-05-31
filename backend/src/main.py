@@ -76,6 +76,8 @@ async def main():
                             ev = active_events[gid]
                             if ev["end_time"] is None and (now - ev["last_update_time"] > INACTIVITY_TIMEOUT):
                                 ev["end_time"] = now
+                                if ev.get("category") == "newsFlash" and not ev.get("lifecycle_status"):
+                                    ev["lifecycle_status"] = "ended"
                                 logger.info(f"EVENT_TIMEOUT: {gid} - Silence depth exceeded. Marking for termination.")
                                 await db.log_event(gid, ev["category"], "TIMEOUT", ev["data"])
                                 await _telegram_kfar_kama_ended(telegram_notifier, gid, ev["data"])
@@ -89,21 +91,46 @@ async def main():
                             # Generate Unified Master Payload
                             master_payload = await merge_event_group(group_ids, active_events, engine)
                         
-                            # logic for transient (non-persistent) alerts like newsFlash
-                            is_transient = any(active_events[gid].get("is_transient") for gid in group_ids if gid in active_events)
+                            has_persistent = any(
+                                not active_events[gid].get("is_transient")
+                                for gid in group_ids if gid in active_events
+                            )
 
-                            if master_payload and not master_payload.get("is_simulation") and not is_transient:
+                            for gid in group_ids:
+                                ev_ref = active_events.get(gid)
+                                if not ev_ref or not ev_ref.get("is_transient"):
+                                    continue
+                                if ev_ref["data"].get("is_simulation"):
+                                    continue
+                                nf_payload = dict(ev_ref["data"])
+                                nf_payload["id"] = gid
+                                nf_payload["category"] = "newsFlash"
+                                nf_payload["lifecycle_status"] = ev_ref.get("lifecycle_status", "ended")
+                                try:
+                                    await db.save_alert("newsFlash", nf_payload)
+                                    logger.info(f"NEWSFLASH_PERSISTED: {gid} status={nf_payload['lifecycle_status']}")
+                                except Exception as db_err:
+                                    logger.error(f"NEWSFLASH_PERSIST_FAILURE: {gid} - {db_err}")
+
+                            if (
+                                master_payload
+                                and has_persistent
+                                and not master_payload.get("is_simulation")
+                                and master_payload.get("category") != "newsFlash"
+                            ):
                                 try:
                                     await db.save_alert(master_payload["category"], master_payload)
                                     logger.info(f"CLUSTER_PERSISTED: {len(group_ids)} IDs unified -> {master_payload['id']}")
-                                
-                                    # Broadcast history refresh
                                     history = await db.get_consolidated_history(limit=50)
                                     await ws.broadcast({"type": "history_sync", "data": history})
                                 except Exception as db_err:
                                     logger.error(f"CLUSTER_PERSIST_FAILURE: {master_payload['id']} - {db_err}")
-                            elif is_transient:
-                                logger.info(f"CLUSTER_PURGED_WITHOUT_SAVE: {len(group_ids)} IDs (Transient)")
+                            elif not has_persistent:
+                                try:
+                                    history = await db.get_consolidated_history(limit=50)
+                                    await ws.broadcast({"type": "history_sync", "data": history})
+                                except Exception as db_err:
+                                    logger.error(f"NEWSFLASH_HISTORY_SYNC_FAILURE: {db_err}")
                         
                             # Purge all IDs in the group simultaneously
                             for gid in group_ids:
@@ -176,6 +203,8 @@ async def main():
                                         
                                             for eid in ended_ids:
                                                 active_events[eid]["end_time"] = now
+                                                if active_events[eid].get("category") == "newsFlash":
+                                                    active_events[eid]["lifecycle_status"] = "cleared"
                                                 logger.info(f"GRANULAR_END_SIGNAL: {eid} terminated based on region match in newsFlash.")
                                                 await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
                                                 await _telegram_kfar_kama_ended(
@@ -187,6 +216,8 @@ async def main():
                                         if not ended_ids:
                                             if alert_id and alert_id in active_events:
                                                 active_events[alert_id]["end_time"] = now
+                                                if active_events[alert_id].get("category") == "newsFlash":
+                                                    active_events[alert_id]["lifecycle_status"] = "cleared"
                                                 logger.info(f"END_SIGNAL_RECEIVED: {alert_id}")
                                                 await db.log_event(alert_id, active_events[alert_id]["category"], "END_SIGNAL", active_events[alert_id]["data"])
                                                 await _telegram_kfar_kama_ended(
@@ -196,6 +227,8 @@ async def main():
                                                 for eid in active_events:
                                                     if active_events[eid]["end_time"] is None:
                                                         active_events[eid]["end_time"] = now
+                                                        if active_events[eid].get("category") == "newsFlash":
+                                                            active_events[eid]["lifecycle_status"] = "cleared"
                                                         await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
                                                         await _telegram_kfar_kama_ended(
                                                             telegram_notifier, eid, active_events[eid]["data"],
@@ -231,6 +264,7 @@ async def main():
                                                     gv_cities = {c['name'] for c in gv["data"].get("all_cities", [])}
                                                     if gv_cities.intersection(incoming_cities):
                                                         gv["end_time"] = now
+                                                        gv["lifecycle_status"] = "superseded"
                                                         logger.info(f"NEWSFLASH_SUPERSEDED: {gid} terminated by incoming missile alert {alert_id}")
                                                         await db.log_event(gid, "newsFlash", "SUPERSEDED", gv["data"])
                                                         await _telegram_kfar_kama_ended(telegram_notifier, gid, gv["data"])

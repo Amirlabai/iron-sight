@@ -101,6 +101,61 @@ body, html, #root {
   flex-direction: column;
 }
 
+.sidebar-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.sidebar-filter-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 4px;
+}
+
+.city-filter-input {
+  width: 52px;
+  background: #1a1a24;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+}
+
+.city-filter-input::-webkit-outer-spin-button,
+.city-filter-input::-webkit-inner-spin-button {
+  opacity: 0.6;
+}
+
+.city-filter-sep {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.city-filter-clear {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.city-filter-clear:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-blue);
+}
+
 .sidebar-header {
   padding: 12px 20px;
   font-size: 0.75rem;
@@ -292,6 +347,57 @@ body, html, #root {
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+.ml-scores-panel .ml-scores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.ml-score-row {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.ml-score-row.suggested {
+  border-color: #4cd964;
+}
+
+.copy-cities-btn {
+  margin-left: 8px;
+  font-size: 11px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.sidebar-status {
+  padding: 16px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.45;
+}
+
+.sidebar-status-error {
+  color: #ff6b6b;
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  margin: 8px;
+  border-radius: 6px;
+  background: rgba(255, 59, 48, 0.08);
+}
+
+.sidebar-hint {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 8px;
 }
 
 .verify-btn:hover, .split-btn:hover {

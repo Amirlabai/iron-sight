@@ -38,6 +38,8 @@ class WebSocketManager:
         self.add_route("POST", "/api/history/update", self.update_history_handler)
         self.add_route("POST", "/api/history/split", self.split_history_handler)
         self.add_route("POST", "/api/history/merge", self.merge_history_handler)
+        self.add_route("POST", "/api/history/suggest-origin", self.suggest_origin_handler)
+        self.add_route("GET", "/api/history/training-export", self.training_export_handler)
         self.add_route("GET", "/api/push/vapid-public-key", self.push_vapid_handler)
         self.add_route("POST", "/api/push/subscribe", self.push_subscribe_handler)
         self.add_route("PATCH", "/api/push/location", self.push_location_handler)
@@ -215,6 +217,10 @@ class WebSocketManager:
             display_origin = "Iran" if origin_name == "North Iran" else origin_name
             existing["title"] = f"{display_origin} Salvo" if alert_type == "missiles" else existing["title"]
             existing["verified"] = True
+            existing["manual_origin"] = origin_name
+            existing["verified_at"] = datetime.now(TIMEZONE).isoformat()
+            if data.get("origin_ml_scores") is not None:
+                existing["origin_ml_scores"] = data.get("origin_ml_scores")
             
             # Update Zoom Level (root and trajectory for dual-consumer compatibility)
             zoom = self.engine.zoom_levels.get(origin_name, self.engine.zoom_levels.get("Iran", 6) if "Iran" in origin_name else 8)
@@ -303,6 +309,115 @@ class WebSocketManager:
                 
         except Exception as e:
             logger.error(f"HISTORY_MERGE_FAILURE: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def _cities_from_suggest_request(self, data):
+        alert_id = data.get("id")
+        alert_type = data.get("category", "missiles")
+        if alert_id:
+            existing = await self.db.get_alert(alert_id, alert_type)
+            if not existing:
+                return None, None
+            return existing.get("all_cities") or [], existing
+
+        from src.utils.text_utils import standardize_name
+        raw = data.get("cities") or []
+        mapped = []
+        for c in raw:
+            std = standardize_name(c if isinstance(c, str) else c.get("name"))
+            if std and std in self.engine.dm.city_map:
+                entry = self.engine.dm.city_map[std]
+                mapped.append({
+                    "name": entry.get("name") or c,
+                    "coords": [entry["lat"], entry["lon"]],
+                    "area": entry.get("area", "Other"),
+                })
+        return mapped, None
+
+    async def suggest_origin_handler(self, request):
+        try:
+            if MISSION_KEY and request.headers.get("X-Mission-Key") != MISSION_KEY:
+                return web.json_response({"error": "Unauthorized"}, status=401)
+
+            data = await request.json()
+            cities, existing = await self._cities_from_suggest_request(data)
+            if cities is None:
+                return web.json_response({"error": "Alert not found"}, status=404)
+            if not cities:
+                return web.json_response({"error": "No cities to analyze"}, status=400)
+
+            allow_strategic = bool(data.get("allow_strategic", True))
+            raw_clusters = self.engine.cluster(cities)
+            candidates = []
+            for rc in raw_clusters:
+                org, _ = await self.engine.get_origin(rc["cities"], allow_strategic=allow_strategic)
+                label = org.strip()
+                if label not in candidates:
+                    candidates.append(label)
+
+            if len(candidates) < 2 and existing:
+                traj_origins = [
+                    t.get("origin") for t in (existing.get("trajectories") or [])
+                    if t.get("origin")
+                ]
+                for o in traj_origins:
+                    if o not in candidates:
+                        candidates.append(o)
+
+            scores = {}
+            suggested = candidates[0] if candidates else "Unknown"
+            confidence = 0.0
+            resolved_by = "geometry"
+
+            if len(candidates) >= 2:
+                from src.core.origin_ml import resolve_origin_ml
+                suggested, confidence, scores, resolved_by = await resolve_origin_ml(
+                    self.engine, cities, candidates
+                )
+            elif candidates:
+                from src.core.origin_ml import score_origin_candidate
+                await self.engine._sync_verified_history()
+                scores = {candidates[0]: score_origin_candidate(cities, candidates[0], self.engine.verified_history)}
+
+            return web.json_response({
+                "candidates": candidates,
+                "scores": scores,
+                "suggested": suggested,
+                "confidence": confidence,
+                "resolved_by": resolved_by,
+            })
+        except Exception as e:
+            logger.error(f"SUGGEST_ORIGIN_FAILURE: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def training_export_handler(self, request):
+        try:
+            if MISSION_KEY and request.headers.get("X-Mission-Key") != MISSION_KEY:
+                return web.json_response({"error": "Unauthorized"}, status=401)
+
+            category = request.query.get("category", "missiles")
+            fmt = request.query.get("format", "json")
+            rows = await self.db.get_training_export(alert_type=category)
+
+            if fmt == "csv":
+                import csv
+                import io
+                buf = io.StringIO()
+                if rows:
+                    writer = csv.DictWriter(buf, fieldnames=rows[0].keys())
+                    writer.writeheader()
+                    for row in rows:
+                        row_copy = dict(row)
+                        row_copy["city_names"] = "|".join(row_copy.get("city_names") or [])
+                        writer.writerow(row_copy)
+                return web.Response(
+                    text=buf.getvalue(),
+                    content_type="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=training_export.csv"},
+                )
+            return web.json_response({"count": len(rows), "records": rows})
+        except Exception as e:
+            logger.error(f"TRAINING_EXPORT_HANDLER_FAILURE: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
 
     async def broadcast(self, data):

@@ -1,12 +1,22 @@
 # Iron Sight — Status
 
-**Updated:** 2026-05-31
+**Updated:** 2026-06-01
 
 ## Current state
 
 Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`). Relay ingest operational. Alpha development.
-
+da
 ## Recently completed
+
+### Origin ML + history training (2026-06-01)
+
+- Multi-origin disambiguation (`origin_ml.py`): when ≥2 candidates, score verified archive and collapse to one salvo card.
+- Live merge: missile IDs with shared cities merge despite origin mismatch; ML runs on union.
+- newsFlash archive: `newsflash_history` + `lifecycle_status` on lifecycle purge.
+- history-fixer: ML scores panel, training queue filters, export verified JSON, `manual_origin` on verify.
+- API: `POST /api/history/suggest-origin`, `GET /api/history/training-export`.
+- Ops: removed false Iran salvo `134247350860000000` (טבריה / מצפה / כפר חיטים).
+- Tests: 158 passed (`backend\.venv\Scripts\python.exe -m pytest tests/`).
 
 ### Tactical motion (2026-05-30)
 

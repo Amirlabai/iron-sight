@@ -17,6 +17,8 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 - Origin projection via regression from cluster cities; depth calibration: Gaza/Lebanon 0.5, Iran 16.0, Yemen 20.0.
 - ID-driven lifecycle: `active_events{}` keyed by alert ID; 10s end grace; 5 min inactivity timeout.
 - Strategic origins (Iran/Yemen) gated by warning-shaped `newsFlash` (`data` or `cities` present).
+- When **≥2** geometric origin candidates exist, `origin_ml.resolve_origin_ml` picks the winner from **verified** `salvo_history` / `drone_history` (labels: `verified`, `manual_origin`, `trajectories[0].origin`).
+- newsFlash persisted to `newsflash_history` with `lifecycle_status` (`ended` / `superseded` / `cleared`); excluded from origin ML.
 - newsFlash ghosts superseded by overlapping confirmed missile alerts.
 
 ## Architecture

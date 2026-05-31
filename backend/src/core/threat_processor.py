@@ -2,6 +2,7 @@ import logging
 import numpy as np
 from src.utils.config import MAX_IRAN_THRESHOLD, MISSILE_INFLATION_FACTOR, DRONE_INFLATION_FACTOR, DEFAULT_INFLATION_FACTOR
 from src.utils.text_utils import standardize_name
+from src.core.origin_ml import resolve_origin_ml, collapse_missile_origins
 
 logger = logging.getLogger("IronSightBackend")
 
@@ -76,13 +77,9 @@ class ThreatProcessor:
         for org, group_data in origin_groups.items():
             g_cities = group_data["cities"]
             g_depth = group_data["depth"]
-            # Unified target center for this origin
             g_coords = np.array([c['coords'] for c in g_cities])
             g_cnt = np.mean(g_coords, axis=0).tolist()
-            
-            # Global origin projection for the entire front
             border_entry = self.engine.get_projected_origin(g_cities, org, depth=g_depth)
-            
             trajectories.append({
                 "origin": org,
                 "origin_coords": border_entry,
@@ -91,17 +88,41 @@ class ThreatProcessor:
                 "depth": g_depth
             })
 
+        title = "Missile Salvo"
+        zoom_level = 6
+        origin_candidates = None
+        origin_ml_scores = None
+        origin_resolved_by = None
+        origin_ml_confidence = None
+
         if len(origin_groups) == 1:
             org_name = list(origin_groups.keys())[0]
             display_origin = "Iran" if org_name == "North Iran" else org_name
             title = f"{display_origin} Salvo"
             zoom_level = self.engine.zoom_levels.get(org_name, 6)
-        else:
-            title = "Combined Salvo"
-            # Multi-origin: snap to Israel center with widest necessary zoom
-            cnt = [31.7, 35.2]
-            zoom_level = 6
-        return {
+        elif len(origin_groups) >= 2:
+            candidates = list(origin_groups.keys())
+            winner, confidence, scores, resolved_by = await resolve_origin_ml(
+                self.engine, city_coords, candidates
+            )
+            payload_stub = {
+                "clusters": processed_clusters,
+                "trajectories": trajectories,
+                "all_cities": city_coords,
+            }
+            collapse_missile_origins(
+                payload_stub, winner, confidence, scores, resolved_by, self.engine
+            )
+            processed_clusters = payload_stub["clusters"]
+            trajectories = payload_stub["trajectories"]
+            title = payload_stub["title"]
+            zoom_level = payload_stub["zoom_level"]
+            origin_candidates = payload_stub.get("origin_candidates")
+            origin_ml_scores = payload_stub.get("origin_ml_scores")
+            origin_resolved_by = payload_stub.get("origin_resolved_by")
+            origin_ml_confidence = payload_stub.get("origin_ml_confidence")
+
+        result = {
             "type": "alert",
             "category": "missiles",
             "title": title,
@@ -111,11 +132,17 @@ class ThreatProcessor:
             "center": cnt,
             "zoom_level": zoom_level,
             "visual_config": {
-                "color": "#ff3b30",  # Rocket Red
+                "color": "#ff3b30",
                 "pulse": "high",
                 "movement": "linear"
             }
         }
+        if origin_candidates is not None:
+            result["origin_candidates"] = origin_candidates
+            result["origin_ml_scores"] = origin_ml_scores
+            result["origin_resolved_by"] = origin_resolved_by
+            result["origin_ml_confidence"] = origin_ml_confidence
+        return result
 
     async def _process_drone(self, cities_raw):
         """Hostile Aircraft: unified cluster for the flight path zone."""

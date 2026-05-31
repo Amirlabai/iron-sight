@@ -22,19 +22,24 @@ async def mine_tactical_data():
     print(" IRON SIGHT - TACTICAL INTELLIGENCE DATA MINER")
     print("="*60)
     
-    # Analyze only manually calibrated salvos
-    cursor = coll.find({"manual_origin": {"$exists": True}})
-    calibrations = await cursor.to_list(length=100)
+    cursor = coll.find({
+        "verified": True,
+        "trajectories.0": {"$exists": True},
+    })
+    calibrations = await cursor.to_list(length=500)
     
     if not calibrations:
-        print("[!] NO MANUAL CALIBRATIONS FOUND IN DATABASE.")
-        print("    Please calibrate some salvos in the Dashboard Archive first.")
+        print("[!] NO VERIFIED SALVOS FOUND IN DATABASE.")
+        print("    Calibrate salvos in history-fixer (COMMIT & VERIFY) first.")
         return
 
     results = {}
     
     for salvo in calibrations:
-        origin = salvo["manual_origin"]
+        traj = (salvo.get("trajectories") or [{}])[0]
+        origin = salvo.get("manual_origin") or traj.get("origin")
+        if not origin:
+            continue
         if origin not in results:
             results[origin] = []
             

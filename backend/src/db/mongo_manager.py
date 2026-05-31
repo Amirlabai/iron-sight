@@ -3,7 +3,8 @@ from datetime import datetime, timezone
 from motor.motor_asyncio import AsyncIOMotorClient
 from src.utils.config import (
     MONGO_URI, DB_NAME, COLLECTION_SALVO, COLLECTION_DRONE,
-    COLLECTION_INFILTRATION, COLLECTION_SEISMIC, COLLECTION_LOGS, COLLECTION_PUSH,
+    COLLECTION_INFILTRATION, COLLECTION_SEISMIC, COLLECTION_NEWSFLASH,
+    COLLECTION_LOGS, COLLECTION_PUSH,
 )
 
 logger = logging.getLogger("IronSightBackend")
@@ -19,6 +20,7 @@ class MongoManager:
             "hostileAircraftIntrusion": self.db[COLLECTION_DRONE] if self.db is not None else None,
             "terroristInfiltration": self.db[COLLECTION_INFILTRATION] if self.db is not None else None,
             "earthQuake": self.db[COLLECTION_SEISMIC] if self.db is not None else None,
+            "newsFlash": self.db[COLLECTION_NEWSFLASH] if self.db is not None else None,
         }
         self.event_logs = self.db[COLLECTION_LOGS] if self.db is not None else None
         self.push_subscriptions = self.db[COLLECTION_PUSH] if self.db is not None else None
@@ -232,6 +234,38 @@ class MongoManager:
             return unified[offset:offset + limit]
         except Exception as e:
             logger.error(f"DB_CONSOLIDATED_FETCH_FAILURE: {e}")
+            return []
+
+    async def get_training_export(self, alert_type="missiles", limit=5000):
+        """Verified labels for scientist export (missiles by default)."""
+        collection = self.collections.get(alert_type)
+        if collection is None:
+            return []
+        try:
+            query = {"verified": True, "trajectories.0": {"$exists": True}}
+            cursor = collection.find(query).sort("id", -1).limit(limit)
+            rows = await cursor.to_list(length=limit)
+            export = []
+            for doc in rows:
+                doc.pop("_id", None)
+                traj = (doc.get("trajectories") or [{}])[0]
+                cities = doc.get("all_cities") or []
+                areas = [c.get("area") for c in cities if c.get("area")]
+                export.append({
+                    "id": doc.get("id"),
+                    "time": doc.get("time"),
+                    "category": alert_type,
+                    "manual_origin": doc.get("manual_origin") or traj.get("origin"),
+                    "trajectory_origin": traj.get("origin"),
+                    "city_count": len(cities),
+                    "city_names": [c.get("name") for c in cities if c.get("name")],
+                    "dominant_area": max(set(areas), key=areas.count) if areas else None,
+                    "verified_at": doc.get("verified_at"),
+                    "origin_ml_scores": doc.get("origin_ml_scores"),
+                })
+            return export
+        except Exception as e:
+            logger.error(f"TRAINING_EXPORT_FAILURE: {e}")
             return []
 
     async def get_verified_history(self, limit=1000):
