@@ -22,6 +22,7 @@ import { agentDebugBurst, agentDebugLog, WS_MESSAGE_BURST } from '../utils/agent
 import { hasSessionBooted, markSessionBooted } from '../utils/sessionBoot';
 import { consumeWsReconnectDelayMs, resetWsFailStreak } from '../utils/wsReconnect';
 import { lruAdd, clearLruSet } from '../utils/lruSet';
+import { sortEventsByLatestFirst } from '../utils/formatters';
 
 const HISTORY_PAGE_SIZE = 50;
 
@@ -258,7 +259,7 @@ export function TacticalProvider({ children }) {
           setLoadingProgress(100);
           setIsReady(true);
         } else if (data.type === 'multi_alert') {
-          const events = data.events || [];
+          const events = sortEventsByLatestFirst(data.events || []);
           setLiveEvents(events);
 
           const newConfig = resolveMapConfig(events, alertPrefsRef.current);

@@ -4,6 +4,8 @@ import {
   formatDateTime,
   dateToDisplay,
   displayToDate,
+  sortEventsByLatestFirst,
+  parseEventTimeMs,
 } from './formatters.js';
 
 describe('formatTime', () => {
@@ -88,5 +90,39 @@ describe('displayToDate', () => {
 
   it('should return input when format is invalid', () => {
     expect(displayToDate('2024-03-15')).toBe('2024-03-15');
+  });
+});
+
+describe('parseEventTimeMs', () => {
+  it('returns 0 for missing or invalid timestamps', () => {
+    expect(parseEventTimeMs()).toBe(0);
+    expect(parseEventTimeMs('')).toBe(0);
+    expect(parseEventTimeMs('not-a-date')).toBe(0);
+  });
+
+  it('parses ISO timestamps', () => {
+    expect(parseEventTimeMs('2024-03-15T14:30:45')).toBe(
+      new Date('2024-03-15T14:30:45').getTime(),
+    );
+  });
+});
+
+describe('sortEventsByLatestFirst', () => {
+  it('sorts events newest-first by time', () => {
+    const events = [
+      { id: 'a', time: '2024-03-15T10:00:00' },
+      { id: 'c', time: '2024-03-15T12:00:00' },
+      { id: 'b', time: '2024-03-15T11:00:00' },
+    ];
+    expect(sortEventsByLatestFirst(events).map((e) => e.id)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('does not mutate the input array', () => {
+    const events = [
+      { id: 'old', time: '2024-03-15T10:00:00' },
+      { id: 'new', time: '2024-03-15T12:00:00' },
+    ];
+    sortEventsByLatestFirst(events);
+    expect(events[0].id).toBe('old');
   });
 });

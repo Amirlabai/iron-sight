@@ -46,3 +46,22 @@ export const displayToDate = (displayStr) => {
   if (parts.length !== 3) return displayStr;
   return `${parts[2]}-${parts[1]}-${parts[0]}`;
 };
+
+/**
+ * Parses an event timestamp to epoch ms; returns 0 when missing or invalid.
+ */
+export const parseEventTimeMs = (ts) => {
+  if (!ts) return 0;
+  const ms = new Date(ts).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+};
+
+/**
+ * Returns a copy of events sorted newest-first by `time`.
+ */
+export const sortEventsByLatestFirst = (events) => {
+  if (!events?.length) return events || [];
+  return [...events].sort(
+    (a, b) => parseEventTimeMs(b.time) - parseEventTimeMs(a.time),
+  );
+};
