@@ -183,7 +183,7 @@ export function buildInterceptPlan(origin, target, options = {}) {
   const maxIntArcM = mainArcM * 0.98;
 
   for (let i = 0; i < interceptorCount; i += 1) {
-    const fanScale = 0.5 + i * 0.25;
+    const fanScale = 15 + i * 0.25;
     const offsetSign = i === 1 ? 0 : i === 0 ? -1 : 1;
     const path = buildInterceptorFanPath(target, meetPoint, perpLat, perpLng, offsetSign, fanScale);
     const cum = buildCumulativeDistances(path);
