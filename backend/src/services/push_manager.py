@@ -16,6 +16,7 @@ from src.utils.alert_matching import (
     ALLOWED_SCOPES,
     clamp_radius_km,
 )
+from src.utils.outbound_policy import skip_outbound_event
 
 logger = logging.getLogger("IronSightPush")
 
@@ -126,6 +127,8 @@ class PushManager:
         active_alert_ids = {e.get("id") for e in events if e.get("id")}
 
         for event in events:
+            if skip_outbound_event(event):
+                continue
             if event.get("category") == "newsFlash":
                 continue
 

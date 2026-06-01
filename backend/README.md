@@ -49,6 +49,7 @@ The **Iron Sight Backend** is a high-availability intelligence engine responsibl
    ```bash
    python main.py
    ```
+4. **Local simulator** (optional): see [simulator/README.md](simulator/README.md). Set `IRON_SIGHT_DEV=1`, `RELAY_URL=http://127.0.0.1:8081/relay`, and use dev Mongo/VAPID only.
 
 ---
 **Mission Status**: **STABLE** | **ALPHA v0.6.0**

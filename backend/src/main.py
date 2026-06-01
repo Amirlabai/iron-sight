@@ -16,6 +16,7 @@ from src.services.push_manager import PushManager
 from src.services.telegram_notifier import TelegramNotifier
 from src.utils.kfar_kama import collect_active_track_ids
 from src.utils.cluster_utils import build_merged_payloads, get_cluster_groups, group_events, merge_event_group
+from src.utils.outbound_policy import relay_upstream_label
 
 # Global Logging Setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s')
@@ -79,7 +80,8 @@ async def main():
                                 if ev.get("category") == "newsFlash" and not ev.get("lifecycle_status"):
                                     ev["lifecycle_status"] = "ended"
                                 logger.info(f"EVENT_TIMEOUT: {gid} - Silence depth exceeded. Marking for termination.")
-                                await db.log_event(gid, ev["category"], "TIMEOUT", ev["data"])
+                                if not ev["data"].get("is_simulation"):
+                                    await db.log_event(gid, ev["category"], "TIMEOUT", ev["data"])
                                 await _telegram_kfar_kama_ended(telegram_notifier, gid, ev["data"])
 
                         # 2. Group Persistence Check
@@ -138,7 +140,8 @@ async def main():
                                 category = purge_ev["category"]
                                 city_count = len(purge_ev["data"].get("all_cities", []))
                             
-                                await db.log_event(gid, category, "PURGED", purge_ev["data"])
+                                if not purge_ev["data"].get("is_simulation"):
+                                    await db.log_event(gid, category, "PURGED", purge_ev["data"])
                                 await _telegram_kfar_kama_ended(telegram_notifier, gid, purge_ev["data"])
                                 del active_events[gid]
                                 purged_ids.append(gid)
@@ -206,7 +209,8 @@ async def main():
                                                 if active_events[eid].get("category") == "newsFlash":
                                                     active_events[eid]["lifecycle_status"] = "cleared"
                                                 logger.info(f"GRANULAR_END_SIGNAL: {eid} terminated based on region match in newsFlash.")
-                                                await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
+                                                if not active_events[eid]["data"].get("is_simulation"):
+                                                    await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
                                                 await _telegram_kfar_kama_ended(
                                                     telegram_notifier, eid, active_events[eid]["data"],
                                                 )
@@ -219,7 +223,8 @@ async def main():
                                                 if active_events[alert_id].get("category") == "newsFlash":
                                                     active_events[alert_id]["lifecycle_status"] = "cleared"
                                                 logger.info(f"END_SIGNAL_RECEIVED: {alert_id}")
-                                                await db.log_event(alert_id, active_events[alert_id]["category"], "END_SIGNAL", active_events[alert_id]["data"])
+                                                if not active_events[alert_id]["data"].get("is_simulation"):
+                                                    await db.log_event(alert_id, active_events[alert_id]["category"], "END_SIGNAL", active_events[alert_id]["data"])
                                                 await _telegram_kfar_kama_ended(
                                                     telegram_notifier, alert_id, active_events[alert_id]["data"],
                                                 )
@@ -229,7 +234,8 @@ async def main():
                                                         active_events[eid]["end_time"] = now
                                                         if active_events[eid].get("category") == "newsFlash":
                                                             active_events[eid]["lifecycle_status"] = "cleared"
-                                                        await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
+                                                        if not active_events[eid]["data"].get("is_simulation"):
+                                                            await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
                                                         await _telegram_kfar_kama_ended(
                                                             telegram_notifier, eid, active_events[eid]["data"],
                                                         )
@@ -266,7 +272,8 @@ async def main():
                                                         gv["end_time"] = now
                                                         gv["lifecycle_status"] = "superseded"
                                                         logger.info(f"NEWSFLASH_SUPERSEDED: {gid} terminated by incoming missile alert {alert_id}")
-                                                        await db.log_event(gid, "newsFlash", "SUPERSEDED", gv["data"])
+                                                        if not gv["data"].get("is_simulation") and not is_simulation:
+                                                            await db.log_event(gid, "newsFlash", "SUPERSEDED", gv["data"])
                                                         await _telegram_kfar_kama_ended(telegram_notifier, gid, gv["data"])
                                                         relay_batch_changed = True
 
@@ -304,7 +311,8 @@ async def main():
                                                 
                                                     total_cities = len(full_analysis.get("all_cities", []))
                                                     logger.info(f"ROLLING_UPDATE: {alert_id} ({a_type}) - +{len(new_cities)} new cities. Total: {total_cities}")
-                                                    await db.log_event(alert_id, a_type, "UPDATED", full_analysis)
+                                                    if not is_simulation:
+                                                        await db.log_event(alert_id, a_type, "UPDATED", full_analysis)
                                                     relay_batch_changed = True
                                         else:
                                             # New event
@@ -323,7 +331,8 @@ async def main():
                                         
                                             city_count = len(analysis.get("all_cities", []))
                                             logger.info(f"DETECTION_SIGNAL: {alert_id} ({a_type}) - {city_count} cities detected. Active events: {len(active_events)}")
-                                            await db.log_event(alert_id, a_type, "DETECTED", analysis)
+                                            if not is_simulation:
+                                                await db.log_event(alert_id, a_type, "DETECTED", analysis)
                                             relay_batch_changed = True
 
                                 if relay_batch_changed:
@@ -333,7 +342,7 @@ async def main():
                             await ws.broadcast({
                                 "type": "health_status", 
                                 "status": "OPERATIONAL" if resp.status == 200 else "DEGRADED",
-                                "upstream_source": "LIVE",
+                                "upstream_source": relay_upstream_label(RELAY_URL, alerts),
                                 "timestamp": datetime.now(TIMEZONE).isoformat(), 
                                 "version": VERSION
                             })
@@ -365,8 +374,9 @@ async def _broadcast_multi_alert(ws, active_events, engine, push_manager=None, t
         "events": events_list
     })
 
-    if push_manager and events_list:
-        await push_manager.notify_matching_subscriptions(events_list)
+    push_events = [e for e in events_list if not e.get("is_simulation")]
+    if push_manager and push_events:
+        await push_manager.notify_matching_subscriptions(push_events)
 
     if telegram_notifier and events_list:
         active_ids = collect_active_track_ids(events_list, active_events)
