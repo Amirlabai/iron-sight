@@ -36,7 +36,7 @@ function SplashScreen({ progress }) {
   return (
     <div className="splash-screen" role="status" aria-live="polite" aria-busy="true">
       <div className="radar-scanner">
-        <div className="sweep"></div>
+        <div className="sweep" />
         <img src="/favicon.png" className="splash-logo-img" alt="IRON SIGHT LOGO" />
       </div>
       <div className="boot-sequence">
@@ -131,7 +131,11 @@ function TacticalDashboard() {
         <header className="premium-header" aria-hidden={!isReady}>
           <div className="header-bar">
             <div className="logo-section">
-              <img src="/favicon.png" className={`logo-img ${liveEvents.length > 0 ? 'alert-pulse' : ''}`} alt="IRON SIGHT" />
+              <img
+                src="/favicon.png"
+                className={`logo-img ${liveEvents.length > 0 ? 'alert-pulse' : ''}`}
+                alt="IRON SIGHT"
+              />
               <h1>IRON SIGHT</h1>
               <span className="version-badge">{viewMode === 'archive' ? 'ARCHIVE' : (viewMode === 'timeframe' ? 'TIMEFRAME' : __APP_VERSION__)}</span>
             </div>

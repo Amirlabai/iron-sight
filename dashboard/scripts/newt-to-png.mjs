@@ -62,7 +62,7 @@ async function main() {
     await sharp(rgba, { raw: { width: size, height: size, channels: 4 } })
       .png({ compressionLevel: 9 })
       .toFile(dest);
-    console.log('newt-to-png: wrote', dest);
+    console.log('newt-to-png: wrote', dest, `(${size}x${size})`);
   }
 }
 
