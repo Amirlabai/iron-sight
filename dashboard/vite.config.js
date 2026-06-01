@@ -55,7 +55,6 @@ async function loadPlugins() {
         'sprites/rocket.png',
         'sprites/drone.png',
         'sprites/anti-missile.png',
-        'sprites/avatar.png',
       ],
       manifest: {
         short_name: 'Iron Sight',

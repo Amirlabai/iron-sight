@@ -10,7 +10,7 @@ Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`
 
 ### Map motion sprites (2026-06-01)
 
-- Sprites: `rocket.png`, `drone.png`, `anti-missile.png`, `avatar.png` (32px); interceptors at 20px; user location uses `avatar.png` when geo is on. Source: `sprites/sprite files/*.newt` → `node scripts/newt-to-png.mjs`.
+- Sprites: `rocket.png`, `drone.png`, `anti-missile.png` (32px); interceptors at 20px. Source: `sprites/sprite files/*.newt` → `node scripts/newt-to-png.mjs`.
 - Centering: Leaflet `iconAnchor` + inline negative margins (do not zero margin on div icons); `.motion-sprite-wrap` flex; JS `rotate()` only on sprites.
 
 ## Previously completed
