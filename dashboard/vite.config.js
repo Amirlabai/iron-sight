@@ -47,7 +47,7 @@ async function loadPlugins() {
       filename: 'sw.js',
       registerType: 'autoUpdate',
       injectRegister: null,
-      includeAssets: ['favicon.png', 'favicon.svg', 'icons.svg', 'og-image.png', 'sprites/rocket.png', 'sprites/drone.png'],
+      includeAssets: ['favicon.png', 'favicon.svg', 'icons.svg', 'og-image.png', 'sprites/rocket.png'],
       manifest: {
         short_name: 'Iron Sight',
         name: 'Iron Sight — Live Israel Alert Map',

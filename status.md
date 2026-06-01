@@ -8,9 +8,9 @@ Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`
 
 ## Recently completed
 
-### Map pixel sprites (2026-06-01)
+### Map motion visuals (2026-06-01)
 
-- `dashboard/public/sprites/rocket.png` and `drone.png` (from `.incoming/`); missiles and drone patrol use PNG sprites at 32px with bearing offset.
+- Inbound missile and drone: CSS chevrons (unchanged). Interceptor: `sprites/rocket.png` at 20px. Drop upright rocket into `public/sprites/` and set `INTERCEPTOR_ART_HEADING_CCW` to 90 in `TacticalMotionLayer.jsx`.
 
 ## Previously completed
 

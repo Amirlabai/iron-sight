@@ -42,7 +42,7 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 
 - Routes: `/`, `/about`, `/accessibility`, `/privacy`, `/terms` (legal pages prerendered; `/` is client-only).
 - SEO: `seoConfig.js`, `SEO.jsx`, `VITE_SITE_URL`, build-time sitemap; cookie banner on map route.
-- Map: Leaflet, origin corridors, country silhouettes (`countries.json`), city boundary strokes, `TacticalMotionLayer` (missiles), `TrackingDrone` (drones). Motion sprites: `dashboard/public/sprites/rocket.png`, `drone.png` (32px; rotation via `spriteCssRotation` — NE art heading 45° CCW, CSS CW).
+- Map: Leaflet, origin corridors, country silhouettes (`countries.json`), city boundary strokes, `TacticalMotionLayer` (missiles + interceptors), `TrackingDrone` (drones). Interceptor only: `dashboard/public/sprites/rocket.png` at 20px; set `INTERCEPTOR_ART_HEADING_CCW` to 90 when PNG nose points up.
 - Mobile shell: fixed bottom sheet, motion-value drag, 45px header — see Mobile Shell Spec.
 - Alert prefs: scoped push (all/radius/exact), partitioned localStorage/sessionStorage, optional Telegram Kfar Kama alerts.
 
