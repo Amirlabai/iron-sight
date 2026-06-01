@@ -25,7 +25,7 @@ export { MAX_MISSILE_INSTANCES } from './TacticalMotionContext';
 const MOTION_Z_INDEX = 2500;
 const EXPLOSION_BURST_MS = 700;
 const MEET_REACHED_FRACTION = 0.995;
-const MISSILE_SPRITE_PX = 32;
+const MISSILE_SPRITE_PX = 64;
 const INTERCEPTOR_SPRITE_PX = 20;
 
 function getMarkerElement(marker) {

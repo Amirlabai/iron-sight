@@ -266,8 +266,8 @@ path.earthquake-city-hull.pulse-animation {
 /* Authoring: rocket.png nose must point to the top of the file (forward at 0°). */
 .missile-sprite {
     flex: 0 0 auto;
-    width: 32px;
-    height: 32px;
+    width: 64px;
+    height: 64px;
     background: url(/sprites/rocket.png) center / contain no-repeat;
     background-size: contain;
     image-rendering: pixelated;
