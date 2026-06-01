@@ -11,7 +11,7 @@ import {
   resolveOriginPinCoords,
 } from '../utils/mapGeometry';
 import { resolveMapConfig } from '../utils/mapZoomPresets';
-import { filterHistoryByOrigin } from '../utils/historyFilters';
+import { filterArchiveHistory, filterHistoryByOrigin } from '../utils/historyFilters';
 import { getConvexHull, getCentroid, getDistance } from '../utils/geoUtils';
 import missileSound from '../assets/sounds/missile_alert.mp3';
 import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
@@ -254,7 +254,7 @@ export function TacticalProvider({ children }) {
         }
         if (data.type === 'history_sync') {
           if (historyFilterRef.current === 'all' && timeFrameRef.current === 'all') {
-            setHistory(data.data);
+            setHistory(filterArchiveHistory(data.data));
           }
           setLoadingProgress(100);
           setIsReady(true);
@@ -366,7 +366,7 @@ export function TacticalProvider({ children }) {
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        const rows = Array.isArray(data) ? data : [];
+        const rows = filterArchiveHistory(Array.isArray(data) ? data : []);
         if (append) {
           setHistory((prev) => [...prev, ...rows]);
         } else {
@@ -495,7 +495,7 @@ export function TacticalProvider({ children }) {
   };
 
   const filteredHistory = useMemo(
-    () => filterHistoryByOrigin(history, originFilter),
+    () => filterHistoryByOrigin(filterArchiveHistory(history), originFilter),
     [history, originFilter],
   );
 

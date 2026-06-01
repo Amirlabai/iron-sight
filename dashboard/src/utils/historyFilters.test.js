@@ -1,11 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { filterHistoryByOrigin } from './historyFilters';
+import { filterArchiveHistory, filterHistoryByOrigin } from './historyFilters';
 
 const events = [
   { id: '1', trajectories: [{ origin: 'Iran' }] },
   { id: '2', trajectories: [{ origin: 'Lebanon' }] },
   { id: '3', clusters: [{ origin: 'Gaza' }] },
 ];
+
+describe('filterArchiveHistory', () => {
+  it('drops newsFlash rows', () => {
+    const rows = [
+      { id: '1', category: 'missiles' },
+      { id: '2', category: 'newsFlash' },
+    ];
+    expect(filterArchiveHistory(rows)).toEqual([{ id: '1', category: 'missiles' }]);
+  });
+
+  it('returns empty for nullish input', () => {
+    expect(filterArchiveHistory(null)).toEqual([]);
+  });
+});
 
 describe('filterHistoryByOrigin', () => {
   it('returns all when filter is all', () => {
