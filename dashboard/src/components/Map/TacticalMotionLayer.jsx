@@ -25,8 +25,9 @@ export { MAX_MISSILE_INSTANCES } from './TacticalMotionContext';
 const MOTION_Z_INDEX = 2500;
 const EXPLOSION_BURST_MS = 700;
 const MEET_REACHED_FRACTION = 0.995;
-/** Interceptor PNG nose heading (math CCW° from east); set 90 when art points up. */
-const INTERCEPTOR_ART_HEADING_CCW = 45;
+/** Upright PNG nose points north (math CCW° from east). */
+const ROCKET_ART_HEADING_CCW = 90;
+const MISSILE_SPRITE_PX = 32;
 const INTERCEPTOR_SPRITE_PX = 20;
 
 function getMarkerElement(marker) {
@@ -40,11 +41,12 @@ function getMarkerElement(marker) {
 
 function createMissileIcon(color) {
   const hex = color?.startsWith?.('#') ? color : '#ff3b30';
+  const half = MISSILE_SPRITE_PX / 2;
   return L.divIcon({
     className: 'leaflet-div-icon tactical-motion-marker missile-sprite-marker',
-    html: `<div class="missile-sprite" style="--threat-color: ${hex}; border-left-color: ${hex}"></div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
+    html: `<div class="missile-sprite" style="--threat-color: ${hex}"></div>`,
+    iconSize: [MISSILE_SPRITE_PX, MISSILE_SPRITE_PX],
+    iconAnchor: [half, half],
   });
 }
 
@@ -153,13 +155,11 @@ function enterMissileHold(inst, now) {
   }
 }
 
-function applySpriteBearing(marker, bearing, { flip = false, sprite = 'missile' } = {}) {
-  const selector = sprite === 'interceptor' ? '.interceptor-sprite' : '.missile-sprite';
-  const el = getMarkerElement(marker)?.querySelector(selector);
+function applySpriteBearing(marker, bearing, { flip = false } = {}) {
+  const el = getMarkerElement(marker)?.querySelector('.missile-sprite, .interceptor-sprite');
   if (!el) return;
-  let deg = sprite === 'interceptor'
-    ? spriteCssRotation(bearing, INTERCEPTOR_ART_HEADING_CCW)
-    : (flip ? bearing + 180 : bearing);
+  let deg = spriteCssRotation(bearing, ROCKET_ART_HEADING_CCW);
+  if (flip) deg += 180;
   const prev = el.dataset.bearing;
   if (prev !== undefined && Math.abs(Number(prev) - deg) < 8) return;
   el.dataset.bearing = String(deg);
@@ -242,7 +242,7 @@ function updateMissileInbound(inst, dt, mapZoom, now) {
       marker.setLatLng(pos);
       marker.setOpacity(1);
       const info = positionAndBearingAtDistance(path, plan.cumDistInt[i], dInt);
-      if (info) applySpriteBearing(marker, info.bearing, { sprite: 'interceptor' });
+      if (info) applySpriteBearing(marker, info.bearing);
     }
   });
 

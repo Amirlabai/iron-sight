@@ -8,9 +8,9 @@ Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`
 
 ## Recently completed
 
-### Map motion visuals (2026-06-01)
+### Map motion sprites (2026-06-01)
 
-- Inbound missile and drone: CSS chevrons (unchanged). Interceptor: `sprites/rocket.png` at 20px. Drop upright rocket into `public/sprites/` and set `INTERCEPTOR_ART_HEADING_CCW` to 90 in `TacticalMotionLayer.jsx`.
+- Upright `sprites/rocket.png` and `drone.png` (32px); interceptors use scaled rocket (20px). Source: `sprites/sprite files/*.newt` → `node scripts/newt-to-png.mjs` when art changes.
 
 ## Previously completed
 
