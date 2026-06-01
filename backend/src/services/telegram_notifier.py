@@ -16,6 +16,7 @@ from src.utils.config import (
     TIMEZONE,
 )
 from src.utils.kfar_kama import event_affects_kfar_kama, event_track_ids
+from src.utils.outbound_policy import skip_outbound_event
 
 logger = logging.getLogger("IronSightBackend")
 
@@ -90,7 +91,7 @@ class TelegramNotifier:
 
     @staticmethod
     def _should_skip_event(event) -> bool:
-        return bool(event and event.get("is_simulation"))
+        return skip_outbound_event(event)
 
     def _notify_key(self, event) -> str:
         alert_id = event.get("id") or "unknown"

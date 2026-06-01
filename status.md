@@ -8,6 +8,13 @@ Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`
 
 ## Recently completed
 
+### Simulation outbound isolation (2026-06-01)
+
+- Push and Telegram skip `is_simulation` via `outbound_policy.skip_outbound_event`; `_broadcast_multi_alert` filters push list.
+- `main.py`: no lifecycle `log_event` for sim; health `upstream_source` is `SIMULATOR` for local relay or sim batches.
+- Simulator: dev guard (`IRON_SIGHT_DEV` / `ENV=development`), bind `127.0.0.1`, `x-relay-auth` on `/relay`, localhost-only dispatch/UI.
+- Docs: `backend/.env.example`, `backend/simulator/README.md`.
+
 ### Map motion sprites (2026-06-01)
 
 - Sprites: `rocket.png`, `drone.png`, `anti-missile.png` (32px); interceptors at 20px. Splash: classic CSS radar sweep. Source: `sprites/sprite files/*.newt` → `node scripts/newt-to-png.mjs`.

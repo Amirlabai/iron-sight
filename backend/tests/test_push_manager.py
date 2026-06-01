@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -78,3 +78,54 @@ class TestPushManagerUpsert:
         assert err is None
         assert isinstance(token, str)
         manager.db.upsert_push_subscription.assert_awaited_once()
+
+
+class TestPushManagerNotify:
+    @pytest.fixture
+    def manager(self):
+        db = MagicMock()
+        db.db = MagicMock()
+        db.list_push_subscriptions = AsyncMock(
+            return_value=[
+                {
+                    "endpoint": "https://push.example/x",
+                    "keys": {"p256dh": "a", "auth": "b"},
+                    "scope": "all",
+                    "radius_km": 10,
+                    "location": None,
+                    "last_notified": {},
+                }
+            ]
+        )
+        db.set_last_notified = AsyncMock()
+        mgr = PushManager(db)
+        mgr._vapid_ready = True
+        return mgr
+
+    @pytest.mark.asyncio
+    async def test_skips_simulation_events(self, manager):
+        with patch.object(manager, "_send_one", new_callable=AsyncMock) as send_mock:
+            await manager.notify_matching_subscriptions([
+                {
+                    "id": "sim-1",
+                    "is_simulation": True,
+                    "category": "missiles",
+                    "title": "Test Salvo",
+                    "all_cities": [{"name": "Tel Aviv", "coords": [32.08, 34.78]}],
+                }
+            ])
+            send_mock.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_sends_non_simulation_events(self, manager):
+        with patch.object(manager, "_send_one", new_callable=AsyncMock) as send_mock:
+            await manager.notify_matching_subscriptions([
+                {
+                    "id": "live-1",
+                    "is_simulation": False,
+                    "category": "missiles",
+                    "title": "Live Salvo",
+                    "all_cities": [{"name": "Tel Aviv", "coords": [32.08, 34.78]}],
+                }
+            ])
+            send_mock.assert_awaited_once()

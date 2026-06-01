@@ -45,6 +45,7 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 - Map: Leaflet, origin corridors, country silhouettes (`countries.json`), city boundary strokes, `TacticalMotionLayer` (missiles + interceptors), `TrackingDrone` (drones), `UserLocationMarker` (blue dot when geo granted). Motion sprites: inbound `rocket.png`, interceptors `anti-missile.png`, drones `drone.png`; PNG top = forward for rotatable units; `screenBearingBetween` + `motionSpriteTransformCss`; center via Leaflet `iconAnchor` + wrap flex; optional `SPRITE_HEADING_OFFSET_DEG` in `trajectoryPaths.js`.
 - Mobile shell: fixed bottom sheet, motion-value drag, 45px header — see Mobile Shell Spec.
 - Alert prefs: scoped push (all/radius/exact), partitioned localStorage/sessionStorage, optional Telegram Kfar Kama alerts.
+- Simulation (`is_simulation`): dashboard WebSocket only; no Web Push, Telegram, salvo persist, or `event_logs` lifecycle writes. Local relay: `backend/simulator/` on `127.0.0.1:8081` with `IRON_SIGHT_DEV=1` and matching `RELAY_AUTH_KEY`.
 
 ## Frontend module map
 
