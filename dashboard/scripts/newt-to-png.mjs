@@ -9,6 +9,8 @@ const sourceDir = path.join(spritesDir, 'sprite files');
 const EXPORTS = [
   { newt: 'rocket.newt', png: 'rocket.png' },
   { newt: 'drone.newt', png: 'drone.png' },
+  { newt: 'anti missle.newt', png: 'anti-missile.png' },
+  { newt: 'avatar.newt', png: 'avatar.png' },
 ];
 
 function hexToRgba(hex) {

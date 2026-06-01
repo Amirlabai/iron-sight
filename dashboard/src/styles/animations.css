@@ -276,12 +276,12 @@ path.earthquake-city-hull.pulse-animation {
     transform-origin: center center;
 }
 
-/* Same rocket asset, scaled down; nose-up in PNG. */
+/* Authoring: anti-missile.png nose must point to the top of the file (forward at 0°). */
 .interceptor-sprite {
     flex: 0 0 auto;
     width: 20px;
     height: 20px;
-    background: url(/sprites/rocket.png) center / contain no-repeat;
+    background: url(/sprites/anti-missile.png) center / contain no-repeat;
     background-size: contain;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
