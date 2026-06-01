@@ -975,24 +975,20 @@ html[data-theme='light'] .tab-btn.active {
     filter: drop-shadow(0 0 8px var(--threat-color));
 }
 
-/* --- Tracking Drone Premium Visuals --- */
+/* --- Tracking Drone (pixel sprite) --- */
 .drone-container {
     position: relative;
-    width: 60px;
-    height: 20px;
-    display: flex;
-    align-items: center;
+    width: 32px;
+    height: 32px;
 }
 
-.drone-body-premium {
-    position: absolute;
-    right: 10px;
-    width: 20px;
-    height: 15px;
-    background: var(--threat-color);
-    clip-path: polygon(0 0, 100% 50%, 0 100%);
-    box-shadow: 0 0 15px var(--threat-color);
-    z-index: 2;
+.drone-sprite {
+    width: 32px;
+    height: 32px;
+    background: url(/sprites/drone.png) center / contain no-repeat;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    filter: drop-shadow(0 0 6px var(--threat-color, #ff9500));
 }
 
 .organic-hull {
@@ -1003,19 +999,6 @@ html[data-theme='light'] .tab-btn.active {
 
 .organic-hull.infiltration-city-hull {
     transition: none;
-}
-
-.drone-tail {
-    position: absolute;
-    right: 22px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 35px;
-    height: 4px;
-    background: linear-gradient(to right, transparent, var(--threat-color));
-    border-radius: 2px;
-    opacity: 0.8;
-    z-index: 1;
 }
 
 /* --- Advanced History Styles (HISTORY-ADV-FRONTEND) --- */

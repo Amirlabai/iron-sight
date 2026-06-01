@@ -247,11 +247,11 @@ path.earthquake-city-hull.pulse-animation {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 0;
-    height: 0;
-    border-top: 6px solid transparent;
-    border-bottom: 6px solid transparent;
-    border-left: 14px solid var(--threat-color, #ff3b30);
+    width: 32px;
+    height: 32px;
+    background: url(/sprites/rocket.png) center / contain no-repeat;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
     filter: drop-shadow(0 0 6px var(--threat-color, #ff3b30));
     transform: translate(-50%, -50%);
 }

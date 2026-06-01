@@ -5,8 +5,14 @@
 ## Current state
 
 Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`). Relay ingest operational. Alpha development.
-da
+
 ## Recently completed
+
+### Map pixel sprites (2026-06-01)
+
+- `dashboard/public/sprites/rocket.png` and `drone.png` (from `.incoming/`); missiles and drone patrol use PNG sprites at 32px with bearing offset.
+
+## Previously completed
 
 ### Origin ML + history training (2026-06-01)
 
