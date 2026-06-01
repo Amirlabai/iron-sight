@@ -70,6 +70,7 @@ class MongoManager:
             update_data = {
                 "verified": verified,
                 "trajectories.0.origin": origin_name,
+                "trajectories.0.origin_coords": origin_coords,
                 "trajectories.0.marker_coords": origin_coords,
                 # Also update clusters if it's a unified one
                 "clusters.0.origin": origin_name

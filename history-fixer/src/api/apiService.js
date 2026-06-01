@@ -51,6 +51,15 @@ export const suggestOrigin = async (payload) => {
   return parseJsonResponse(res, 'Suggest origin');
 };
 
+export const projectEntry = async (payload) => {
+  const res = await fetch(`${TACTICAL_API_URL}/api/history/project-entry`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  return parseJsonResponse(res, 'Project entry');
+};
+
 export const fetchTrainingExport = async (category = 'missiles', format = 'json') => {
   const res = await fetch(
     `${TACTICAL_API_URL}/api/history/training-export?category=${category}&format=${format}`,

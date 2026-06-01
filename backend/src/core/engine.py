@@ -215,6 +215,202 @@ class TrackingEngine:
         dominant = eigenvectors[:, np.argmax(eigenvalues)]
         return dominant.tolist()
 
+    def _cluster_centroid(self, cluster_cities):
+        coords = np.array([c['coords'] for c in cluster_cities])
+        return np.mean(coords, axis=0).tolist()
+
+    def _normalize_regression_vector(self, vector):
+        v_lat, v_lon = vector
+        mag = (v_lat ** 2 + v_lon ** 2) ** 0.5
+        if mag == 0:
+            v_lat, v_lon, mag = 0.5, 1.0, 1.118
+        return v_lat / mag, v_lon / mag
+
+    def _orient_vector_away_from(self, centroid, v_lat, v_lon, reference, city_count):
+        dist_now = self.get_distance(centroid, reference)
+        dist_next = self.get_distance(
+            [centroid[0] + v_lat * 0.1, centroid[1] + v_lon * 0.1], reference
+        )
+        flipped = dist_next < dist_now and city_count <= MIN_IRAN_THRESHOLD
+        if flipped:
+            v_lat, v_lon = -v_lat, -v_lon
+        return v_lat, v_lon, flipped
+
+    def _project_point(self, centroid, v_lat, v_lon, depth):
+        return [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
+
+    def _match_territory_at_projection(self, centroid, v_lat, v_lon, depth, territories):
+        proj = self._project_point(centroid, v_lat, v_lon, depth)
+        for territory in territories:
+            if self.is_point_in_polygon(proj, territory):
+                return territory.strip(), proj
+        return None, proj
+
+    def _calc_polygon_names(self, origin_name):
+        """Calc-border polygon keys for a locked origin label."""
+        if origin_name in ("Iran", "North Iran"):
+            return ["Iran", "North Iran"]
+        return [origin_name]
+
+    def _projection_max_depth(self, origin_name, depth):
+        """Upper bound for calc ray-march along the regression line."""
+        scalar = depth if depth is not None else self.strategic_depths.get(origin_name, 10.0)
+        if origin_name in ("Gaza", "Lebanon"):
+            return max(scalar, 0.5)
+        if origin_name in ("Iran", "North Iran"):
+            return max(scalar, 16.0)
+        if origin_name == "Yemen":
+            return max(scalar, self.strategic_depths.get("Yemen", 20.0))
+        return scalar
+
+    def _ray_march_calc_entry(self, centroid, v_lat, v_lon, origin_name, max_depth, num_steps=50):
+        """First point along the ray that lies inside calc borders for the known origin."""
+        poly_names = self._calc_polygon_names(origin_name)
+        min_depth = 0.05
+        max_depth = float(max_depth)
+        if max_depth <= min_depth:
+            depths = np.array([max_depth])
+        else:
+            depths = np.linspace(min_depth, max_depth, num_steps)
+
+        c_lat, c_lon = centroid[0], centroid[1]
+        for d in depths:
+            pt = [c_lat + v_lat * d, c_lon + v_lon * d]
+            for pname in poly_names:
+                if pname in self.calc_boundaries and self.is_point_in_polygon(
+                    pt, pname, use_tactical=False
+                ):
+                    return pt, float(d)
+        return None, None
+
+    def _oriented_regression_vector(self, cluster_cities, centroid):
+        """PCA vector normalized and oriented away from Israel (matches label step)."""
+        vector = self.calculate_regression_vector(cluster_cities)
+        if not vector:
+            return None
+        v_lat, v_lon = self._normalize_regression_vector(vector)
+        isr = [31.7, 35.2]
+        v_lat, v_lon, _ = self._orient_vector_away_from(
+            centroid, v_lat, v_lon, isr, len(cluster_cities)
+        )
+        return v_lat, v_lon
+
+    async def trace_cluster_origin(self, cluster_cities, allow_strategic=True):
+        """Return step-by-step origin trace for a single cluster (replay / debug)."""
+        await self._sync_verified_history()
+        centroid = self._cluster_centroid(cluster_cities)
+        isr = [31.7, 35.2]
+        city_count = len(cluster_cities)
+
+        hist_match = self._lookup_historical_match(cluster_cities)
+        if hist_match:
+            return {
+                "method": "historical",
+                "origin": hist_match[0],
+                "depth": hist_match[1],
+                "centroid": centroid,
+                "hist_match": True,
+                "vector": None,
+                "vector_flipped": False,
+                "regional_proj": None,
+                "regional_hit": None,
+                "strategic_proj": None,
+                "strategic_hit": None,
+                "strategic_skipped": False,
+                "fallback": None,
+            }
+
+        vector = self.calculate_regression_vector(cluster_cities)
+        if not vector:
+            dist_gaza = self.get_distance(centroid, self.origins["Gaza"])
+            dist_lebanon = self.get_distance(centroid, self.origins["Lebanon"])
+            origin = "Gaza" if dist_gaza < dist_lebanon else "Lebanon"
+            return {
+                "method": "fallback",
+                "origin": origin,
+                "depth": 0.5,
+                "centroid": centroid,
+                "hist_match": False,
+                "vector": None,
+                "vector_flipped": False,
+                "regional_proj": None,
+                "regional_hit": None,
+                "strategic_proj": None,
+                "strategic_hit": None,
+                "strategic_skipped": not allow_strategic,
+                "fallback": {"dist_gaza": dist_gaza, "dist_lebanon": dist_lebanon},
+            }
+
+        raw_vector = vector[:]
+        v_lat, v_lon = self._normalize_regression_vector(vector)
+        v_lat, v_lon, flipped = self._orient_vector_away_from(
+            centroid, v_lat, v_lon, isr, city_count
+        )
+
+        regional_hit, regional_proj = self._match_territory_at_projection(
+            centroid, v_lat, v_lon, 0.5, ["Lebanon", "Gaza"]
+        )
+        if regional_hit:
+            return {
+                "method": "regional_projection",
+                "origin": regional_hit,
+                "depth": 0.5,
+                "centroid": centroid,
+                "hist_match": False,
+                "vector": raw_vector,
+                "vector_flipped": flipped,
+                "regional_proj": regional_proj,
+                "regional_hit": regional_hit,
+                "strategic_proj": None,
+                "strategic_hit": None,
+                "strategic_skipped": not allow_strategic,
+                "fallback": None,
+            }
+
+        strategic_hit, strategic_proj = None, None
+        strategic_skipped = not allow_strategic
+        if allow_strategic:
+            strategic_hit, strategic_proj = self._match_territory_at_projection(
+                centroid, v_lat, v_lon, 7, ["North Iran", "Iran", "Yemen"]
+            )
+            if strategic_hit:
+                origin = "Iran" if strategic_hit.endswith("Iran") else "Yemen"
+                depth = 16.0 if strategic_hit.endswith("Iran") else 7
+                return {
+                    "method": "strategic_projection",
+                    "origin": origin,
+                    "depth": depth,
+                    "centroid": centroid,
+                    "hist_match": False,
+                    "vector": raw_vector,
+                    "vector_flipped": flipped,
+                    "regional_proj": regional_proj,
+                    "regional_hit": None,
+                    "strategic_proj": strategic_proj,
+                    "strategic_hit": strategic_hit,
+                    "strategic_skipped": False,
+                    "fallback": None,
+                }
+
+        dist_gaza = self.get_distance(centroid, self.origins["Gaza"])
+        dist_lebanon = self.get_distance(centroid, self.origins["Lebanon"])
+        origin = "Gaza" if dist_gaza < dist_lebanon else "Lebanon"
+        return {
+            "method": "fallback",
+            "origin": origin,
+            "depth": 0.5,
+            "centroid": centroid,
+            "hist_match": False,
+            "vector": raw_vector,
+            "vector_flipped": flipped,
+            "regional_proj": regional_proj,
+            "regional_hit": None,
+            "strategic_proj": strategic_proj,
+            "strategic_hit": None,
+            "strategic_skipped": strategic_skipped,
+            "fallback": {"dist_gaza": dist_gaza, "dist_lebanon": dist_lebanon},
+        }
+
     def cluster(self, cities, threshold_km=25.0):
         """Vectorized clustering using pre-computed distance matrix and connected components."""
         if not cities: return []
@@ -338,57 +534,23 @@ class TrackingEngine:
             return hist_match
         
         # 2. Traditional Vectorial Analysis
-        coords = np.array([c['coords'] for c in cluster_cities])
-        centroid = np.mean(coords, axis=0).tolist()
-        vector = self.calculate_regression_vector(cluster_cities)
-        if vector:
-            v_lat, v_lon = vector
-            mag = (v_lat**2 + v_lon**2)**0.5
-            if mag == 0: v_lat, v_lon, mag = 0.5, 1.0, 1.118
-            v_lat, v_lon = v_lat/mag, v_lon/mag
-            # Orient away from target
-            isr = [31.7, 35.2]
-            dist_now = self.get_distance(centroid, isr)
-            dist_next = self.get_distance([centroid[0] + v_lat*0.1, centroid[1] + v_lon*0.1], isr)
-            if dist_next < dist_now and len(cluster_cities) <= MIN_IRAN_THRESHOLD:
-                v_lat, v_lon = -v_lat, -v_lon
-            # Check regional origins first so that a local newsFlash doesn't overshoot into strategic origins
-            depth = 0.5
-            proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
-            for territory in ["Lebanon", "Gaza"]:
-                if self.is_point_in_polygon(proj, territory): return territory.strip(), depth
-
-            # Vector Projections Strategy (Strategic origins gated by newsFlash context)
-            if allow_strategic:
-                depth = 7
-                proj = [centroid[0] + v_lat * depth, centroid[1] + v_lon * depth]
-                for territory in ["North Iran", "Iran", "Yemen"]:
-                    if self.is_point_in_polygon(proj, territory):
-                        return ("Iran", 16.0) if territory.endswith("Iran") else ("Yemen", depth)
-        # Fallback Heuristics
-        dist_gaza = self.get_distance(centroid, self.origins["Gaza"])
-        dist_lebanon = self.get_distance(centroid, self.origins["Lebanon"])
-        return ("Gaza", 0.5) if dist_gaza < dist_lebanon else ("Lebanon", 0.5)
+        trace = await self.trace_cluster_origin(cluster_cities, allow_strategic=allow_strategic)
+        return trace["origin"], trace["depth"]
 
     def get_projected_origin(self, cluster_cities, origin_name, depth=None):
-        coords = np.array([c['coords'] for c in cluster_cities])
-        _cnt = np.mean(coords, axis=0)
-        cnt_lat, cnt_lon = float(_cnt[0]), float(_cnt[1])
-        vector = self.calculate_regression_vector(cluster_cities)
+        centroid = self._cluster_centroid(cluster_cities)
         origin_center = self.origins.get(origin_name, [0, 0])
-        if not vector: return origin_center
-        v_lat, v_lon = vector
-        mag = (v_lat**2 + v_lon**2)**0.5
-        if mag == 0: return origin_center
-        v_lat, v_lon = v_lat/mag, v_lon/mag
-        # Orient away from target
-        dist_current = self.get_distance([cnt_lat, cnt_lon], origin_center)
-        dist_forward = self.get_distance([cnt_lat + v_lat*0.1, cnt_lon + v_lon*0.1], origin_center)
-        if dist_forward > dist_current:
-            if len(cluster_cities) <= MIN_IRAN_THRESHOLD or origin_name in ["Lebanon", "Gaza"]:
-                v_lat, v_lon = -v_lat, -v_lon
-        scalar = depth if depth is not None else self.strategic_depths.get(origin_name, 10.0)
-        proj = [cnt_lat + v_lat * scalar, cnt_lon + v_lon * scalar]
-        if not self.is_point_in_polygon(proj, origin_name, use_tactical=True):
-            return self.origins.get(origin_name, proj)
-        return proj
+        oriented = self._oriented_regression_vector(cluster_cities, centroid)
+        if oriented is None:
+            return origin_center
+
+        v_lat, v_lon = oriented
+        max_depth = self._projection_max_depth(origin_name, depth)
+        hit, _ = self._ray_march_calc_entry(
+            centroid, v_lat, v_lon, origin_name, max_depth
+        )
+        if hit:
+            return hit
+
+        # Stay on the regression ray; avoid snapping to country center pin.
+        return self._project_point(centroid, v_lat, v_lon, max_depth)

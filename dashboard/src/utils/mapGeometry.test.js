@@ -36,9 +36,9 @@ describe('boundsKey', () => {
 });
 
 describe('resolveOriginPinCoords', () => {
-  it('should prefer marker_coords from trajectory', () => {
+  it('should prefer origin_coords from trajectory', () => {
     const traj = { marker_coords: [33.0, 35.0], origin_coords: [30.0, 30.0] };
-    expect(resolveOriginPinCoords('Iran', traj)).toEqual([33.0, 35.0]);
+    expect(resolveOriginPinCoords('Iran', traj)).toEqual([30.0, 30.0]);
   });
 
   it('should use tactical boundary centroid when origin is known', () => {

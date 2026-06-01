@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, useMap } from 'react-leaflet';
 import { Shield, Clock, MapPin, ChevronRight, CheckCircle, SplitSquareVertical, Filter, RefreshCcw, Combine } from 'lucide-react';
-import { fetchHistory, updateAlertOrigin, splitAlert, mergeAlerts, suggestOrigin, fetchTrainingExport } from './api/apiService';
+import { fetchHistory, updateAlertOrigin, splitAlert, mergeAlerts, suggestOrigin, projectEntry, fetchTrainingExport } from './api/apiService';
 import {
   ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_RED, HIGHLIGHT_RED, ORIGINS_DATA,
   STRATEGIC_METADATA, TACTICAL_API_URL, API_PROXY_TARGET,
@@ -42,6 +42,36 @@ function passesCityCountFilter(ev, minCities, maxCities) {
   if (min !== null && Number.isFinite(min) && n < min) return false;
   if (max !== null && Number.isFinite(max) && n > max) return false;
   return true;
+}
+
+function resolveEntryPin(origin, entryByOrigin, traj) {
+  if (entryByOrigin?.[origin]?.length >= 2) {
+    return entryByOrigin[origin];
+  }
+  if (traj?.origin_coords?.length >= 2) {
+    return traj.origin_coords;
+  }
+  if (traj?.marker_coords?.length >= 2) {
+    return traj.marker_coords;
+  }
+  return null;
+}
+
+async function projectPinForOrigin(event, originName, entryByOrigin) {
+  const cached = resolveEntryPin(originName, entryByOrigin, null);
+  if (cached) return cached;
+  if (!event?.all_cities?.length) return null;
+  try {
+    const resp = await projectEntry({
+      id: event.id,
+      category: event.category,
+      origin_name: originName,
+    });
+    return resp.origin_coords || null;
+  } catch (err) {
+    console.warn('PROJECT_ENTRY_FAILED', err);
+    return null;
+  }
 }
 
 function App() {
@@ -102,7 +132,7 @@ function App() {
     setSelectedEvent(event);
     const traj = event.trajectories?.[0];
     if (traj) {
-      setOriginMarker(traj.marker_coords || traj.origin_coords);
+      setOriginMarker(traj.origin_coords || traj.marker_coords);
       setOriginName(traj.origin);
     }
     setMlSuggestion(null);
@@ -117,8 +147,12 @@ function App() {
           setMlSuggestion(suggestion);
           if (!event.verified && suggestion.suggested) {
             setOriginName(suggestion.suggested);
-            const pin = ORIGINS_DATA[suggestion.suggested] || ORIGINS_DATA['Lebanon'];
-            setOriginMarker(pin);
+            const pin = resolveEntryPin(
+              suggestion.suggested,
+              suggestion.entry_by_origin,
+              traj,
+            );
+            if (pin) setOriginMarker(pin);
           }
         }
       } catch (err) {
@@ -187,11 +221,15 @@ function App() {
       );
       if (resp.status === 'SUCCESS') {
         const updatedEvent = resp.event;
-        // FULL state sync
         setHistory(prev => prev.map(h => 
           h.id === updatedEvent.id ? updatedEvent : h
         ));
         setSelectedEvent(updatedEvent);
+        const traj = updatedEvent.trajectories?.[0];
+        if (traj) {
+          setOriginName(traj.origin);
+          setOriginMarker(traj.origin_coords || traj.marker_coords);
+        }
         
         // Auto-select next unverified if available
         if (hideVerified) {
@@ -253,6 +291,24 @@ function App() {
       setLoading(false);
     }
   };
+
+  const handleOriginLabelChange = async (newOrigin) => {
+    setOriginName(newOrigin);
+    const pin = resolveEntryPin(newOrigin, mlSuggestion?.entry_by_origin, selectedEvent?.trajectories?.[0]);
+    if (pin) {
+      setOriginMarker(pin);
+      return;
+    }
+    if (selectedEvent) {
+      const projected = await projectPinForOrigin(selectedEvent, newOrigin, mlSuggestion?.entry_by_origin);
+      if (projected) setOriginMarker(projected);
+    }
+  };
+
+  const storedTraj = selectedEvent?.trajectories?.[0];
+  const storedOrigin = storedTraj?.origin_coords || storedTraj?.marker_coords;
+  const storedTarget = storedTraj?.target_coords || selectedEvent?.center;
+  const editTarget = storedTraj?.target_coords || selectedEvent?.center;
 
   return (
     <div className="history-auditor">
@@ -451,10 +507,21 @@ function App() {
                   </Marker>
                 ))}
 
-                {/* Tracking Line */}
-                {originMarker && selectedEvent?.center && (
+                {/* Stored trajectory (archive geometry audit) */}
+                {storedOrigin && storedTarget && (
+                  <Polyline
+                    positions={[storedOrigin, storedTarget]}
+                    color="#888"
+                    weight={2}
+                    dashArray="4, 8"
+                    opacity={0.7}
+                  />
+                )}
+
+                {/* Current edit line */}
+                {originMarker && editTarget && (
                   <Polyline 
-                    positions={[originMarker, selectedEvent.center]} 
+                    positions={[originMarker, editTarget]} 
                     color={HIGHLIGHT_RED} 
                     weight={2} 
                     dashArray="5, 10" 
@@ -505,7 +572,8 @@ function App() {
                         className={`ml-score-row ${origin === mlSuggestion.suggested ? 'suggested' : ''}`}
                         onClick={() => {
                           setOriginName(origin);
-                          setOriginMarker(ORIGINS_DATA[origin] || ORIGINS_DATA['Lebanon']);
+                          const pin = resolveEntryPin(origin, mlSuggestion?.entry_by_origin, selectedEvent?.trajectories?.[0]);
+                          if (pin) setOriginMarker(pin);
                         }}
                       >
                         <span>{origin}</span>
@@ -524,12 +592,7 @@ function App() {
                 <label>ORIGIN LABEL</label>
                 <select 
                   value={originName} 
-                  onChange={(e) => {
-                    const newOrigin = e.target.value;
-                    setOriginName(newOrigin);
-                    const defaultCoords = ORIGINS_DATA[newOrigin] || ORIGINS_DATA["Iran"];
-                    setOriginMarker(defaultCoords);
-                  }}
+                  onChange={(e) => handleOriginLabelChange(e.target.value)}
                 >
                   {Object.keys(ORIGINS_DATA).map(o => <option key={o} value={o}>{o}</option>)}
                   <option value="North Iran">North Iran</option>

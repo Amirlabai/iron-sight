@@ -28,4 +28,16 @@ describe('motionEndpoints', () => {
     expect(ep.origin).toEqual([33, 35]);
     expect(ep.target).toEqual([32, 34.8]);
   });
+
+  it('resolveMissileEndpoints prefers origin_coords over legacy marker split', () => {
+    const traj = {
+      origin_coords: [33.20, 35.28],
+      marker_coords: [33.09, 35.64],
+      target_coords: [33.08, 35.14],
+    };
+    const event = { verified: true, manual_origin: 'Lebanon' };
+    const ep = resolveMissileEndpoints(traj, event);
+    expect(ep.origin).toEqual([33.20, 35.28]);
+    expect(ep.target).toEqual([33.08, 35.14]);
+  });
 });

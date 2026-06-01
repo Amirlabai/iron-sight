@@ -1,12 +1,22 @@
 # Iron Sight — Status
 
-**Updated:** 2026-06-01
+**Updated:** 2026-06-02
 
 ## Current state
 
 Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`). Relay ingest operational. Alpha development.
 
 ## Recently completed
+
+### Origin Replay dev tool (2026-06-02)
+
+- Backend: `origin_replay.py` + `POST /api/origin/replay` (mission-key gated); engine helpers extracted for vector/projection trace.
+- Unified origin coords: one border-entry point for pin + line + storage; live writes sync `origin_coords` and `marker_coords`; dashboard/history-fixer read `origin_coords` first.
+- Trajectory entry: `get_projected_origin` ray-marches calc borders on oriented regression ray (no country-center pin).
+- API: `POST /api/history/suggest-origin` returns `entry_by_origin`; `POST /api/history/project-entry` for label-only relabel.
+- Archive recalc: `backend/scripts/recalc_regional_trajectories.py` (Gaza/Lebanon; syncs both coord fields).
+- Standalone app: `origin-replay/` on `:5175` — archive picker, step navigator, Leaflet overlays per pipeline stage.
+- Tests: `backend/tests/test_origin_replay.py`, `test_trajectory_utils.py`.
 
 ### Simulation outbound isolation (2026-06-01)
 

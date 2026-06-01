@@ -8,7 +8,6 @@ import {
 import {
   calculateArchiveMapConfig,
   calculateTimeframeMapConfig,
-  resolveOriginPinCoords,
 } from '../utils/mapGeometry';
 import { resolveMapConfig } from '../utils/mapZoomPresets';
 import { filterArchiveHistory, filterHistoryByOrigin } from '../utils/historyFilters';
@@ -637,12 +636,17 @@ export function TacticalProvider({ children }) {
           if (trajSample) {
             superEvent.trajectories = [trajSample];
           } else {
-            const pinCoords = resolveOriginPinCoords(origin);
-            if (pinCoords) {
+            const memberEntries = events
+              .flatMap(e => e.trajectories || [])
+              .filter(t => t.origin === origin && t.origin_coords?.length >= 2);
+            if (memberEntries.length > 0) {
+              const avgLat = memberEntries.reduce((s, t) => s + t.origin_coords[0], 0) / memberEntries.length;
+              const avgLng = memberEntries.reduce((s, t) => s + t.origin_coords[1], 0) / memberEntries.length;
+              const avg = [avgLat, avgLng];
               superEvent.trajectories = [{
                 origin,
-                marker_coords: pinCoords,
-                origin_coords: pinCoords,
+                origin_coords: avg,
+                marker_coords: avg,
               }];
             }
           }

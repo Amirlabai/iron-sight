@@ -1,0 +1,25 @@
+:root {
+  --bg-dark: #0a0a0f;
+  --panel-bg: rgba(20, 20, 25, 0.92);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --accent-blue: #4d94ff;
+  --accent-green: #40c057;
+  --accent-red: #ff4d4d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: Inter, system-ui, sans-serif;
+  overflow: hidden;
+}

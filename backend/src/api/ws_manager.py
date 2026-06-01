@@ -5,6 +5,11 @@ from aiohttp import web
 import aiohttp_cors
 from src.utils.config import ALLOWED_ORIGINS, WS_PORT, MISSION_KEY, TIMEZONE
 from src.utils.cluster_utils import build_merged_payloads
+from src.utils.trajectory_utils import (
+    entry_by_origin,
+    project_entry_for_origin,
+    sync_missile_trajectory_on_verify,
+)
 
 logger = logging.getLogger("IronSightBackend")
 
@@ -39,6 +44,8 @@ class WebSocketManager:
         self.add_route("POST", "/api/history/split", self.split_history_handler)
         self.add_route("POST", "/api/history/merge", self.merge_history_handler)
         self.add_route("POST", "/api/history/suggest-origin", self.suggest_origin_handler)
+        self.add_route("POST", "/api/history/project-entry", self.project_entry_handler)
+        self.add_route("POST", "/api/origin/replay", self.origin_replay_handler)
         self.add_route("GET", "/api/history/training-export", self.training_export_handler)
         self.add_route("GET", "/api/push/vapid-public-key", self.push_vapid_handler)
         self.add_route("POST", "/api/push/subscribe", self.push_subscribe_handler)
@@ -231,18 +238,18 @@ class WebSocketManager:
                 for cluster in existing["clusters"]:
                     cluster["origin"] = origin_name
 
-            # 3. Recalculate Trajectory Entry Point if Missiles
+            # 3. Recalculate trajectory if Missiles
             if alert_type == "missiles" and existing.get("trajectories"):
                 traj = existing["trajectories"][0]
-                traj["origin"] = origin_name
-                traj["marker_coords"] = marker_coords
-                traj["zoom"] = zoom # Dashboard history expects this here
-                
-                # RECALCULATE entry point on border
-                depth = self.engine.strategic_depths.get(origin_name, 10.0)
-                border_entry = self.engine.get_projected_origin(existing["all_cities"], origin_name, depth=depth)
-                traj["origin_coords"] = border_entry
-                logger.info(f"HISTORY_RECALC: {alert_id} trajectory recalculated for {origin_name} (Border entry: {border_entry})")
+                cities = existing.get("all_cities") or []
+                sync_missile_trajectory_on_verify(traj, origin_name, marker_coords, cities, self.engine)
+                target = traj.get("target_coords")
+                if target:
+                    existing["center"] = target
+                logger.info(
+                    f"HISTORY_RECALC: {alert_id} verified trajectory "
+                    f"{marker_coords} -> {target} ({origin_name})"
+                )
 
             # 4. Commit FULL synchronized payload
             await self.db.save_alert(alert_type, existing)
@@ -379,15 +386,96 @@ class WebSocketManager:
                 await self.engine._sync_verified_history()
                 scores = {candidates[0]: score_origin_candidate(cities, candidates[0], self.engine.verified_history)}
 
+            all_origins = list(candidates)
+            if suggested and suggested not in all_origins:
+                all_origins.append(suggested)
+            entries = entry_by_origin(self.engine, cities, all_origins)
+
             return web.json_response({
                 "candidates": candidates,
                 "scores": scores,
                 "suggested": suggested,
                 "confidence": confidence,
                 "resolved_by": resolved_by,
+                "entry_by_origin": entries,
             })
         except Exception as e:
             logger.error(f"SUGGEST_ORIGIN_FAILURE: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def project_entry_handler(self, request):
+        try:
+            if MISSION_KEY and request.headers.get("X-Mission-Key") != MISSION_KEY:
+                return web.json_response({"error": "Unauthorized"}, status=401)
+
+            data = await request.json()
+            origin_name = (data.get("origin_name") or "").strip()
+            if not origin_name:
+                return web.json_response({"error": "origin_name required"}, status=400)
+
+            cities, _ = await self._cities_from_suggest_request(data)
+            if cities is None:
+                return web.json_response({"error": "Alert not found"}, status=404)
+            if not cities:
+                return web.json_response({"error": "No cities to analyze"}, status=400)
+
+            coords = project_entry_for_origin(self.engine, cities, origin_name)
+            if not coords:
+                return web.json_response({"error": "Could not project entry"}, status=400)
+
+            return web.json_response({"origin_name": origin_name, "origin_coords": coords})
+        except Exception as e:
+            logger.error(f"PROJECT_ENTRY_FAILURE: {e}", exc_info=True)
+            return web.json_response({"error": str(e)}, status=500)
+
+    async def origin_replay_handler(self, request):
+        try:
+            if MISSION_KEY and request.headers.get("X-Mission-Key") != MISSION_KEY:
+                return web.json_response({"error": "Unauthorized"}, status=401)
+
+            from src.core.origin_replay import build_origin_replay
+            from src.utils.config import MAX_IRAN_THRESHOLD
+
+            data = await request.json()
+            cities, existing = await self._cities_from_suggest_request(data)
+            if cities is None:
+                return web.json_response({"error": "Alert not found"}, status=404)
+            if not cities:
+                return web.json_response({"error": "No cities to analyze"}, status=400)
+
+            allow_strategic = bool(data.get("allow_strategic", True))
+            if "allow_strategic" not in data and existing:
+                allow_strategic = True
+
+            total_unique = len({c.get("name") for c in cities if c.get("name")})
+            force_iran = total_unique > MAX_IRAN_THRESHOLD and allow_strategic
+
+            replay = await build_origin_replay(
+                self.engine,
+                cities,
+                allow_strategic=allow_strategic,
+                force_iran=force_iran,
+                stored=existing,
+            )
+
+            stored_origin = None
+            stored_trajectories = None
+            event_id = data.get("id")
+            if existing:
+                event_id = existing.get("id", event_id)
+                trajs = existing.get("trajectories") or []
+                stored_trajectories = trajs
+                if trajs:
+                    stored_origin = trajs[0].get("origin")
+
+            return web.json_response({
+                "event_id": event_id,
+                "stored_origin": stored_origin,
+                "stored_trajectories": stored_trajectories,
+                "replay": replay,
+            })
+        except Exception as e:
+            logger.error(f"ORIGIN_REPLAY_FAILURE: {e}", exc_info=True)
             return web.json_response({"error": str(e)}, status=500)
 
     async def training_export_handler(self, request):

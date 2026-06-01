@@ -29,17 +29,23 @@ export function areMotionEndpointsValid(origin, target, minSeparationM = MIN_MOT
   return haversineMeters(origin, target) >= minSeparationM;
 }
 
-export function resolveMissileEndpoints(traj, event) {
-  if (traj?.origin_coords?.length >= 2 && traj?.target_coords?.length >= 2) {
-    if (!areMotionEndpointsValid(traj.origin_coords, traj.target_coords)) return null;
-    return { origin: traj.origin_coords, target: traj.target_coords };
-  }
+export function isVerifiedTrajectory(event) {
+  return Boolean(event?.verified || event?.manual_origin);
+}
 
-  const origin = traj?.origin_coords?.length >= 2
-    ? traj.origin_coords
-    : traj?.marker_coords?.length >= 2
-      ? traj.marker_coords
-      : null;
+/** Single origin point for line + pin (border entry; both coord fields kept in sync). */
+export function resolveTrajectoryOrigin(traj) {
+  if (traj?.origin_coords?.length >= 2) {
+    return traj.origin_coords;
+  }
+  if (traj?.marker_coords?.length >= 2) {
+    return traj.marker_coords;
+  }
+  return null;
+}
+
+export function resolveMissileEndpoints(traj, event) {
+  const origin = resolveTrajectoryOrigin(traj);
 
   const target = traj?.target_coords?.length >= 2
     ? traj.target_coords

@@ -14,7 +14,8 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 
 - Regional adjacency merge: same-region on 1 shared city; cross-region needs 50% city intersection.
 - One trajectory per origin group (Lebanon, Gaza, etc.).
-- Origin projection via regression from cluster cities; depth calibration: Gaza/Lebanon 0.5, Iran 16.0, Yemen 20.0.
+- Origin = country label (`trajectory.origin`) plus a single border-entry point. `origin_coords` and `marker_coords` are always the same (pin, line start, stored geometry). No separate country-center pin when a calc entry exists.
+- Origin projection via regression from cluster cities; depth calibration: Gaza/Lebanon 0.5, Iran 16.0, Yemen 20.0. Trajectory entry: calc-border ray-march along oriented PCA (no country-center snap).
 - ID-driven lifecycle: `active_events{}` keyed by alert ID; 10s end grace; 5 min inactivity timeout.
 - Strategic origins (Iran/Yemen) gated by warning-shaped `newsFlash` (`data` or `cities` present).
 - When **≥2** geometric origin candidates exist, `origin_ml.resolve_origin_ml` picks the winner from **verified** `salvo_history` / `drone_history` (labels: `verified`, `manual_origin`, `trajectories[0].origin`).
@@ -27,14 +28,15 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 |-------|-------|-------|
 | Backend | Python 3.12, `backend/src/` | Core engine, REST/WS API, MongoDB persistence |
 | Dashboard | Vite + React, `dashboard/` | Leaflet map, glassmorphic UI, PWA |
+| Origin Replay | Vite + React, `origin-replay/` | Dev tool: step-through origin pipeline replay (`:5175`) |
 | Database | MongoDB Atlas (M0) | Threat archives + `event_logs` lifecycle |
 | Deploy | Render (API) / Vercel (UI) / Kamatera (relay) | Prod WS: `wss://iron-sight-hjwf.onrender.com/ws`; REST via Vercel `/api` rewrite |
 | Relay | Node.js scout (`63.250.61.251`) | GET `/alerts` + `x-relay-auth`; sole uplink |
 
 ### Backend modules
 
-- `src/core/` — clustering, PCA vectoring, multi-threat processing (missiles, drones, infiltration, earthquake, newsFlash).
-- `src/api/` — WebSocket sync, REST history/cities, push routes.
+- `src/core/` — clustering, PCA vectoring, multi-threat processing (missiles, drones, infiltration, earthquake, newsFlash); `origin_replay.py` for dev step-through trace.
+- `src/api/` — WebSocket sync, REST history/cities, push routes; `POST /api/origin/replay` for origin pipeline replay.
 - `src/db/` — MongoDB managers, per-category collections.
 - Geodata — `tactical_borders.json` (visuals), `calculation_borders.json` (logic), `cities.json` / `polygons.json` (city boundaries).
 

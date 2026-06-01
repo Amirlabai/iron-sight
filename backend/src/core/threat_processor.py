@@ -3,6 +3,7 @@ import numpy as np
 from src.utils.config import MAX_IRAN_THRESHOLD, MISSILE_INFLATION_FACTOR, DRONE_INFLATION_FACTOR, DEFAULT_INFLATION_FACTOR
 from src.utils.text_utils import standardize_name
 from src.core.origin_ml import resolve_origin_ml, collapse_missile_origins
+from src.utils.trajectory_utils import set_trajectory_entry
 
 logger = logging.getLogger("IronSightBackend")
 
@@ -80,13 +81,9 @@ class ThreatProcessor:
             g_coords = np.array([c['coords'] for c in g_cities])
             g_cnt = np.mean(g_coords, axis=0).tolist()
             border_entry = self.engine.get_projected_origin(g_cities, org, depth=g_depth)
-            trajectories.append({
-                "origin": org,
-                "origin_coords": border_entry,
-                "marker_coords": self.engine.origins.get(org, border_entry),
-                "target_coords": g_cnt,
-                "depth": g_depth
-            })
+            traj = {"origin": org, "target_coords": g_cnt, "depth": g_depth}
+            set_trajectory_entry(traj, border_entry)
+            trajectories.append(traj)
 
         title = "Missile Salvo"
         zoom_level = 6

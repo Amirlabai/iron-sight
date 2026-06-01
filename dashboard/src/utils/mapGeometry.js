@@ -31,8 +31,11 @@ function centroidOf(points) {
   return [lat, lng];
 }
 
-/** Pin on map for external launch origin — not border entry inside Israel. */
+/** Pin on map for origin border entry (same point as trajectory line start). */
 export function resolveOriginPinCoords(origin, trajectory = null) {
+  if (trajectory?.origin_coords?.length >= 2) {
+    return trajectory.origin_coords;
+  }
   if (trajectory?.marker_coords?.length >= 2) {
     return trajectory.marker_coords;
   }
@@ -40,9 +43,6 @@ export function resolveOriginPinCoords(origin, trajectory = null) {
   const outer = getBoundaryOuter(boundary);
   if (outer?.length >= 2) {
     return centroidOf(outer);
-  }
-  if (trajectory?.origin_coords?.length >= 2) {
-    return trajectory.origin_coords;
   }
   return null;
 }

@@ -334,9 +334,9 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                 enabled
               />
             ) : null}
-            {viewMode !== 'timeframe' && (
+            {viewMode !== 'timeframe' && motionEndpoints?.origin && (
               <Marker
-                position={traj.marker_coords || traj.origin_coords || traj.target_coords || [31.0, 35.0]}
+                position={motionEndpoints.origin}
                 icon={L.divIcon({
                   className: 'custom-origin-marker',
                   html: `

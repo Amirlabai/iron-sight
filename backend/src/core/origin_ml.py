@@ -2,6 +2,8 @@
 import logging
 import numpy as np
 
+from src.utils.trajectory_utils import set_trajectory_entry
+
 logger = logging.getLogger("IronSightBackend")
 
 ML_SCORE_FLOOR = 0.15
@@ -119,13 +121,9 @@ def collapse_missile_origins(payload, winner, confidence, scores, resolved_by, e
     for cluster in payload.get("clusters", []):
         cluster["origin"] = winner
 
-    payload["trajectories"] = [{
-        "origin": winner,
-        "origin_coords": border_entry,
-        "marker_coords": engine.origins.get(winner, border_entry),
-        "target_coords": g_cnt,
-        "depth": depth,
-    }]
+    traj = {"origin": winner, "target_coords": g_cnt, "depth": depth}
+    set_trajectory_entry(traj, border_entry)
+    payload["trajectories"] = [traj]
     payload["title"] = f"{display_origin} Salvo"
     payload["zoom_level"] = engine.zoom_levels.get(winner, 6)
     payload["origin_candidates"] = list(scores.keys())
