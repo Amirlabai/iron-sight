@@ -96,15 +96,38 @@ export function positionAtArcDistance(path, cumDist, distance) {
   return lerpCoord(path[i - 1], path[i], t);
 }
 
+/** Initial bearing p1→p2: degrees clockwise from north (0–360). */
 export function bearingBetween(p1, p2) {
-  const dx = p2[1] - p1[1];
-  const dyScreen = -(p2[0] - p1[0]);
-  return (Math.atan2(dyScreen, dx) * 180) / Math.PI;
+  const lat1 = (p1[0] * Math.PI) / 180;
+  const lat2 = (p2[0] * Math.PI) / 180;
+  const dLng = ((p2[1] - p1[1]) * Math.PI) / 180;
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  const deg = (Math.atan2(y, x) * 180) / Math.PI;
+  return (deg + 360) % 360;
 }
 
-/** PNG nose heading in math CCW° from east (NE pixel art = 45). CSS rotate is CW. */
-export function spriteCssRotation(bearing, artHeadingCcw = 0) {
-  return artHeadingCcw - bearing;
+/**
+ * Map sprite contract: unrotated PNG top edge = forward (nose).
+ * bearing = clockwise degrees from screen up (from screenBearingBetween on the map).
+ * Assets must be authored nose-up; tune offset only if art cannot be re-exported.
+ */
+export const SPRITE_HEADING_OFFSET_DEG = 0;
+
+export function spriteCssRotation(screenBearingDeg) {
+  return (screenBearingDeg + SPRITE_HEADING_OFFSET_DEG + 360) % 360;
+}
+
+/**
+ * Rotation only — centering is Leaflet iconAnchor margins + .motion-sprite-wrap flex.
+ * Optional scale (drone zoom) applied before rotate; transform-origin on sprite.
+ */
+export function motionSpriteTransformCss(screenBearingDeg, { scale = 1 } = {}) {
+  const deg = spriteCssRotation(screenBearingDeg);
+  if (scale !== 1) return `scale(${scale}) rotate(${deg}deg)`;
+  return `rotate(${deg}deg)`;
 }
 
 export function quadraticBezier(a, control, b, t) {
@@ -226,14 +249,35 @@ export function buildWaypointLoopPlan(waypoints, options = {}) {
   };
 }
 
-export function positionAndBearingAtDistance(path, cumDist, distance) {
+/**
+ * @param {(from: [number, number], to: [number, number]) => number} bearingFn
+ *   Geographic bearing by default. Map sprites: pass (a,b) => screenBearingBetween(map,a,b)
+ *   so tangent matches the drawn path (not necessarily geographic north).
+ */
+export function positionAndBearingAtDistance(
+  path,
+  cumDist,
+  distance,
+  bearingFn = bearingBetween,
+) {
   const pos = positionAtArcDistance(path, cumDist, distance);
   if (!pos) return null;
 
   const total = cumDist[cumDist.length - 1];
+  if (total <= 0) return { pos, bearing: 0 };
+
   const eps = Math.max(80, total * 0.03);
-  const posAhead = positionAtArcDistance(path, cumDist, Math.min(distance + eps, total));
-  const bearing = bearingBetween(pos, posAhead);
+  let bearing;
+  if (distance + eps < total) {
+    const posAhead = positionAtArcDistance(path, cumDist, distance + eps);
+    bearing = bearingFn(pos, posAhead);
+  } else if (distance > eps) {
+    const posBehind = positionAtArcDistance(path, cumDist, distance - eps);
+    bearing = bearingFn(posBehind, pos);
+  } else {
+    const posAhead = positionAtArcDistance(path, cumDist, Math.min(eps, total));
+    bearing = bearingFn(pos, posAhead);
+  }
 
   return { pos, bearing };
 }

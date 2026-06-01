@@ -5,6 +5,11 @@ import {
   closeWaypointPath,
   pathLengthMeters,
   buildMainPath,
+  buildCumulativeDistances,
+  bearingBetween,
+  positionAndBearingAtDistance,
+  spriteCssRotation,
+  motionSpriteTransformCss,
   roundCoordKey,
   motionSpeedMps,
   visibleMetersPerSecond,
@@ -90,5 +95,34 @@ describe('trajectoryPaths', () => {
   it('pathLengthMeters is positive for distinct points', () => {
     const path = buildMainPath(origin, target, 10);
     expect(pathLengthMeters(path)).toBeGreaterThan(0);
+  });
+
+  it('bearingBetween points north and east from compass north', () => {
+    const from = [32.0, 34.8];
+    const north = [33.0, 34.8];
+    const east = [32.0, 35.3];
+    expect(bearingBetween(from, north)).toBeLessThan(20);
+    expect(bearingBetween(from, east)).toBeGreaterThan(70);
+    expect(bearingBetween(from, east)).toBeLessThan(110);
+  });
+
+  it('positionAndBearingAtDistance default uses geographic bearing', () => {
+    const path = buildMainPath(origin, target, 32);
+    const cum = buildCumulativeDistances(path);
+    const mid = positionAndBearingAtDistance(path, cum, cum[cum.length - 1] * 0.5);
+    const direct = bearingBetween(origin, target);
+    expect(mid).not.toBeNull();
+    let diff = Math.abs(mid.bearing - direct);
+    if (diff > 180) diff = 360 - diff;
+    expect(diff).toBeLessThan(25);
+  });
+
+  it('spriteCssRotation applies optional asset offset only', () => {
+    expect(spriteCssRotation(90)).toBe(90);
+  });
+
+  it('motionSpriteTransformCss uses rotate only for centering contract', () => {
+    expect(motionSpriteTransformCss(45)).toBe('rotate(45deg)');
+    expect(motionSpriteTransformCss(0, { scale: 1.2 })).toBe('scale(1.2) rotate(0deg)');
   });
 });

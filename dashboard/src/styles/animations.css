@@ -159,13 +159,20 @@ path.earthquake-city-hull.pulse-animation {
     will-change: stroke-dashoffset;
 }
 
-/* Intercept kill burst at meet point (imperative animation in TacticalMotionLayer) */
+/* Intercept kill burst — same centering contract as motion sprites (iconAnchor = box center). */
+.intercept-explosion-wrap {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+}
+
 .intercept-kill {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
+    inset: 0;
     pointer-events: none;
 }
 
@@ -222,20 +229,16 @@ path.earthquake-city-hull.pulse-animation {
     opacity: 1;
 }
 
-.leaflet-div-icon.intercept-explosion-marker,
-.tactical-motion-marker.intercept-explosion-marker {
-    overflow: visible !important;
-    background: transparent !important;
-    border: none !important;
-}
-
 .leaflet-div-icon.tactical-motion-marker,
 .leaflet-div-icon.missile-sprite-marker,
 .leaflet-div-icon.interceptor-sprite-marker,
+.leaflet-div-icon.intercept-explosion-marker,
 .leaflet-div-icon.drone-tracker-marker {
     overflow: visible !important;
     background: transparent !important;
     border: none !important;
+    /* Do not set margin here — Leaflet positions iconAnchor via inline marginLeft/Top. */
+    padding: 0 !important;
 }
 
 .tactical-motion-marker {
@@ -243,30 +246,47 @@ path.earthquake-city-hull.pulse-animation {
     border: none !important;
 }
 
+/*
+ * Leaflet anchors via negative margin on the icon element; wrap fills iconSize and
+ * flex-centers the sprite. JS rotate() only on the sprite (motionSpriteTransformCss).
+ */
+.motion-sprite-wrap {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+    margin: 0;
+    padding: 0;
+    line-height: 0;
+}
+
+/* Authoring: rocket.png nose must point to the top of the file (forward at 0°). */
 .missile-sprite {
-    position: absolute;
-    top: 50%;
-    left: 50%;
+    flex: 0 0 auto;
     width: 32px;
     height: 32px;
     background: url(/sprites/rocket.png) center / contain no-repeat;
+    background-size: contain;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     filter: drop-shadow(0 0 6px var(--threat-color, #ff3b30));
-    transform: translate(-50%, -50%);
+    transform-origin: center center;
 }
 
+/* Same rocket asset, scaled down; nose-up in PNG. */
 .interceptor-sprite {
-    position: absolute;
-    top: 50%;
-    left: 50%;
+    flex: 0 0 auto;
     width: 20px;
     height: 20px;
     background: url(/sprites/rocket.png) center / contain no-repeat;
+    background-size: contain;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.85));
-    transform: translate(-50%, -50%);
+    transform-origin: center center;
 }
 
 .trajectory-halo {

@@ -3,19 +3,18 @@ import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import {
   DRONE_SPEED_MPS,
+  bearingBetween,
   closeWaypointPath,
   haversineMeters,
   motionSpeedMps,
   roundCoordKey,
-  spriteCssRotation,
 } from '../../utils/trajectoryPaths';
-import { getSvgPathRenderer } from '../../utils/mapRenderers';
+import { applyMotionSpriteBearing } from '../../utils/motionSprites';
+import { getSvgPathRenderer, screenBearingBetween } from '../../utils/mapRenderers';
 
 const SVG_PATH_RENDERER = getSvgPathRenderer();
 const MIN_LEG_MS = 800;
 const MOTION_Z_INDEX = 2500;
-/** Upright PNG nose points north (math CCW° from east). */
-const DRONE_ART_HEADING_CCW = 90;
 const DRONE_SPRITE_PX = 32;
 
 function droneScaleForZoom(zoom) {
@@ -24,18 +23,21 @@ function droneScaleForZoom(zoom) {
   return Math.min(Math.max(geoScale, 0.25), 1.2);
 }
 
-function createDroneIcon(color, scale, bearing) {
+function createDroneIcon(color, scale) {
   const hex = color?.startsWith?.('#') ? color : '#ff9500';
   const half = DRONE_SPRITE_PX / 2;
-  const deg = spriteCssRotation(bearing, DRONE_ART_HEADING_CCW);
   return L.divIcon({
     className: 'drone-tracker-marker',
-    html: `<div class="drone-container" style="transform: translate(-50%, -50%) rotate(${deg}deg) scale(${scale}); --threat-color: ${hex};">
+    html: `<div class="motion-sprite-wrap" style="--threat-color: ${hex};">
              <div class="drone-sprite" aria-hidden="true"></div>
            </div>`,
     iconSize: [DRONE_SPRITE_PX, DRONE_SPRITE_PX],
     iconAnchor: [half, half],
   });
+}
+
+function applyDroneBearing(marker, screenBearing, scale = 1) {
+  applyMotionSpriteBearing(marker, 'drone-sprite', screenBearing, { scale });
 }
 
 function legDurationMs(p1, p2, zoom, speedMps = DRONE_SPEED_MPS) {
@@ -82,13 +84,14 @@ export default function TrackingDrone({ positions, color }) {
     const syncDroneIcon = (bearing, zoom) => {
       if (!marker) return;
       const scale = droneScaleForZoom(zoom);
-      marker.setIcon(createDroneIcon(hex, scale, bearing));
+      marker.setIcon(createDroneIcon(hex, scale));
+      applyDroneBearing(marker, bearing, scale);
     };
 
     if (pts.length === 1) {
       const zoom = map.getZoom();
       marker = L.marker(pts[0], {
-        icon: createDroneIcon(hex, droneScaleForZoom(zoom), 0),
+        icon: createDroneIcon(hex, droneScaleForZoom(zoom)),
         interactive: false,
         zIndexOffset: MOTION_Z_INDEX,
       }).addTo(map);
@@ -115,15 +118,16 @@ export default function TrackingDrone({ positions, color }) {
     }).addTo(map);
 
     marker = L.marker(pts[0], {
-      icon: createDroneIcon(hex, droneScaleForZoom(zoom), 0),
+      icon: createDroneIcon(hex, droneScaleForZoom(zoom)),
       interactive: false,
       zIndexOffset: MOTION_Z_INDEX,
     }).addTo(map);
+    applyDroneBearing(marker, screenBearingBetween(map, pts[0], pts[1]), droneScaleForZoom(zoom));
 
     let idx = 0;
     let legStart = performance.now();
     let legDuration = legDurationMs(pts[0], pts[1], zoom);
-    let lastBearing = 0;
+    let lastBearing = screenBearingBetween(map, pts[0], pts[1]);
 
     const onZoom = () => {
       const z = map.getZoom();
@@ -162,15 +166,11 @@ export default function TrackingDrone({ positions, color }) {
       const t = legDuration > 0 ? elapsed / legDuration : 0;
       const lat = p1[0] + (p2[0] - p1[0]) * t;
       const lng = p1[1] + (p2[1] - p1[1]) * t;
-      const dx = p2[1] - p1[1];
-      const dyScreen = -(p2[0] - p1[0]);
-      const bearing = (Math.atan2(dyScreen, dx) * 180) / Math.PI;
+      const bearing = screenBearingBetween(map, [lat, lng], p2);
 
       marker.setLatLng([lat, lng]);
-      if (Math.abs(bearing - lastBearing) >= 8) {
-        lastBearing = bearing;
-        syncDroneIcon(bearing, z);
-      }
+      applyDroneBearing(marker, bearing, droneScaleForZoom(z));
+      lastBearing = bearing;
 
       rafId = requestAnimationFrame(tick);
     };
