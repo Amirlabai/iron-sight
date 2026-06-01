@@ -42,6 +42,8 @@ class TrackingEngine:
             "North Iran": 6,
             "Yemen": 6
         }
+        # Push Gaza/Lebanon trajectory entry past calc border (~7 km along ray)
+        self.regional_entry_inset = 0.1
         
         self.city_polygons = {}
         self._load_borders()
@@ -263,9 +265,45 @@ class TrackingEngine:
             return max(scalar, self.strategic_depths.get("Yemen", 20.0))
         return scalar
 
+    def _point_in_calc_origin(self, pt, origin_name):
+        for pname in self._calc_polygon_names(origin_name):
+            if pname in self.calc_boundaries and self.is_point_in_polygon(
+                pt, pname, use_tactical=False
+            ):
+                return True
+        return False
+
+    def _deepest_inside_on_ray(self, centroid, v_lat, v_lon, origin_name, d_min, d_max):
+        """Binary-search the farthest depth on the ray that remains inside calc origin."""
+        c_lat, c_lon = centroid[0], centroid[1]
+
+        def inside(d):
+            pt = [c_lat + v_lat * d, c_lon + v_lon * d]
+            return self._point_in_calc_origin(pt, origin_name)
+
+        if d_max <= d_min or not inside(d_min):
+            return None, None
+
+        lo, hi = float(d_min), float(d_max)
+        best_d = lo
+        best_pt = [c_lat + v_lat * lo, c_lon + v_lon * lo]
+        for _ in range(24):
+            mid = (lo + hi) / 2.0
+            if inside(mid):
+                best_d = mid
+                best_pt = [c_lat + v_lat * mid, c_lon + v_lon * mid]
+                lo = mid
+            else:
+                hi = mid
+        return best_pt, best_d
+
     def _ray_march_calc_entry(self, centroid, v_lat, v_lon, origin_name, max_depth, num_steps=50):
-        """First point along the ray that lies inside calc borders for the known origin."""
-        poly_names = self._calc_polygon_names(origin_name)
+        """Deepest point within inset window after ray enters calc borders for origin."""
+        border_inset = (
+            self.regional_entry_inset
+            if origin_name in ("Gaza", "Lebanon")
+            else 0.0
+        )
         min_depth = 0.05
         max_depth = float(max_depth)
         if max_depth <= min_depth:
@@ -274,14 +312,26 @@ class TrackingEngine:
             depths = np.linspace(min_depth, max_depth, num_steps)
 
         c_lat, c_lon = centroid[0], centroid[1]
+        entry_d = None
+
         for d in depths:
+            d = float(d)
             pt = [c_lat + v_lat * d, c_lon + v_lon * d]
-            for pname in poly_names:
-                if pname in self.calc_boundaries and self.is_point_in_polygon(
-                    pt, pname, use_tactical=False
-                ):
-                    return pt, float(d)
-        return None, None
+            if self._point_in_calc_origin(pt, origin_name):
+                entry_d = d
+                break
+
+        if entry_d is None:
+            return None, None
+
+        if border_inset <= 0:
+            pt = [c_lat + v_lat * entry_d, c_lon + v_lon * entry_d]
+            return pt, entry_d
+
+        target_d = min(entry_d + border_inset, max_depth)
+        return self._deepest_inside_on_ray(
+            centroid, v_lat, v_lon, origin_name, entry_d, target_d
+        )
 
     def _oriented_regression_vector(self, cluster_cities, centroid):
         """PCA vector normalized and oriented away from Israel (matches label step)."""

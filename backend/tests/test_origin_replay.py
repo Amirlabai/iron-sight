@@ -101,3 +101,23 @@ class TestGetProjectedOrigin:
         else:
             expected = engine._project_point(centroid, v_lat, v_lon, 0.5)
             assert engine.get_distance(proj, expected) < 0.001
+
+    def test_regional_entry_inset_pushes_past_border(self, engine):
+        cities = [
+            {"name": "Tiberias", "coords": [32.7951, 35.5309]},
+            {"name": "Safed", "coords": [32.9646, 35.4960]},
+        ]
+        centroid = engine._cluster_centroid(cities)
+        v_lat, v_lon = engine._oriented_regression_vector(cities, centroid)
+        orig_inset = engine.regional_entry_inset
+        engine.regional_entry_inset = 0.0
+        border_only, border_d = engine._ray_march_calc_entry(
+            centroid, v_lat, v_lon, "Lebanon", 0.5, num_steps=50
+        )
+        engine.regional_entry_inset = orig_inset
+        inset, inset_d = engine._ray_march_calc_entry(
+            centroid, v_lat, v_lon, "Lebanon", 0.5, num_steps=50
+        )
+        assert border_only is not None and inset is not None
+        assert inset_d > border_d
+        assert engine.get_distance(inset, border_only) > 0.01

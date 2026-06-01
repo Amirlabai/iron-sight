@@ -15,7 +15,7 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 - Regional adjacency merge: same-region on 1 shared city; cross-region needs 50% city intersection.
 - One trajectory per origin group (Lebanon, Gaza, etc.).
 - Origin = country label (`trajectory.origin`) plus a single border-entry point. `origin_coords` and `marker_coords` are always the same (pin, line start, stored geometry). No separate country-center pin when a calc entry exists.
-- Origin projection via regression from cluster cities; depth calibration: Gaza/Lebanon 0.5, Iran 16.0, Yemen 20.0. Trajectory entry: calc-border ray-march along oriented PCA (no country-center snap).
+- Origin projection via regression from cluster cities; depth calibration: Gaza/Lebanon 0.5, Iran 16.0, Yemen 20.0. Trajectory entry: calc-border ray-march along oriented PCA, then ~0.07° inset inside Gaza/Lebanon (not on the border line).
 - ID-driven lifecycle: `active_events{}` keyed by alert ID; 10s end grace; 5 min inactivity timeout.
 - Strategic origins (Iran/Yemen) gated by warning-shaped `newsFlash` (`data` or `cities` present).
 - When **≥2** geometric origin candidates exist, `origin_ml.resolve_origin_ml` picks the winner from **verified** `salvo_history` / `drone_history` (labels: `verified`, `manual_origin`, `trajectories[0].origin`).
