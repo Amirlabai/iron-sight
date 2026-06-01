@@ -7,14 +7,15 @@ import {
   haversineMeters,
   motionSpeedMps,
   roundCoordKey,
+  spriteCssRotation,
 } from '../../utils/trajectoryPaths';
 import { getSvgPathRenderer } from '../../utils/mapRenderers';
 
 const SVG_PATH_RENDERER = getSvgPathRenderer();
 const MIN_LEG_MS = 800;
 const MOTION_Z_INDEX = 2500;
-/** Pixel art faces NE; path bearing 0° = east. */
-const DRONE_SPRITE_BEARING_OFFSET = -45;
+/** Pixel-art nose points NE in the PNG (math CCW° from east). */
+const DRONE_ART_HEADING_CCW = 45;
 const DRONE_SPRITE_PX = 32;
 
 function droneScaleForZoom(zoom) {
@@ -26,7 +27,7 @@ function droneScaleForZoom(zoom) {
 function createDroneIcon(color, scale, bearing) {
   const hex = color?.startsWith?.('#') ? color : '#ff9500';
   const half = DRONE_SPRITE_PX / 2;
-  const deg = bearing + DRONE_SPRITE_BEARING_OFFSET;
+  const deg = spriteCssRotation(bearing, DRONE_ART_HEADING_CCW);
   return L.divIcon({
     className: 'drone-tracker-marker',
     html: `<div class="drone-container" style="transform: translate(-50%, -50%) rotate(${deg}deg) scale(${scale}); --threat-color: ${hex};">

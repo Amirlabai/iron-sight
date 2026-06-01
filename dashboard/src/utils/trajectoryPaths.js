@@ -102,6 +102,11 @@ export function bearingBetween(p1, p2) {
   return (Math.atan2(dyScreen, dx) * 180) / Math.PI;
 }
 
+/** PNG nose heading in math CCW° from east (NE pixel art = 45). CSS rotate is CW. */
+export function spriteCssRotation(bearing, artHeadingCcw = 0) {
+  return artHeadingCcw - bearing;
+}
+
 export function quadraticBezier(a, control, b, t) {
   const u = 1 - t;
   return [

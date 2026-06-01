@@ -12,6 +12,7 @@ import {
   motionSpeedMps,
   positionAtArcDistance,
   positionAndBearingAtDistance,
+  spriteCssRotation,
 } from '../../utils/trajectoryPaths';
 import {
   TacticalMotionContext,
@@ -24,9 +25,10 @@ export { MAX_MISSILE_INSTANCES } from './TacticalMotionContext';
 const MOTION_Z_INDEX = 2500;
 const EXPLOSION_BURST_MS = 700;
 const MEET_REACHED_FRACTION = 0.995;
-/** Pixel art faces NE; path bearing 0° = east. */
-const MISSILE_SPRITE_BEARING_OFFSET = -45;
+/** Pixel-art nose points NE in the PNG (math CCW° from east). */
+const ROCKET_ART_HEADING_CCW = 45;
 const MISSILE_SPRITE_PX = 32;
+const INTERCEPTOR_SPRITE_PX = 20;
 
 function getMarkerElement(marker) {
   if (!marker) return null;
@@ -49,11 +51,12 @@ function createMissileIcon(color) {
 }
 
 function createInterceptorIcon() {
+  const half = INTERCEPTOR_SPRITE_PX / 2;
   return L.divIcon({
     className: 'leaflet-div-icon tactical-motion-marker interceptor-sprite-marker',
     html: '<div class="interceptor-sprite"></div>',
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
+    iconSize: [INTERCEPTOR_SPRITE_PX, INTERCEPTOR_SPRITE_PX],
+    iconAnchor: [half, half],
   });
 }
 
@@ -156,8 +159,8 @@ function applySpriteBearing(marker, bearing, { flip = false, sprite = 'missile' 
   const selector = sprite === 'interceptor' ? '.interceptor-sprite' : '.missile-sprite';
   const el = getMarkerElement(marker)?.querySelector(selector);
   if (!el) return;
-  const offset = sprite === 'missile' ? MISSILE_SPRITE_BEARING_OFFSET : 0;
-  const deg = (flip ? bearing + 180 : bearing) + offset;
+  let deg = spriteCssRotation(bearing, ROCKET_ART_HEADING_CCW);
+  if (flip) deg += 180;
   const prev = el.dataset.bearing;
   if (prev !== undefined && Math.abs(Number(prev) - deg) < 8) return;
   el.dataset.bearing = String(deg);
