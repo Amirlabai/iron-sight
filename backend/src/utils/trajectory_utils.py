@@ -7,6 +7,16 @@ def set_trajectory_entry(traj, coords):
     traj["marker_coords"] = coords
 
 
+def apply_projected_origin(engine, traj, cities, origin_name, depth):
+    """Project display pin (tactical country) and store optional calc entry."""
+    display, calc_entry = engine.project_origin_display(cities, origin_name, depth=depth)
+    set_trajectory_entry(traj, display)
+    traj.pop("calc_entry_coords", None)
+    if calc_entry is not None:
+        traj["calc_entry_coords"] = calc_entry
+    return display
+
+
 def _origin_depth(engine, origin):
     if origin in engine.strategic_depths:
         return engine.strategic_depths[origin]
@@ -22,8 +32,9 @@ def entry_by_origin(engine, cities, candidates):
         if not origin:
             continue
         depth = _origin_depth(engine, origin)
-        entry = engine.get_projected_origin(cities, origin, depth=depth)
-        result[origin] = [float(entry[0]), float(entry[1])]
+        entry = engine.project_calc_entry(cities, origin, depth=depth)
+        if entry is not None:
+            result[origin] = [float(entry[0]), float(entry[1])]
     return result
 
 

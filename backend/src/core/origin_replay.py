@@ -3,7 +3,7 @@
 import numpy as np
 from src.utils.config import MAX_IRAN_THRESHOLD, MISSILE_INFLATION_FACTOR
 from src.core.origin_ml import resolve_origin_ml, collapse_missile_origins
-from src.utils.trajectory_utils import set_trajectory_entry
+from src.utils.trajectory_utils import apply_projected_origin, set_trajectory_entry
 
 CLUSTER_COLORS = ["#ff6b6b", "#4dabf7", "#51cf66", "#fcc419", "#cc5de8"]
 TERRITORY_COLORS = {
@@ -385,21 +385,21 @@ async def build_origin_replay(
             cl_depth = engine.strategic_depths["Iran"]
 
         decided_markers = list(base_markers)
-        preview_entry = engine.get_projected_origin(rc["cities"], cl_org, depth=cl_depth)
-        decided_markers.append({
-            "lat": preview_entry[0],
-            "lon": preview_entry[1],
-            "label": f"{cl_org} calc entry",
-            "color": TERRITORY_COLORS.get(cl_org, "#ffffff"),
-        })
-        if len(rc["cities"]) >= 2 and engine._oriented_regression_vector(rc["cities"], centroid):
-            decided_polylines = [{
-                "points": [centroid, preview_entry],
+        calc_preview = engine.project_calc_entry(rc["cities"], cl_org, depth=cl_depth)
+        decided_polylines = []
+        if calc_preview:
+            decided_markers.append({
+                "lat": calc_preview[0],
+                "lon": calc_preview[1],
+                "label": f"{cl_org} calc entry",
                 "color": TERRITORY_COLORS.get(cl_org, "#ffffff"),
-                "dashed": True,
-            }]
-        else:
-            decided_polylines = []
+            })
+            if len(rc["cities"]) >= 2 and engine._oriented_regression_vector(rc["cities"], centroid):
+                decided_polylines = [{
+                    "points": [centroid, calc_preview],
+                    "color": TERRITORY_COLORS.get(cl_org, "#ffffff"),
+                    "dashed": True,
+                }]
 
         steps.append(_step(
             f"origin_decided_{i}",
@@ -450,37 +450,43 @@ async def build_origin_replay(
         g_depth = group_data["depth"]
         g_coords = np.array([c["coords"] for c in g_cities])
         g_cnt = np.mean(g_coords, axis=0).tolist()
-        border_entry = engine.get_projected_origin(g_cities, org, depth=g_depth)
-        centroid = engine._cluster_centroid(g_cities)
-        oriented = engine._oriented_regression_vector(g_cities, centroid)
-        march_depth = None
-        if oriented:
-            _, march_depth = engine._ray_march_calc_entry(
-                centroid, oriented[0], oriented[1], org,
-                engine._projection_max_depth(org, g_depth),
-            )
         traj = {
             "origin": org,
             "target_coords": g_cnt,
             "depth": g_depth,
-            "calc_march_depth": march_depth,
         }
-        set_trajectory_entry(traj, border_entry)
+        display_entry = apply_projected_origin(engine, traj, g_cities, org, g_depth)
+        calc_entry = traj.get("calc_entry_coords")
+        centroid = engine._cluster_centroid(g_cities)
+        oriented = engine._oriented_regression_vector(g_cities, centroid)
+        march_depth = g_depth
+        if oriented and calc_entry is None:
+            _, march_depth = engine._ray_march_calc_entry(
+                centroid, oriented[0], oriented[1], org,
+                engine._projection_max_depth(org, g_depth),
+            )
+        traj["calc_march_depth"] = march_depth
         trajectories.append(traj)
         traj_visuals["markers"].extend([
-            {"lat": border_entry[0], "lon": border_entry[1], "label": f"{org} entry", "color": TERRITORY_COLORS.get(org, "#fff")},
-            {"lat": g_cnt[0], "lon": g_cnt[1], "label": "target", "color": "#ff4d4d"},
+            {"lat": display_entry[0], "lon": display_entry[1], "label": f"{org} display", "color": TERRITORY_COLORS.get(org, "#fff")},
         ])
+        if calc_entry:
+            traj_visuals["markers"].append(
+                {"lat": calc_entry[0], "lon": calc_entry[1], "label": f"{org} calc", "color": "#888888"},
+            )
+        traj_visuals["markers"].append(
+            {"lat": g_cnt[0], "lon": g_cnt[1], "label": "target", "color": "#ff4d4d"},
+        )
         traj_visuals["polylines"].append({
-            "points": [border_entry, g_cnt],
+            "points": [display_entry, g_cnt],
             "color": TERRITORY_COLORS.get(org, "#ffffff"),
             "dashed": True,
         })
 
     steps.append(_step(
         "trajectories",
-        "Border projection (calc ray-march)",
-        f"{len(trajectories)} trajectory line(s): calc-border entry along regression ray (no center-pin snap).",
+        "Border projection (tactical display + calc entry)",
+        f"{len(trajectories)} trajectory line(s): tactical-country display pin; grey marker = calc-border entry when present.",
         traj_visuals,
         {
             "trajectory_count": len(trajectories),

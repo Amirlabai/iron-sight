@@ -42,11 +42,28 @@ class TrackingEngine:
             "North Iran": 6,
             "Yemen": 6
         }
-        # Push Gaza/Lebanon trajectory entry past calc border (~7 km along ray)
-        self.regional_entry_inset = 0.1
+        # Ray march along regression vector (degrees)
+        self.ray_step = 0.1
+        self.entry_inset = 0.1
+        self.display_inset = 0.1
+        self.tactical_display_max_depth = {
+            "Gaza": 3.0,
+            "Lebanon": 4.0,
+            "Iran": 42.0,
+            "North Iran": 42.0,
+            "Yemen": 50.0,
+        }
         
         self.city_polygons = {}
         self._load_borders()
+
+    @property
+    def regional_entry_inset(self):
+        return self.entry_inset
+
+    @regional_entry_inset.setter
+    def regional_entry_inset(self, value):
+        self.entry_inset = value
 
     def _load_borders(self):
         """Initialize tactical and calculation boundaries from available geodata."""
@@ -273,65 +290,183 @@ class TrackingEngine:
                 return True
         return False
 
-    def _deepest_inside_on_ray(self, centroid, v_lat, v_lon, origin_name, d_min, d_max):
-        """Binary-search the farthest depth on the ray that remains inside calc origin."""
-        c_lat, c_lon = centroid[0], centroid[1]
+    def _depth_grid(self, min_d, max_d):
+        min_d = float(min_d)
+        max_d = float(max_d)
+        if max_d <= min_d:
+            return np.array([max_d])
+        step = self.ray_step
+        return np.arange(min_d, max_d + step / 2, step)
 
-        def inside(d):
-            pt = [c_lat + v_lat * d, c_lon + v_lon * d]
-            return self._point_in_calc_origin(pt, origin_name)
+    def _points_on_ray(self, centroid, v_lat, v_lon, depths):
+        depths = np.asarray(depths, dtype=float)
+        c = np.asarray(centroid, dtype=float)
+        direction = np.array([v_lat, v_lon], dtype=float)
+        return c + depths[:, np.newaxis] * direction
 
-        if d_max <= d_min or not inside(d_min):
-            return None, None
+    def _points_in_boundary(self, pts, boundary):
+        if self._boundary_is_multi_ring(boundary):
+            outer = np.array(boundary[0])
+            inside = self._ray_cast_vectorized(pts, outer)
+            for hole in boundary[1:]:
+                inside &= ~self._ray_cast_vectorized(pts, np.array(hole))
+            return inside
+        poly = np.array(boundary)
+        return self._ray_cast_vectorized(pts, poly)
 
-        lo, hi = float(d_min), float(d_max)
-        best_d = lo
-        best_pt = [c_lat + v_lat * lo, c_lon + v_lon * lo]
-        for _ in range(24):
-            mid = (lo + hi) / 2.0
-            if inside(mid):
-                best_d = mid
-                best_pt = [c_lat + v_lat * mid, c_lon + v_lon * mid]
-                lo = mid
-            else:
-                hi = mid
-        return best_pt, best_d
+    def _points_in_calc_boundary(self, pts, boundary):
+        return self._points_in_boundary(pts, boundary)
 
-    def _ray_march_calc_entry(self, centroid, v_lat, v_lon, origin_name, max_depth, num_steps=50):
-        """Deepest point within inset window after ray enters calc borders for origin."""
-        border_inset = (
-            self.regional_entry_inset
-            if origin_name in ("Gaza", "Lebanon")
-            else 0.0
+    def _tactical_polygon_name(self, origin_name):
+        if origin_name == "North Iran":
+            return "Iran"
+        return origin_name
+
+    def _tactical_inside_mask(self, pts, tactical_name):
+        if len(pts) == 0:
+            return np.zeros(0, dtype=bool)
+        boundary = self.boundaries.get(tactical_name)
+        if not boundary:
+            return np.zeros(len(pts), dtype=bool)
+        return self._points_in_boundary(pts, boundary)
+
+    def _tactical_fallback_pin(self, tactical_name):
+        boundary = self.boundaries.get(tactical_name)
+        if boundary:
+            outer = boundary[0] if self._boundary_is_multi_ring(boundary) else boundary
+            ring = np.array(outer)
+            if len(ring) > 0:
+                return np.mean(ring, axis=0).tolist()
+        fallback = self.origins.get(tactical_name)
+        if fallback is not None:
+            return list(fallback)
+        return list(self.origins.get("Iran", [0, 0]))
+
+    def _deepest_inside_after_entry(self, entry_i, depths, inside_mask, inset_amount, cap_depth):
+        if inset_amount <= 0:
+            return int(entry_i)
+        entry_d = float(depths[entry_i])
+        inset_max_d = min(entry_d + float(inset_amount), float(cap_depth))
+        in_window = (
+            (depths >= entry_d - 1e-9)
+            & (depths <= inset_max_d + 1e-9)
+            & inside_mask
         )
+        valid = np.flatnonzero(in_window)
+        if valid.size == 0:
+            return int(entry_i)
+        return int(valid[-1])
+
+    def _calc_origin_inside_mask(self, pts, origin_name):
+        if len(pts) == 0:
+            return np.zeros(0, dtype=bool)
+        mask = np.zeros(len(pts), dtype=bool)
+        for pname in self._calc_polygon_names(origin_name):
+            boundary = self.calc_boundaries.get(pname)
+            if not boundary:
+                continue
+            mask |= self._points_in_calc_boundary(pts, boundary)
+        return mask
+
+    def _ray_march_calc_entry(self, centroid, v_lat, v_lon, origin_name, max_depth):
+        """Calc-border entry (detection / replay). Deepest point within inset after first crossing."""
         min_depth = 0.05
         max_depth = float(max_depth)
-        if max_depth <= min_depth:
-            depths = np.array([max_depth])
-        else:
-            depths = np.linspace(min_depth, max_depth, num_steps)
-
-        c_lat, c_lon = centroid[0], centroid[1]
-        entry_d = None
-
-        for d in depths:
-            d = float(d)
-            pt = [c_lat + v_lat * d, c_lon + v_lon * d]
-            if self._point_in_calc_origin(pt, origin_name):
-                entry_d = d
-                break
-
-        if entry_d is None:
+        depths = self._depth_grid(min_depth, max_depth)
+        pts = self._points_on_ray(centroid, v_lat, v_lon, depths)
+        inside = self._calc_origin_inside_mask(pts, origin_name)
+        hits = np.flatnonzero(inside)
+        if hits.size == 0:
             return None, None
 
-        if border_inset <= 0:
-            pt = [c_lat + v_lat * entry_d, c_lon + v_lon * entry_d]
-            return pt, entry_d
-
-        target_d = min(entry_d + border_inset, max_depth)
-        return self._deepest_inside_on_ray(
-            centroid, v_lat, v_lon, origin_name, entry_d, target_d
+        entry_i = int(hits[0])
+        best_i = self._deepest_inside_after_entry(
+            entry_i, depths, inside, self.entry_inset, max_depth
         )
+        return pts[best_i].tolist(), float(depths[best_i])
+
+    def _ray_march_display_pin(self, centroid, v_lat, v_lon, origin_name, depth):
+        """Calc entry for detection/replay; display = first tactical crossing + display_inset."""
+        calc_max = self._projection_max_depth(origin_name, depth)
+        tac_max = self.tactical_display_max_depth.get(origin_name, calc_max)
+        grid_max = max(calc_max, tac_max)
+        min_depth = 0.05
+
+        depths = self._depth_grid(min_depth, grid_max)
+        pts = self._points_on_ray(centroid, v_lat, v_lon, depths)
+        calc_inside = self._calc_origin_inside_mask(pts, origin_name)
+        tac_name = self._tactical_polygon_name(origin_name)
+        tac_inside = self._tactical_inside_mask(pts, tac_name)
+
+        calc_hits = np.flatnonzero(calc_inside)
+        if calc_hits.size == 0:
+            return None, None, None
+
+        calc_entry_i = self._deepest_inside_after_entry(
+            int(calc_hits[0]), depths, calc_inside, self.entry_inset, calc_max
+        )
+        calc_entry = pts[calc_entry_i].tolist()
+
+        tac_all = np.flatnonzero(tac_inside)
+        if tac_all.size == 0:
+            return None, None, calc_entry
+
+        tac_after_calc = tac_all[tac_all >= calc_entry_i]
+        if tac_after_calc.size == 0:
+            return None, None, calc_entry
+        tac_entry_i = int(tac_after_calc[0])
+        display_i = self._deepest_inside_after_entry(
+            tac_entry_i, depths, tac_inside, self.display_inset, tac_max
+        )
+
+        return (
+            pts[display_i].tolist(),
+            float(depths[display_i]),
+            calc_entry,
+        )
+
+    def project_origin_display(self, cluster_cities, origin_name, depth=None):
+        """Return (display_pin_coords, calc_entry_coords or None) for trajectory storage."""
+        centroid = self._cluster_centroid(cluster_cities)
+        tactical_name = self._tactical_polygon_name(origin_name)
+        origin_center = self.origins.get(origin_name, self.origins.get(tactical_name, [0, 0]))
+        oriented = self._oriented_regression_vector(cluster_cities, centroid)
+        if oriented is None:
+            fb = list(origin_center)
+            return fb, None
+
+        v_lat, v_lon = oriented
+        display, _, calc_entry = self._ray_march_display_pin(
+            centroid, v_lat, v_lon, origin_name, depth
+        )
+        if display:
+            return display, calc_entry
+
+        calc_max = self._projection_max_depth(origin_name, depth)
+        tac_max = self.tactical_display_max_depth.get(origin_name, calc_max)
+        on_ray = self._project_point(centroid, v_lat, v_lon, tac_max)
+        if self.boundaries.get(tactical_name) and self.is_point_in_polygon(
+            on_ray, tactical_name, use_tactical=True
+        ):
+            return on_ray, calc_entry
+        if calc_entry:
+            return self._tactical_fallback_pin(tactical_name), calc_entry
+        return self._project_point(
+            centroid, v_lat, v_lon, self._projection_max_depth(origin_name, depth)
+        ), None
+
+    def project_calc_entry(self, cluster_cities, origin_name, depth=None):
+        """Calc-border entry for detection, history-fixer, and suggest-origin APIs."""
+        centroid = self._cluster_centroid(cluster_cities)
+        oriented = self._oriented_regression_vector(cluster_cities, centroid)
+        if oriented is None:
+            return None
+        v_lat, v_lon = oriented
+        calc_max = self._projection_max_depth(origin_name, depth)
+        hit, _ = self._ray_march_calc_entry(
+            centroid, v_lat, v_lon, origin_name, calc_max
+        )
+        return hit
 
     def _oriented_regression_vector(self, cluster_cities, centroid):
         """PCA vector normalized and oriented away from Israel (matches label step)."""
@@ -588,19 +723,6 @@ class TrackingEngine:
         return trace["origin"], trace["depth"]
 
     def get_projected_origin(self, cluster_cities, origin_name, depth=None):
-        centroid = self._cluster_centroid(cluster_cities)
-        origin_center = self.origins.get(origin_name, [0, 0])
-        oriented = self._oriented_regression_vector(cluster_cities, centroid)
-        if oriented is None:
-            return origin_center
-
-        v_lat, v_lon = oriented
-        max_depth = self._projection_max_depth(origin_name, depth)
-        hit, _ = self._ray_march_calc_entry(
-            centroid, v_lat, v_lon, origin_name, max_depth
-        )
-        if hit:
-            return hit
-
-        # Stay on the regression ray; avoid snapping to country center pin.
-        return self._project_point(centroid, v_lat, v_lon, max_depth)
+        """Display pin only (tactical silhouette). For calc-border use project_calc_entry."""
+        display, _ = self.project_origin_display(cluster_cities, origin_name, depth)
+        return display
