@@ -34,7 +34,6 @@ body, html, #root {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  backdrop-filter: blur(10px);
   z-index: 1000;
 }
 
@@ -179,7 +178,6 @@ body, html, #root {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-color);
   cursor: pointer;
-  transition: all 0.2s;
   position: relative;
 }
 
@@ -250,13 +248,10 @@ body, html, #root {
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(77, 148, 255, 0.3);
 }
 
 .merge-btn:hover {
   background: #3b7ad9;
-  transform: translateY(-1px);
 }
 
 .map-view {
@@ -332,7 +327,6 @@ body, html, #root {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: opacity 0.2s;
 }
 
 .split-btn {
@@ -431,13 +425,12 @@ body, html, #root {
   text-align: center;
 }
 
-.city-pulse-dot {
-  width: 12px !important;
-  height: 12px !important;
+.city-dot {
+  width: 8px !important;
+  height: 8px !important;
   background: var(--accent-red);
   border-radius: 50%;
-  box-shadow: 0 0 10px var(--accent-red);
-  border: 2px solid white;
+  border: 1px solid white;
 }
 
 .origin-popup {
@@ -468,22 +461,6 @@ body, html, #root {
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
-}
-
-/* Tactical Highlights */
-.origin-threat-halo {
-  filter: blur(10px);
-  pointer-events: none;
-}
-
-.origin-threat-glow {
-  filter: drop-shadow(0 0 15px currentColor);
-  animation: pulse-glow 3s ease-in-out infinite;
-}
-
-@keyframes pulse-glow {
-  0%, 100% { opacity: 0.1; }
-  50% { opacity: 0.25; }
 }
 
 /* Mobile Optimizations */

@@ -487,22 +487,17 @@ function App() {
                   if (!boundary) return null;
                   const color = STRATEGIC_METADATA[traj.origin]?.color || HIGHLIGHT_RED;
                   return (
-                    <React.Fragment key={`highlight-${idx}`}>
-                      <Polygon 
-                        positions={boundary} 
-                        pathOptions={{ color, weight: 15, opacity: 0.05, fill: false, className: 'origin-threat-halo' }} 
-                      />
-                      <Polygon 
-                        positions={boundary} 
-                        pathOptions={{ fillColor: color, fillOpacity: 0.1, color, weight: 1, className: 'origin-threat-glow' }} 
-                      />
-                    </React.Fragment>
+                    <Polygon
+                      key={`highlight-${idx}`}
+                      positions={boundary}
+                      pathOptions={{ fillColor: color, fillOpacity: 0.08, color, weight: 1 }}
+                    />
                   );
                 })}
 
                 {/* Cluster Points (Safety Guarded) */}
                 {selectedEvent.all_cities?.filter(c => c.coords).map((city, idx) => (
-                  <Marker key={idx} position={city.coords} icon={L.divIcon({ className: 'city-pulse-dot' })}>
+                  <Marker key={idx} position={city.coords} icon={L.divIcon({ className: 'city-dot' })}>
                     <Popup>{city.name}</Popup>
                   </Marker>
                 ))}
