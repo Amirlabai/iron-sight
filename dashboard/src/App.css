@@ -358,7 +358,7 @@ html[data-theme='light'] .map-recenter-btn:hover {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 4px;
 }
 
 .origin-label {
@@ -656,8 +656,9 @@ html[data-theme='light'] .tab-btn.active {
 }
 
 .history-show-more-btn {
-    width: calc(100% - 30px);
-    margin: 10px 15px 18px;
+    flex-shrink: 0;
+    width: calc(100% - 24px);
+    margin: 10px 12px 0;
     padding: 10px 12px;
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -999,6 +1000,42 @@ html[data-theme='light'] .tab-btn.active {
 }
 
 /* --- Advanced History Styles (HISTORY-ADV-FRONTEND) --- */
+.archive-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.history-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.history-origin-empty-hint {
+    margin: 12px 15px 4px;
+    font-size: 10px;
+    color: var(--text-sub);
+    line-height: 1.4;
+}
+
+.history-show-more-footer {
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.live-panel {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 25px;
+    box-sizing: border-box;
+}
+
 .history-filters {
     display: flex;
     flex-wrap: wrap;

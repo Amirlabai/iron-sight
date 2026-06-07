@@ -23,3 +23,22 @@ export function getSvgPathRenderer() {
   }
   return svgPathRenderer;
 }
+
+/** Origin label + pin; anchor at pin center so trajectory line meets the ring. */
+export const ORIGIN_MARKER_ICON_WIDTH = 100;
+export const ORIGIN_MARKER_ICON_HEIGHT = 40;
+export const ORIGIN_MARKER_ICON_ANCHOR = [50, 36];
+
+export function buildOriginMarkerIcon(origin, color) {
+  return L.divIcon({
+    className: 'custom-origin-marker',
+    html: `
+      <div class="origin-wrapper">
+        <div class="origin-label" style="background: ${color}">ORIGIN: ${origin.toUpperCase()}</div>
+        <div class="origin-pin" style="background: ${color}4D; box-shadow: 0 0 10px ${color}"></div>
+      </div>
+    `,
+    iconSize: [ORIGIN_MARKER_ICON_WIDTH, ORIGIN_MARKER_ICON_HEIGHT],
+    iconAnchor: ORIGIN_MARKER_ICON_ANCHOR,
+  });
+}

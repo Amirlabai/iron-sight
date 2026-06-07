@@ -19,6 +19,7 @@ import ThreatOverlay from './ThreatOverlay';
 import { TacticalMotionProvider } from './TacticalMotionLayer';
 import UserLocationMarker from './UserLocationMarker';
 import { agentDebugBurst, agentDebugLog, MAP_RESIZE_BURST } from '../../utils/agentDebugLog';
+import { buildOriginMarkerIcon } from '../../utils/mapRenderers';
 
 function refitMap(map, { center, zoom, bounds, maxZoom }) {
   if (bounds?.length >= 2) {
@@ -367,16 +368,7 @@ export default function MapViewer() {
               <Marker
                 key={`timeframe-pin-${origin}`}
                 position={data.coords}
-                icon={L.divIcon({
-                  className: 'custom-origin-marker',
-                  html: `
-                    <div class="origin-wrapper">
-                      <div class="origin-label" style="background: ${data.color}">ORIGIN: ${origin.toUpperCase()}</div>
-                      <div class="origin-pin" style="background: ${data.color}4D; box-shadow: 0 0 10px ${data.color}"></div>
-                    </div>
-                  `,
-                  iconSize: [100, 50], iconAnchor: [50, 25]
-                })}
+                icon={buildOriginMarkerIcon(origin, data.color)}
               >
                 <Popup>Launch Origin: {origin}</Popup>
               </Marker>

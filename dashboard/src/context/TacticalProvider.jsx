@@ -9,7 +9,7 @@ import {
   calculateArchiveMapConfig,
   calculateTimeframeMapConfig,
 } from '../utils/mapGeometry';
-import { resolveMapConfig } from '../utils/mapZoomPresets';
+import { resolveMapConfig, getEventOrigin } from '../utils/mapZoomPresets';
 import { filterArchiveHistory, filterHistoryByOrigin } from '../utils/historyFilters';
 import { getConvexHull, getCentroid, getDistance } from '../utils/geoUtils';
 import missileSound from '../assets/sounds/missile_alert.mp3';
@@ -24,6 +24,7 @@ import { lruAdd, clearLruSet } from '../utils/lruSet';
 import { sortEventsByLatestFirst } from '../utils/formatters';
 
 const HISTORY_PAGE_SIZE = 50;
+const MAX_ORIGIN_AUTO_PAGES = 4;
 
 // --- Tactical Audio Engine ---
 const useAudioEngine = (liveEvents, isMuted, alertPrefs) => {
@@ -156,6 +157,8 @@ export function TacticalProvider({ children }) {
   const wsReconnectTimerRef = useRef(null);
   const historyFilterRef = useRef(historyFilter);
   const timeFrameRef = useRef(timeFrame);
+  const originFilterRef = useRef(originFilter);
+  const originAutoLoadRef = useRef(0);
   const historyOffsetRef = useRef(historyOffset);
   const viewModeRef = useRef(viewMode);
   const isReadyRef = useRef(isReady);
@@ -171,6 +174,14 @@ export function TacticalProvider({ children }) {
   useEffect(() => {
     timeFrameRef.current = timeFrame;
   }, [timeFrame]);
+
+  useEffect(() => {
+    originFilterRef.current = originFilter;
+  }, [originFilter]);
+
+  useEffect(() => {
+    originAutoLoadRef.current = 0;
+  }, [historyFilter, timeFrame, originFilter]);
 
   useEffect(() => {
     historyOffsetRef.current = historyOffset;
@@ -365,7 +376,8 @@ export function TacticalProvider({ children }) {
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        const rows = filterArchiveHistory(Array.isArray(data) ? data : []);
+        const raw = Array.isArray(data) ? data : [];
+        const rows = filterArchiveHistory(raw);
         if (append) {
           setHistory((prev) => [...prev, ...rows]);
         } else {
@@ -373,7 +385,7 @@ export function TacticalProvider({ children }) {
         }
         const nextOffset = offset + rows.length;
         setHistoryOffset(nextOffset);
-        setHistoryHasMore(rows.length === limit);
+        setHistoryHasMore(raw.length === limit);
       } else {
         if (!append) {
           setHistory([]);
@@ -497,6 +509,29 @@ export function TacticalProvider({ children }) {
     () => filterHistoryByOrigin(filterArchiveHistory(history), originFilter),
     [history, originFilter],
   );
+
+  useEffect(() => {
+    if (activeTab !== 'archive' || originFilter === 'all') return;
+    if (historyLoadingMore || !historyHasMore) return;
+    if (filteredHistory.length > 0) return;
+    if (originAutoLoadRef.current >= MAX_ORIGIN_AUTO_PAGES) return;
+    originAutoLoadRef.current += 1;
+    loadMoreHistory();
+  }, [
+    activeTab,
+    originFilter,
+    filteredHistory.length,
+    historyHasMore,
+    historyLoadingMore,
+    loadMoreHistory,
+  ]);
+
+  useEffect(() => {
+    if (!archiveEvent || originFilter === 'all') return;
+    if (getEventOrigin(archiveEvent) !== originFilter) {
+      setArchiveEvent(null);
+    }
+  }, [originFilter, archiveEvent]);
 
   const renderableEvents = useMemo(() => {
     if (viewMode === 'sandbox') return sandboxEvent ? [sandboxEvent] : [];
@@ -673,6 +708,11 @@ export function TacticalProvider({ children }) {
   const tacticalColor = viewMode === 'sandbox' ? TACTICAL_BLUE : TACTICAL_RED;
   const highlightColor = viewMode === 'sandbox' ? HIGHLIGHT_BLUE : HIGHLIGHT_RED;
 
+  const originFilterLoading = activeTab === 'archive'
+    && originFilter !== 'all'
+    && filteredHistory.length === 0
+    && historyHasMore;
+
   const value = {
     liveEvents, history, viewMode, archiveEvent, mapConfig,
     isConnected, activeTab, isReady, isMuted, loadingProgress,
@@ -680,7 +720,7 @@ export function TacticalProvider({ children }) {
     citySearch, sandboxInput, tacticalHealth, isSidebarExpanded, historyFilter,
     setViewMode, setActiveTab, setIsMuted, setSandboxEvent,
     setSandboxInput, setCitySearch, setIsSidebarExpanded, setExpandedRegions,
-    setHistoryFilter, originFilter, setOriginFilter, filteredHistory,
+    setHistoryFilter, originFilter, setOriginFilter, filteredHistory, originFilterLoading,
     selectArchive, toggleCity, toggleRegion, toggleExpand,
     returnToLive, runSandboxAnalysis, handleTabChange, fetchHistory,
     renderableEvents, sidebarEvents, hasSimulation, totalClusters, totalTargets,

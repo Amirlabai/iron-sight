@@ -3,8 +3,8 @@ import { Circle, Polyline, Marker, Popup, Polygon, Tooltip, useMap } from 'react
 import L from 'leaflet';
 import { TACTICAL_BOUNDARIES, STRATEGIC_METADATA, getBoundaryOuter } from '../../utils/constants';
 import { resolveCanvasColor, resolveMarkerColor } from '../../utils/mapColors';
-import { getSvgPathRenderer } from '../../utils/mapRenderers';
-import { normalizeDroneWaypoints, resolveMissileEndpoints } from '../../utils/motionEndpoints';
+import { getSvgPathRenderer, buildOriginMarkerIcon } from '../../utils/mapRenderers';
+import { normalizeDroneWaypoints, resolveMissileEndpoints, trajectoriesForDisplay } from '../../utils/motionEndpoints';
 import { MissileMotionRegistrar } from './MotionRegistrars';
 import TrackingDrone from './TrackingDrone';
 import { PulsingInfiltrationCircle, PulsingInfiltrationHull } from './PulsingInfiltrationHull';
@@ -268,7 +268,7 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
       })}
 
       {/* Trajectories */}
-      {event.trajectories?.map((traj, idx) => {
+      {trajectoriesForDisplay(event).map((traj, idx) => {
         const trajColor = resolveCanvasColor(event, tacticalColor, traj);
         const iconColor = resolveMarkerColor(event, tacticalColor, traj);
         const boundary = TACTICAL_BOUNDARIES[traj.origin];
@@ -337,16 +337,7 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
             {viewMode !== 'timeframe' && motionEndpoints?.origin && (
               <Marker
                 position={motionEndpoints.origin}
-                icon={L.divIcon({
-                  className: 'custom-origin-marker',
-                  html: `
-                    <div class="origin-wrapper">
-                      <div class="origin-label" style="background: ${trajColor}">ORIGIN: ${traj.origin.toUpperCase()}</div>
-                      <div class="origin-pin" style="background: ${trajColor}4D; box-shadow: 0 0 10px ${trajColor}"></div>
-                    </div>
-                  `,
-                  iconSize: [100, 50], iconAnchor: [50, 25]
-                })}
+                icon={buildOriginMarkerIcon(traj.origin, trajColor)}
               >
                 <Popup>Launch Origin: {traj.origin}</Popup>
               </Marker>

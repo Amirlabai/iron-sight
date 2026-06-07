@@ -33,7 +33,16 @@ export function isVerifiedTrajectory(event) {
   return Boolean(event?.verified || event?.manual_origin);
 }
 
-/** Single origin point for line + pin (border entry; both coord fields kept in sync). */
+/** Archive map: verified commits use primary trajectory only (legacy rows may have extras). */
+export function trajectoriesForDisplay(event) {
+  const trajs = event?.trajectories ?? [];
+  if (isVerifiedTrajectory(event) && trajs.length > 0) {
+    return [trajs[0]];
+  }
+  return trajs;
+}
+
+/** Single origin point for line + pin (tactical display pin; both coord fields kept in sync). */
 export function resolveTrajectoryOrigin(traj) {
   if (traj?.origin_coords?.length >= 2) {
     return traj.origin_coords;

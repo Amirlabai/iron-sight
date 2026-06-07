@@ -28,13 +28,11 @@ export default function Sidebar() {
     totalClusters, totalTargets,
 
     historyFilter, setHistoryFilter,
-    timeFrame, setTimeFrame, originFilter, setOriginFilter, filteredHistory,
+    timeFrame, setTimeFrame, originFilter, setOriginFilter, filteredHistory, originFilterLoading,
     mergeTimeFrameClusters, setMergeTimeFrameClusters, setViewMode, setMapConfig,
     renderableEvents, sidebarEvents,
     historyHasMore, historyLoadingMore, loadMoreHistory,
   } = useTactical();
-
-  const timeframeActive = timeFrame !== 'all';
 
   const [expandedId, setExpandedId] = React.useState(null);
   const seenLiveAlertIds = React.useRef(new Set());
@@ -167,6 +165,19 @@ export default function Sidebar() {
     if (!isMobile) return;
     dragControls.start(e);
   };
+
+  const historyShowMoreFooter = historyHasMore ? (
+    <div className="history-show-more-footer">
+      <button
+        type="button"
+        className="history-show-more-btn"
+        onClick={loadMoreHistory}
+        disabled={historyLoadingMore}
+      >
+        {historyLoadingMore ? 'LOADING...' : 'SHOW MORE'}
+      </button>
+    </div>
+  ) : null;
 
   return (
     <motion.aside
@@ -369,16 +380,14 @@ export default function Sidebar() {
               </div>
 
               <div
-                className={`origin-filters${timeframeActive ? '' : ' origin-filters--inactive'}`}
+                className="origin-filters"
                 role="group"
                 aria-label="Launch origin filter"
-                aria-disabled={!timeframeActive}
               >
                 <button
                   type="button"
                   className={`filter-tab filter-tab-origin ${originFilter === 'all' ? 'active' : ''}`}
-                  disabled={!timeframeActive}
-                  onClick={() => timeframeActive && setOriginFilter('all')}
+                  onClick={() => setOriginFilter('all')}
                 >
                   ALL ORIGINS
                 </button>
@@ -387,24 +396,28 @@ export default function Sidebar() {
                     key={origin}
                     type="button"
                     className={`filter-tab filter-tab-origin ${originFilter === origin ? 'active' : ''}`}
-                    disabled={!timeframeActive}
-                    onClick={() => timeframeActive && setOriginFilter(origin)}
+                    onClick={() => setOriginFilter(origin)}
                   >
                     {origin.toUpperCase()}
                   </button>
                 ))}
               </div>
-              {!timeframeActive ? (
-                <p className="origin-filters-hint">Select a time window to filter by launch origin.</p>
-              ) : null}
 
-              {history.length === 0 ? (
+              {history.length === 0 && !historyHasMore ? (
                 <div className="empty-state"><Clock size={48} color="#333" /><p>NO HISTORY RECORDED</p></div>
-              ) : filteredHistory.length === 0 ? (
+              ) : filteredHistory.length === 0 && !historyHasMore && originFilter !== 'all' ? (
                 <div className="empty-state"><Clock size={48} color="#333" /><p>NO EVENTS FOR THIS ORIGIN</p></div>
               ) : (
-                <div className="history-list">
-                  {sidebarEvents.map((event, i) => {
+                <>
+                  <div className="history-list">
+                    {filteredHistory.length === 0 && originFilter !== 'all' ? (
+                      <p className="history-origin-empty-hint">
+                        {originFilterLoading
+                          ? `Loading more archive pages for ${originFilter}…`
+                          : `No ${originFilter} events in loaded pages yet.`}
+                      </p>
+                    ) : null}
+                    {sidebarEvents.map((event, i) => {
                     const isExpanded = expandedId === event.id;
                     const catIcon = {
                       'missiles': <Rocket size={16} />,
@@ -516,17 +529,9 @@ export default function Sidebar() {
                       </motion.div>
                     );
                   })}
-                  {historyHasMore ? (
-                    <button
-                      type="button"
-                      className="history-show-more-btn"
-                      onClick={loadMoreHistory}
-                      disabled={historyLoadingMore}
-                    >
-                      {historyLoadingMore ? 'LOADING...' : 'SHOW MORE'}
-                    </button>
-                  ) : null}
-                </div>
+                  </div>
+                  {historyShowMoreFooter}
+                </>
               )}
             </motion.div>
           )}
