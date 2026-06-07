@@ -12,13 +12,38 @@ Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`
 
 - `wsReconnect.js`: first 3 reconnect waits stay at 3s each, then 6s → 12s → … (cap 60s).
 
+### Calc/display split + review fixes (2026-06-08)
+
+- `project_calc_entry` for calc-border APIs; `get_projected_origin` is display-only alias.
+- `entry_by_origin` / history-fixer suggest-origin use calc entry; live trajectories store tactical display pin.
+- `recalc_regional_trajectories.py`: non-dry-run writes require `--all`; optional `--origins` filter.
+- Dashboard: origin filter auto-load cap 4 pages; stay on archive tab when filter clears selection.
+
+### Archive normalize + dashboard verified display (2026-06-08)
+
+- `archive_normalize.py`: `normalize_missile_archive` rebuilds unverified legacy rows (collapse multi-trajectory, unified cluster hull, tactical display pins); `dedupe_verified_missile_archive` for verified/manual rows (`--dedupe-verified`).
+- `recalc_regional_trajectories.py`: uses normalize helpers; skips committed rows by default.
+- `ws_manager.py`: verify commit stores single trajectory only.
+- Dashboard: `trajectoriesForDisplay` in archive map — verified/manual rows render `trajectories[0]` only.
+- Tests: `test_archive_normalize.py`, updated `test_recalc_regional_trajectories.py`.
+
+### Tactical display pin (2026-06-08)
+
+- `engine.py`: calc-border detection unchanged; display pin = first tactical silhouette crossing + 0.1° inset along full ray to `tac_max` (not deepest hit, not calc entry). Fixes Iraq/Iran gap (North Iran calc quad vs tactical silhouette). On-ray `tac_max` fallback before country-centroid. `calc_entry_coords` on trajectories; origin replay shows calc vs display markers.
+- Dashboard: shared `buildOriginMarkerIcon`; origin marker anchored at pin center (trajectory line meets pin, not label gap).
+- Tests: `test_origin_detection.py`, `test_ray_march.py` (display pin + fallback).
+
+### Vectorized calc-border ray march (2026-06-08)
+
+- `engine.py`: 0.1° ray grid + numpy batch point-in-polygon; `entry_inset` applies to all origins; removed binary-search march.
+
 ### Origin Replay dev tool (2026-06-02)
 
 - Backend: `origin_replay.py` + `POST /api/origin/replay` (mission-key gated); engine helpers extracted for vector/projection trace.
-- Unified origin coords: one border-entry point for pin + line + storage; live writes sync `origin_coords` and `marker_coords`; dashboard/history-fixer read `origin_coords` first.
-- Trajectory entry: `get_projected_origin` ray-marches calc borders on oriented regression ray (no country-center pin).
+- Live trajectories: `origin_coords` / `marker_coords` = tactical display pin via `project_origin_display`; calc entry in optional `calc_entry_coords`.
+- History-fixer: `entry_by_origin` / `project-entry` use `project_calc_entry` (calc-border); verify commit stores operator pin.
 - API: `POST /api/history/suggest-origin` returns `entry_by_origin`; `POST /api/history/project-entry` for label-only relabel.
-- Archive recalc: `backend/scripts/recalc_regional_trajectories.py` (Gaza/Lebanon; syncs both coord fields).
+- Archive recalc: `backend/scripts/recalc_regional_trajectories.py` — full normalize for unverified missiles; `--dedupe-verified` for history-fixer rows. See `src/utils/archive_normalize.py`.
 - Standalone app: `origin-replay/` on `:5175` — archive picker, step navigator, Leaflet overlays per pipeline stage.
 - Tests: `backend/tests/test_origin_replay.py`, `test_trajectory_utils.py`.
 

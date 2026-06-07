@@ -14,8 +14,16 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 
 - Regional adjacency merge: same-region on 1 shared city; cross-region needs 50% city intersection.
 - One trajectory per origin group (Lebanon, Gaza, etc.).
-- Origin = country label (`trajectory.origin`) plus a single border-entry point. `origin_coords` and `marker_coords` are always the same (pin, line start, stored geometry). No separate country-center pin when a calc entry exists.
-- Origin projection via regression from cluster cities; depth calibration: Gaza/Lebanon 0.5, Iran 16.0, Yemen 20.0. Trajectory entry: calc-border ray-march along oriented PCA, then ~0.07° inset inside Gaza/Lebanon (not on the border line).
+- Origin = country label (`trajectory.origin`) plus display pin on the tactical country silhouette. `origin_coords` and `marker_coords` are always the same (pin, line start, stored geometry). Classification and replay calc step use **calc** borders (`calculation_borders.json`); display pin ray-marches into **tactical** polygons (`countries.geojson`) with country-centroid fallback when the ray misses the silhouette.
+
+| API / field | Coords |
+|-------------|--------|
+| `entry_by_origin`, `project-entry`, `project_calc_entry` | Calc-border entry |
+| Live `origin_coords` / `marker_coords` | Tactical display pin |
+| `calc_entry_coords` (optional on trajectory) | Calc-border entry for replay/debug |
+| History-fixer verify commit | Operator-chosen pin (typically calc entry from suggest-origin) |
+
+- Origin projection via regression from cluster cities; depth calibration: Gaza/Lebanon 0.5, Iran 16.0, Yemen 20.0. Trajectory entry: calc-border ray-march along oriented PCA, then ~0.1° inset inside calc polygon. Display pin: first **tactical silhouette** crossing on the full ray (to `tac_max` 42° Iran / 50° Yemen) plus 0.1° inset—never calc entry coords. Fallback: on-ray point at `tac_max` if inside silhouette, else country-centroid. Optional `calc_entry_coords` on trajectory for replay/debug.
 - ID-driven lifecycle: `active_events{}` keyed by alert ID; 10s end grace; 5 min inactivity timeout.
 - Strategic origins (Iran/Yemen) gated by warning-shaped `newsFlash` (`data` or `cities` present).
 - When **≥2** geometric origin candidates exist, `origin_ml.resolve_origin_ml` picks the winner from **verified** `salvo_history` / `drone_history` (labels: `verified`, `manual_origin`, `trajectories[0].origin`).
@@ -37,7 +45,7 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 
 - `src/core/` — clustering, PCA vectoring, multi-threat processing (missiles, drones, infiltration, earthquake, newsFlash); `origin_replay.py` for dev step-through trace.
 - `src/api/` — WebSocket sync, REST history/cities, push routes; `POST /api/origin/replay` for origin pipeline replay.
-- `src/db/` — MongoDB managers, per-category collections.
+- `src/utils/` — trajectory helpers, `archive_normalize.py` (legacy missile archive rebuild).
 - Geodata — `tactical_borders.json` (visuals), `calculation_borders.json` (logic), `cities.json` / `polygons.json` (city boundaries).
 
 ### Dashboard highlights

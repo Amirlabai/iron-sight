@@ -27,6 +27,7 @@ graphify-out/
 docs/GOOGLE_SEARCH_CONSOLE_SETUP.md
 
 # Agent scratch (repo root)
+/backend/scratch/
 /check_sidebar_logic*.py
 /patch_*.py
 /tmp_*
