@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterArchiveHistory, filterHistoryByOrigin } from './historyFilters';
+import { filterArchiveHistory, filterHistoryByOrigin, mergeHistoryById } from './historyFilters';
 
 const events = [
   { id: '1', trajectories: [{ origin: 'Iran' }] },
@@ -33,5 +33,21 @@ describe('filterHistoryByOrigin', () => {
 
   it('returns empty for empty input', () => {
     expect(filterHistoryByOrigin(null, 'Iran')).toEqual([]);
+  });
+});
+
+describe('mergeHistoryById', () => {
+  it('skips duplicate ids when appending pages', () => {
+    const page1 = [{ id: 'a' }, { id: 'b' }];
+    const page2 = [{ id: 'b' }, { id: 'c' }];
+    expect(mergeHistoryById(page1, page2)).toEqual([
+      { id: 'a' },
+      { id: 'b' },
+      { id: 'c' },
+    ]);
+  });
+
+  it('returns incoming when existing is empty', () => {
+    expect(mergeHistoryById([], [{ id: '1' }])).toEqual([{ id: '1' }]);
   });
 });

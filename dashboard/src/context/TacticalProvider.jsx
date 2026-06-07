@@ -10,7 +10,7 @@ import {
   calculateTimeframeMapConfig,
 } from '../utils/mapGeometry';
 import { resolveMapConfig, getEventOrigin } from '../utils/mapZoomPresets';
-import { filterArchiveHistory, filterHistoryByOrigin } from '../utils/historyFilters';
+import { filterArchiveHistory, filterHistoryByOrigin, mergeHistoryById } from '../utils/historyFilters';
 import { getConvexHull, getCentroid, getDistance } from '../utils/geoUtils';
 import missileSound from '../assets/sounds/missile_alert.mp3';
 import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
@@ -379,11 +379,11 @@ export function TacticalProvider({ children }) {
         const raw = Array.isArray(data) ? data : [];
         const rows = filterArchiveHistory(raw);
         if (append) {
-          setHistory((prev) => [...prev, ...rows]);
+          setHistory((prev) => mergeHistoryById(prev, rows));
         } else {
           setHistory(rows);
         }
-        const nextOffset = offset + rows.length;
+        const nextOffset = offset + raw.length;
         setHistoryOffset(nextOffset);
         setHistoryHasMore(raw.length === limit);
       } else {
