@@ -90,7 +90,7 @@ class PushManager:
         return True, None, client_token
 
     async def update_location(self, endpoint, lat, lng, client_token):
-        if not self.db or not self.db.db:
+        if self.db is None or self.db.db is None:
             return "unavailable"
         if not await self.db.verify_push_client(endpoint, client_token):
             return "unauthorized"
@@ -100,7 +100,7 @@ class PushManager:
         return "ok"
 
     async def delete_subscription(self, endpoint, client_token):
-        if not self.db:
+        if self.db is None or self.db.db is None:
             return False
         if not await self.db.verify_push_client(endpoint, client_token):
             return False

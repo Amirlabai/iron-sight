@@ -9,11 +9,13 @@ import {
 } from './wsReconnect';
 
 describe('getWsReconnectDelayMs', () => {
-  it('starts at 3s and doubles each failure', () => {
+  it('waits 3s for the first three failures then doubles', () => {
     expect(getWsReconnectDelayMs(0)).toBe(3000);
-    expect(getWsReconnectDelayMs(1)).toBe(6000);
-    expect(getWsReconnectDelayMs(2)).toBe(12000);
-    expect(getWsReconnectDelayMs(3)).toBe(24000);
+    expect(getWsReconnectDelayMs(1)).toBe(3000);
+    expect(getWsReconnectDelayMs(2)).toBe(3000);
+    expect(getWsReconnectDelayMs(3)).toBe(6000);
+    expect(getWsReconnectDelayMs(4)).toBe(12000);
+    expect(getWsReconnectDelayMs(5)).toBe(24000);
   });
 
   it('caps at WS_RECONNECT_MAX_MS', () => {
@@ -30,11 +32,15 @@ describe('consumeWsReconnectDelayMs', () => {
     resetWsFailStreak();
   });
 
-  it('returns increasing delays and increments streak', () => {
+  it('returns flat 3s delays then backoff and increments streak', () => {
     expect(consumeWsReconnectDelayMs()).toBe(3000);
     expect(_getWsFailStreakForTests()).toBe(1);
-    expect(consumeWsReconnectDelayMs()).toBe(6000);
+    expect(consumeWsReconnectDelayMs()).toBe(3000);
     expect(_getWsFailStreakForTests()).toBe(2);
+    expect(consumeWsReconnectDelayMs()).toBe(3000);
+    expect(_getWsFailStreakForTests()).toBe(3);
+    expect(consumeWsReconnectDelayMs()).toBe(6000);
+    expect(_getWsFailStreakForTests()).toBe(4);
   });
 
   it('resetWsFailStreak restarts sequence', () => {

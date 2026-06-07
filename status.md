@@ -1,12 +1,16 @@
 # Iron Sight — Status
 
-**Updated:** 2026-06-02
+**Updated:** 2026-06-08
 
 ## Current state
 
 Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`). Relay ingest operational. Alpha development.
 
 ## Recently completed
+
+### PWA WebSocket reconnect (2026-06-08)
+
+- `wsReconnect.js`: first 3 reconnect waits stay at 3s each, then 6s → 12s → … (cap 60s).
 
 ### Origin Replay dev tool (2026-06-02)
 
