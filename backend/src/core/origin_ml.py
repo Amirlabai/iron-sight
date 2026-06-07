@@ -2,7 +2,7 @@
 import logging
 import numpy as np
 
-from src.utils.trajectory_utils import set_trajectory_entry
+from src.utils.trajectory_utils import apply_projected_origin
 
 logger = logging.getLogger("IronSightBackend")
 
@@ -116,13 +116,10 @@ def collapse_missile_origins(payload, winner, confidence, scores, resolved_by, e
 
     g_coords = np.array([c["coords"] for c in all_cities])
     g_cnt = np.mean(g_coords, axis=0).tolist()
-    border_entry = engine.get_projected_origin(all_cities, winner, depth=depth)
-
     for cluster in payload.get("clusters", []):
         cluster["origin"] = winner
-
     traj = {"origin": winner, "target_coords": g_cnt, "depth": depth}
-    set_trajectory_entry(traj, border_entry)
+    apply_projected_origin(engine, traj, all_cities, winner, depth)
     payload["trajectories"] = [traj]
     payload["title"] = f"{display_origin} Salvo"
     payload["zoom_level"] = engine.zoom_levels.get(winner, 6)

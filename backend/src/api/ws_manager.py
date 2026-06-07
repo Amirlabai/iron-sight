@@ -243,6 +243,7 @@ class WebSocketManager:
                 traj = existing["trajectories"][0]
                 cities = existing.get("all_cities") or []
                 sync_missile_trajectory_on_verify(traj, origin_name, marker_coords, cities, self.engine)
+                existing["trajectories"] = [traj]
                 target = traj.get("target_coords")
                 if target:
                     existing["center"] = target
