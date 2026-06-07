@@ -83,7 +83,7 @@ class TestGetProjectedOrigin:
         proj = engine.get_projected_origin(cities, "Lebanon", depth=0.5)
         assert engine.get_distance(proj, center) > 0.05
 
-    def test_projected_point_on_regression_ray(self, engine):
+    def test_calc_entry_on_regression_ray(self, engine):
         cities = [
             {"name": "Ashkelon", "coords": [31.6693, 34.5715]},
             {"name": "Sderot", "coords": [31.5250, 34.5960]},
@@ -92,15 +92,23 @@ class TestGetProjectedOrigin:
         oriented = engine._oriented_regression_vector(cities, centroid)
         assert oriented is not None
         v_lat, v_lon = oriented
-        proj = engine.get_projected_origin(cities, "Gaza", depth=0.5)
+        calc = engine.project_calc_entry(cities, "Gaza", depth=0.5)
         hit, depth = engine._ray_march_calc_entry(
             centroid, v_lat, v_lon, "Gaza", 0.5
         )
         if hit:
-            assert engine.get_distance(proj, hit) < 0.001
+            assert engine.get_distance(calc, hit) < 0.001
         else:
-            expected = engine._project_point(centroid, v_lat, v_lon, 0.5)
-            assert engine.get_distance(proj, expected) < 0.001
+            assert calc is None
+
+    def test_display_pin_on_regression_ray(self, engine):
+        cities = [
+            {"name": "Ashkelon", "coords": [31.6693, 34.5715]},
+            {"name": "Sderot", "coords": [31.5250, 34.5960]},
+        ]
+        display = engine.get_projected_origin(cities, "Gaza", depth=0.5)
+        expected_display, _ = engine.project_origin_display(cities, "Gaza", depth=0.5)
+        assert engine.get_distance(display, expected_display) < 0.001
 
     def test_regional_entry_inset_pushes_past_border(self, engine):
         cities = [
@@ -112,11 +120,11 @@ class TestGetProjectedOrigin:
         orig_inset = engine.regional_entry_inset
         engine.regional_entry_inset = 0.0
         border_only, border_d = engine._ray_march_calc_entry(
-            centroid, v_lat, v_lon, "Lebanon", 0.5, num_steps=50
+            centroid, v_lat, v_lon, "Lebanon", 0.5
         )
         engine.regional_entry_inset = orig_inset
         inset, inset_d = engine._ray_march_calc_entry(
-            centroid, v_lat, v_lon, "Lebanon", 0.5, num_steps=50
+            centroid, v_lat, v_lon, "Lebanon", 0.5
         )
         assert border_only is not None and inset is not None
         assert inset_d > border_d

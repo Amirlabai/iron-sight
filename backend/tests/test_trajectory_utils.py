@@ -3,7 +3,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.core.origin_ml import collapse_missile_origins
-from src.utils.trajectory_utils import entry_by_origin, set_trajectory_entry, sync_missile_trajectory_on_verify
+from src.utils.trajectory_utils import (
+    apply_projected_origin,
+    entry_by_origin,
+    set_trajectory_entry,
+    sync_missile_trajectory_on_verify,
+)
 
 
 class TestSetTrajectoryEntry:
@@ -18,13 +23,33 @@ class TestEntryByOrigin:
     def test_projects_each_candidate(self):
         engine = MagicMock()
         engine.strategic_depths = {"Lebanon": 0.5, "Gaza": 0.5}
-        engine.get_projected_origin = MagicMock(side_effect=lambda cities, origin, depth: [33.0, 35.0])
+        engine.project_calc_entry = MagicMock(side_effect=lambda cities, origin, depth: [33.0, 35.0])
 
         result = entry_by_origin(engine, [{"coords": [32.8, 35.5]}], ["Lebanon", "Gaza"])
 
         assert result["Lebanon"] == [33.0, 35.0]
         assert result["Gaza"] == [33.0, 35.0]
-        assert engine.get_projected_origin.call_count == 2
+        assert engine.project_calc_entry.call_count == 2
+
+    def test_skips_origins_without_calc_hit(self):
+        engine = MagicMock()
+        engine.strategic_depths = {"Lebanon": 0.5}
+        engine.project_calc_entry = MagicMock(return_value=None)
+
+        result = entry_by_origin(engine, [{"coords": [32.8, 35.5]}], ["Lebanon"])
+        assert result == {}
+
+
+class TestApplyProjectedOrigin:
+    def test_clears_stale_calc_entry_coords(self):
+        engine = MagicMock()
+        engine.project_origin_display = MagicMock(return_value=([33.5, 35.5], None))
+        traj = {"calc_entry_coords": [33.4, 35.4]}
+
+        apply_projected_origin(engine, traj, [{"coords": [32.8, 35.5]}], "Lebanon", 0.5)
+
+        assert "calc_entry_coords" not in traj
+        assert traj["origin_coords"] == [33.5, 35.5]
 
 
 class TestCollapseMissileOriginsCoords:
@@ -34,6 +59,7 @@ class TestCollapseMissileOriginsCoords:
         engine.origins = {"Lebanon": [33.9, 35.7]}
         engine.zoom_levels = {"Lebanon": 8}
         engine.get_projected_origin = MagicMock(return_value=[33.5, 35.5])
+        engine.project_origin_display = MagicMock(return_value=([33.5, 35.5], [33.4, 35.4]))
 
         payload = {
             "clusters": [{"origin": "Iran", "cities": []}],
