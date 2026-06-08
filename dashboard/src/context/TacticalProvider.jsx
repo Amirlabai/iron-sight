@@ -357,6 +357,7 @@ export function TacticalProvider({ children }) {
       const params = new URLSearchParams();
       if (category !== 'all') params.append('category', category);
       if (time !== 'all') params.append('hours', time);
+      params.append('view', time === 'all' ? 'list' : 'full');
       params.append('limit', String(limit));
       params.append('offset', String(offset));
       const url = `${baseUrl}?${params.toString()}`;
@@ -411,10 +412,23 @@ export function TacticalProvider({ children }) {
     fetchHistory(historyFilter, timeFrame, { append: false, offset: 0, limit: HISTORY_PAGE_SIZE });
   }, [historyFilter, timeFrame, fetchHistory]);
 
-  const selectArchive = useCallback((event) => {
-    setArchiveEvent(event);
+  const selectArchive = useCallback(async (event) => {
+    let row = event;
+    if (event?._listView) {
+      try {
+        const params = new URLSearchParams({ id: event.id });
+        if (event.category) params.append('category', event.category);
+        const res = await fetch(`${TACTICAL_API_URL}/api/history/event?${params}`);
+        if (res.ok) {
+          row = await res.json();
+        }
+      } catch (err) {
+        if (!IS_PROD) console.error('ARCHIVE_DETAIL_FETCH_FAILED', err);
+      }
+    }
+    setArchiveEvent(row);
     setViewMode('archive');
-    setMapConfig(calculateArchiveMapConfig(event));
+    setMapConfig(calculateArchiveMapConfig(row));
   }, []);
 
   const toggleCity = useCallback((city) => {

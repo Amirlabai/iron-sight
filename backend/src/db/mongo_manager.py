@@ -199,11 +199,13 @@ class MongoManager:
         except Exception as e:
             logger.error(f"LOG_EVENT_FAILURE: {event_id} {status} - {e}")
 
-    async def get_history(self, alert_type="missiles", limit=50, hours=None, offset=0):
+    async def get_history(self, alert_type="missiles", limit=50, hours=None, offset=0, *, slim=False):
         """Retrieve archive for a specific threat category."""
         collection = self.collections.get(alert_type)
         if collection is None: return []
         try:
+            from src.utils.history_slim import HISTORY_LIST_PROJECTION, slim_history_record
+
             query = {}
             if hours and hours != 'all':
                 from datetime import datetime, timedelta, timezone
@@ -227,11 +229,16 @@ class MongoManager:
                     except ValueError:
                         pass
 
-            cursor = collection.find(query).sort("_id", -1).skip(max(0, int(offset))).limit(limit)
+            if slim:
+                cursor = collection.find(query, HISTORY_LIST_PROJECTION)
+            else:
+                cursor = collection.find(query)
+            cursor = cursor.sort("_id", -1).skip(max(0, int(offset))).limit(limit)
             history = await cursor.to_list(length=limit)
-            # Remove MongoDB _id for clean JSON serialization
             for item in history:
                 item.pop("_id", None)
+            if slim:
+                return [slim_history_record(item) for item in history]
             return history
         except Exception as e:
             logger.error(f"DB_FETCH_FAILURE for {alert_type}: {e}")
@@ -249,14 +256,27 @@ class MongoManager:
             logger.error(f"DB_FETCH_FAILURE for alert {alert_id}: {e}")
             return None
 
-    async def get_consolidated_history(self, limit=50, hours=None, offset=0):
+    async def find_history_event(self, event_id, category=None):
+        """Full archive document by id; optional category skips cross-collection scan."""
+        if category:
+            return await self.get_alert(event_id, category)
+        for alert_type in self.collections:
+            doc = await self.get_alert(event_id, alert_type)
+            if doc:
+                return doc
+        return None
+
+    async def get_consolidated_history(self, limit=50, hours=None, offset=0, *, slim=False):
         """Retrieve archive across all tactical categories, unified and sorted."""
         import asyncio
         try:
             offset = max(0, int(offset))
             fetch_limit = limit + offset
             # Parallel fetch from all collections. Fetch enough rows to page after consolidation sort.
-            tasks = [self.get_history(alert_type, limit=fetch_limit, hours=hours, offset=0) for alert_type in self.collections]
+            tasks = [
+                self.get_history(alert_type, limit=fetch_limit, hours=hours, offset=0, slim=slim)
+                for alert_type in self.collections
+            ]
             results = await asyncio.gather(*tasks)
             
             # Combine all results

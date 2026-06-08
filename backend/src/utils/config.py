@@ -9,6 +9,7 @@ load_dotenv(os.path.join(_BACKEND_DIR, ".env"))
 # --- Network Configuration ---
 WS_PORT = int(os.environ.get("PORT", 8080))
 POLL_INTERVAL = 3
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 TIMEZONE = ZoneInfo("Asia/Jerusalem")
 
 # --- Tactical Logic Constants ---
@@ -81,6 +82,9 @@ def _env_float(name: str, default: float) -> float:
     except ValueError:
         return default
 
+
+# Log relay heartbeat every N poll ticks (3s each). 20 ≈ 60s.
+POLL_HEARTBEAT_EVERY = _env_int("POLL_HEARTBEAT_EVERY", 20)
 
 TELEGRAM_MAP_ZOOM = _env_int("TELEGRAM_MAP_ZOOM", 12)
 KFAR_KAMA_ALERT_LAT = _env_float("KFAR_KAMA_ALERT_LAT", 32.71999)

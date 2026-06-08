@@ -8,6 +8,14 @@ Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`
 
 ## Recently completed
 
+### Backend observability (worktree `.worktrees/observability`, branch `fix/observability-logs`)
+
+- `observability.py`: RSS memory, HTTP timing middleware, structured log helpers.
+- `main.py`: `RUNTIME`, `RELAY_POLL` heartbeat (~60s), `BROADCAST` cache hit/miss + bytes, `LIFECYCLE_PURGE` summary.
+- `ws_manager.py`: `HISTORY_FETCH` rows/bytes/duration, `WS_CONNECT`/`WS_DISCONNECT`, HTTP middleware for `/api/*`.
+- `LOG_LEVEL` and `POLL_HEARTBEAT_EVERY` env vars.
+- Slim history API: `view=list` (default) for pagination; `GET /api/history/event` for full archive on select; WS `history_sync` uses slim rows.
+
 ### EventStore review refactor (branch `refactor/event-store-review`, worktree `.worktrees/refactor-review`)
 
 - `missile_origins.py`: shared `build_missile_origins` — live, merge, and archive paths use one pipeline.

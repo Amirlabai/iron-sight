@@ -99,13 +99,13 @@ async def maintain_lifecycle(store, engine, db, ws, telegram_notifier, now, broa
             try:
                 await db.save_alert(master_payload["category"], master_payload)
                 logger.info(f"CLUSTER_PERSISTED: {len(group_ids)} IDs unified -> {master_payload['id']}")
-                history = await db.get_consolidated_history(limit=50)
+                history = await db.get_consolidated_history(limit=50, slim=True)
                 await ws.broadcast({"type": "history_sync", "data": history})
             except Exception as db_err:
                 logger.error(f"CLUSTER_PERSIST_FAILURE: {master_payload['id']} - {db_err}")
         elif not has_persistent:
             try:
-                history = await db.get_consolidated_history(limit=50)
+                history = await db.get_consolidated_history(limit=50, slim=True)
                 await ws.broadcast({"type": "history_sync", "data": history})
             except Exception as db_err:
                 logger.error(f"NEWSFLASH_HISTORY_SYNC_FAILURE: {db_err}")

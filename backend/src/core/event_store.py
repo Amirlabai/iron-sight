@@ -289,7 +289,7 @@ class EventStore:
             c for c, flag in zip(analysis["all_cities"], is_new) if flag and c.get("name")
         ]
         if not new_city_objs:
-            logger.debug(f"ROLLING_UPDATE_SKIPPED: {alert_id} duplicate relay")
+            logger.debug(f"ROLLING_UPDATE_SKIPPED: {alert_id} duplicate relay (+0 cities)")
             return False, 0, len(stub["member_cities"])
 
         name_to_city = {c["name"]: c for c in stub["member_cities"] if c.get("name")}

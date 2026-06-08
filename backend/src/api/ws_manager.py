@@ -1,10 +1,17 @@
 import json
 import logging
+import time
 from datetime import datetime
 from aiohttp import web
 import aiohttp_cors
 from src.utils.config import ALLOWED_ORIGINS, WS_PORT, MISSION_KEY, TIMEZONE
 from src.utils.cluster_utils import build_merged_payloads
+from src.utils.observability import (
+    estimate_json_bytes,
+    http_observability_middleware,
+    log_history_fetch,
+    log_ws_session,
+)
 from src.utils.trajectory_utils import (
     entry_by_origin,
     project_entry_for_origin,
@@ -21,9 +28,9 @@ class WebSocketManager:
         self.version = version
         self.push_manager = push_manager
         self.clients = set()
-        self.app = web.Application()
+        self.app = web.Application(middlewares=[http_observability_middleware])
         self.active_events = {}  # Mirrors main.py's active_events for late-joiner sync
-        
+
         self.cors = aiohttp_cors.setup(self.app, defaults={
             origin: aiohttp_cors.ResourceOptions(
                 allow_credentials=True,
@@ -39,6 +46,7 @@ class WebSocketManager:
         self.add_route("GET", "/", self.health_handler)
         self.add_route("POST", "/api/calibrate", self.calibrate_handler)
         self.add_route("GET", "/api/history", self.history_handler)
+        self.add_route("GET", "/api/history/event", self.history_event_handler)
         self.add_route("GET", "/api/cities", self.cities_handler)
         self.add_route("POST", "/api/history/update", self.update_history_handler)
         self.add_route("POST", "/api/history/split", self.split_history_handler)
@@ -137,29 +145,45 @@ class WebSocketManager:
         ws = web.WebSocketResponse()
         await ws.prepare(request)
         self.clients.add(ws)
-        
-        # Initial sync: send history + merged active_events snapshot
-        try:
-            history = await self.db.get_consolidated_history(limit=50)
-            await ws.send_str(json.dumps({"type": "history_sync", "data": history, "version": self.version}))
-            
-            # Late-Joiner Sync: run the SAME merge pipeline as the live broadcast
-            if self.active_events:
-                events_list = await build_merged_payloads(self.active_events, self.engine, threshold_km=15)
-                
-                if events_list:
-                    logger.info(f"LATE_JOINER_SYNC: Sending {len(events_list)} merged event(s) to new client.")
-                    await ws.send_str(json.dumps({
-                        "type": "multi_alert",
-                        "events": events_list
-                    }, ensure_ascii=False))
-        except Exception as e:
-            logger.error(f"WS_SYNC_ERROR: {e}")
+        sync_started = time.perf_counter()
+        history_rows = 0
+        active_count = len(self.active_events)
 
         try:
-            async for msg in ws: pass
+            history = await self.db.get_consolidated_history(limit=50, slim=True)
+            history_rows = len(history)
+            await ws.send_str(json.dumps({"type": "history_sync", "data": history, "version": self.version}))
+
+            if self.active_events:
+                events_list = await build_merged_payloads(self.active_events, self.engine, threshold_km=15)
+                if events_list:
+                    await ws.send_str(json.dumps({
+                        "type": "multi_alert",
+                        "events": events_list,
+                    }, ensure_ascii=False))
+            log_ws_session(
+                event="CONNECT",
+                client_count=len(self.clients),
+                history_rows=history_rows,
+                active_events=active_count,
+                duration_ms=(time.perf_counter() - sync_started) * 1000,
+            )
+        except Exception as e:
+            log_ws_session(
+                event="CONNECT",
+                client_count=len(self.clients),
+                history_rows=history_rows,
+                active_events=active_count,
+                duration_ms=(time.perf_counter() - sync_started) * 1000,
+                error=e,
+            )
+
+        try:
+            async for msg in ws:
+                pass
         finally:
             self.clients.discard(ws)
+            log_ws_session(event="DISCONNECT", client_count=len(self.clients))
         return ws
 
     async def history_handler(self, request):
@@ -184,11 +208,38 @@ class WebSocketManager:
             except ValueError:
                 pass
 
+        view = (request.query.get("view") or "list").lower()
+        slim = view != "full"
+
+        started = time.perf_counter()
         if category:
-            history = await self.db.get_history(alert_type=category, limit=limit, hours=hours, offset=offset)
+            history = await self.db.get_history(
+                alert_type=category, limit=limit, hours=hours, offset=offset, slim=slim,
+            )
         else:
-            history = await self.db.get_consolidated_history(limit=limit, hours=hours, offset=offset)
+            history = await self.db.get_consolidated_history(
+                limit=limit, hours=hours, offset=offset, slim=slim,
+            )
+        duration_ms = (time.perf_counter() - started) * 1000
+        log_history_fetch(
+            category=category,
+            limit=limit,
+            offset=offset,
+            row_count=len(history),
+            payload_bytes=estimate_json_bytes(history),
+            duration_ms=duration_ms,
+        )
         return web.json_response(history)
+
+    async def history_event_handler(self, request):
+        event_id = request.query.get("id")
+        if not event_id:
+            return web.json_response({"error": "Missing id"}, status=400)
+        category = request.query.get("category") or request.query.get("type")
+        doc = await self.db.find_history_event(event_id, category=category or None)
+        if not doc:
+            return web.json_response({"error": "Not found"}, status=404)
+        return web.json_response(doc)
 
     async def cities_handler(self, request):
         return web.json_response(self.engine.dm.areas)
@@ -257,7 +308,7 @@ class WebSocketManager:
             
             logger.info(f"HISTORY_FIXED_FULL: {alert_id} ({alert_type}) synchronized to {origin_name} by operator.")
             # Broadcast history refresh
-            history = await self.db.get_consolidated_history(limit=50)
+            history = await self.db.get_consolidated_history(limit=50, slim=True)
             await self.broadcast({"type": "history_sync", "data": history})
             return web.json_response({"status": "SUCCESS", "event": existing})
             
@@ -281,7 +332,7 @@ class WebSocketManager:
             if success:
                 logger.info(f"HISTORY_SPLIT: {alert_id} ({alert_type}) removed for re-processing.")
                 # Broadcast history refresh
-                history = await self.db.get_consolidated_history(limit=50)
+                history = await self.db.get_consolidated_history(limit=50, slim=True)
                 await self.broadcast({"type": "history_sync", "data": history})
                 return web.json_response({"status": "SUCCESS"})
             else:
@@ -309,7 +360,7 @@ class WebSocketManager:
             if master_payload:
                 logger.info(f"HISTORY_MANUAL_MERGE: {len(alert_ids)} events consolidated -> {master_payload['id']}")
                 # Broadcast history refresh
-                history = await self.db.get_consolidated_history(limit=50)
+                history = await self.db.get_consolidated_history(limit=50, slim=True)
                 await self.broadcast({"type": "history_sync", "data": history})
                 return web.json_response({"status": "SUCCESS", "event": master_payload})
             else:
