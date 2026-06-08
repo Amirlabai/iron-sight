@@ -16,7 +16,15 @@ const CITY_FALLBACK_RADIUS_METERS = 500;
 
 const SVG_PATH_RENDERER = getSvgPathRenderer();
 
-export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor, highlightColor, mapZoom = 0 }) {
+export default function ThreatOverlay({
+  event,
+  eventKey,
+  viewMode,
+  tacticalColor,
+  highlightColor,
+  mapZoom = 0,
+  suppressCityDetail = false,
+}) {
   const isLive = viewMode === 'live';
 
   const animatedPathOptions = useMemo(
@@ -94,7 +102,7 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
                 />
               </React.Fragment>
             ) : null}
-            {cluster.cities?.map((city, cityIdx) => {
+            {!suppressCityDetail && cluster.cities?.map((city, cityIdx) => {
               if (!city?.coords) return null;
               const shouldMountLabel = mapZoom >= CITY_LABEL_MIN_ZOOM
                 && (viewMode !== 'live' || cityIdx < LIVE_CITY_LABEL_CAP);

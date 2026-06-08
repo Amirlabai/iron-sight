@@ -30,6 +30,16 @@ Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`
 - `selectArchive` dedupes in-flight detail fetches and caches by id; abort stale history list requests on filter change.
 - Backend: 1000-row time-window cap applies only to `view=full` (operator tools).
 
+### Progressive archive loading (2026-06-08)
+
+- All Time: first fetch last 24h, 10 slim rows per page; SHOW MORE pages within window then extends +24h (up to 90d).
+- Empty windows auto-advance until rows found or cap; fixed filters (1H/12H/24H/range) unchanged.
+
+### Timeframe full fetch + map render budget (2026-06-08)
+
+- Timeframe filters (1H/12H/24H/range): fetch all slim rows in window (100/page, cap 5000); no SHOW MORE.
+- `mapRenderBudget.js`: timeframe = hulls only; multi-event suppress city dots/bounds at 80+ cities or 500+ total.
+
 ### EventStore review refactor (branch `refactor/event-store-review`, worktree `.worktrees/refactor-review`)
 
 - `missile_origins.py`: shared `build_missile_origins` — live, merge, and archive paths use one pipeline.

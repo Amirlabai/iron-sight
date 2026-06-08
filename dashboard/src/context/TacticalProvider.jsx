@@ -10,7 +10,18 @@ import {
   calculateTimeframeMapConfig,
 } from '../utils/mapGeometry';
 import { resolveMapConfig, getEventOrigin } from '../utils/mapZoomPresets';
-import { filterArchiveHistory, filterHistoryByOrigin, mergeHistoryById } from '../utils/historyFilters';
+import {
+  canExtendHistoryWindow,
+  filterArchiveHistory,
+  filterHistoryByOrigin,
+  HISTORY_PAGE_SIZE,
+  mergeHistoryById,
+  nextHistoryWindowHours,
+  resolveHistoryHoursParam,
+  TIMEFRAME_FETCH_MAX_EVENTS,
+  TIMEFRAME_FETCH_PAGE_SIZE,
+} from '../utils/historyFilters';
+import { hydrateEventsForMap, isTimeFrameFilter } from '../utils/mapRenderBudget';
 import { mergeTimeFrameEvents } from '../utils/mergeTimeFrameEvents';
 import { parseSandboxCities } from '../utils/parseSandboxCities';
 import { useSyncRefs } from '../hooks/useSyncRefs';
@@ -25,8 +36,7 @@ import { consumeWsReconnectDelayMs, resetWsFailStreak } from '../utils/wsReconne
 import { lruAdd, clearLruSet } from '../utils/lruSet';
 import { sortEventsByLatestFirst } from '../utils/formatters';
 
-const HISTORY_PAGE_SIZE = 50;
-const MAX_ORIGIN_AUTO_PAGES = 4;
+const MAX_ORIGIN_AUTO_PAGES = 8;
 
 // --- Tactical Audio Engine ---
 const useAudioEngine = (liveEvents, isMuted, alertPrefs) => {
@@ -140,6 +150,7 @@ export function TacticalProvider({ children }) {
   const [historyOffset, setHistoryOffset] = useState(0);
   const [historyHasMore, setHistoryHasMore] = useState(false);
   const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
+  const [historyWindowHours, setHistoryWindowHours] = useState(24);
   const [mergeTimeFrameClusters, setMergeTimeFrameClusters] = useState(false);
   const [mapAutoFollowToken, setMapAutoFollowToken] = useState(0);
 
@@ -158,6 +169,8 @@ export function TacticalProvider({ children }) {
   const originFilterRef = useRef(originFilter);
   const originAutoLoadRef = useRef(0);
   const historyOffsetRef = useRef(historyOffset);
+  const historyWindowHoursRef = useRef(historyWindowHours);
+  const historyPageHasMoreRef = useRef(false);
   const viewModeRef = useRef(viewMode);
   const isReadyRef = useRef(isReady);
   const historyFetchAbortRef = useRef(null);
@@ -172,11 +185,13 @@ export function TacticalProvider({ children }) {
     [timeFrameRef, timeFrame],
     [originFilterRef, originFilter],
     [historyOffsetRef, historyOffset],
+    [historyWindowHoursRef, historyWindowHours],
     [isReadyRef, isReady],
   ]);
 
   useEffect(() => {
     originAutoLoadRef.current = 0;
+    setHistoryWindowHours(24);
   }, [historyFilter, timeFrame, originFilter]);
 
   useEffect(() => {
@@ -255,14 +270,15 @@ export function TacticalProvider({ children }) {
         }
         if (data.type === 'history_sync') {
           if (historyFilterRef.current === 'all' && timeFrameRef.current === 'all') {
-            const rows = filterArchiveHistory(data.data);
+            const rows = filterArchiveHistory(data.data).slice(0, HISTORY_PAGE_SIZE);
+            setHistoryWindowHours(24);
             setHistory(rows);
             setHistoryOffset(rows.length);
-            setHistoryHasMore(
-              data.has_more !== undefined
-                ? Boolean(data.has_more)
-                : rows.length >= HISTORY_PAGE_SIZE,
-            );
+            const apiHasMore = data.has_more !== undefined
+              ? Boolean(data.has_more)
+              : rows.length >= HISTORY_PAGE_SIZE;
+            historyPageHasMoreRef.current = apiHasMore;
+            setHistoryHasMore(apiHasMore || canExtendHistoryWindow('all', 24));
           }
           setLoadingProgress(100);
           setIsReady(true);
@@ -359,52 +375,113 @@ export function TacticalProvider({ children }) {
       append = false,
       offset = 0,
       limit = HISTORY_PAGE_SIZE,
+      windowHours = historyWindowHoursRef.current,
+      extendWindow = false,
+      autoFillEmpty = !append,
     } = options;
     let controller = null;
+    let effectiveWindow = windowHours;
     try {
       if (append) {
         setHistoryLoadingMore(true);
       }
-      if (historyFetchAbortRef.current) {
+      if (!extendWindow && historyFetchAbortRef.current) {
         historyFetchAbortRef.current.abort();
       }
       controller = new AbortController();
       historyFetchAbortRef.current = controller;
 
       const baseUrl = `${TACTICAL_API_URL}/api/history`;
-      const params = new URLSearchParams();
-      if (category !== 'all') params.append('category', category);
-      if (time !== 'all') params.append('hours', time);
-      params.append('view', 'list');
-      params.append('page', '1');
-      params.append('limit', String(limit));
-      params.append('offset', String(offset));
-      const url = `${baseUrl}?${params.toString()}`;
-      const res = await fetch(url, { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      if (res.ok) {
+
+      const fetchPage = async (pageOffset, pageLimit, hoursWindow) => {
+        const hoursParam = resolveHistoryHoursParam(time, hoursWindow);
+        const params = new URLSearchParams();
+        if (category !== 'all') params.append('category', category);
+        params.append('hours', hoursParam);
+        params.append('view', 'list');
+        params.append('page', '1');
+        params.append('limit', String(pageLimit));
+        params.append('offset', String(pageOffset));
+        const res = await fetch(`${baseUrl}?${params.toString()}`, { signal: controller.signal });
+        if (!res.ok) return null;
         const data = await res.json();
         const raw = Array.isArray(data) ? data : (data.items || []);
         const rows = filterArchiveHistory(raw);
-        if (append) {
-          setHistory((prev) => mergeHistoryById(prev, rows));
-        } else {
-          setHistory(rows);
-        }
-        const nextOffset = Array.isArray(data)
-          ? offset + raw.length
-          : (data.next_offset ?? offset + raw.length);
-        const hasMore = Array.isArray(data)
-          ? raw.length === limit
+        const apiHasMore = Array.isArray(data)
+          ? raw.length === pageLimit
           : Boolean(data.has_more);
-        setHistoryOffset(nextOffset);
-        setHistoryHasMore(hasMore);
-      } else {
-        if (!append) {
-          setHistory([]);
-          setHistoryOffset(0);
+        const nextOff = Array.isArray(data)
+          ? pageOffset + raw.length
+          : (data.next_offset ?? pageOffset + raw.length);
+        return { rows, apiHasMore, nextOff };
+      };
+
+      if (!append && isTimeFrameFilter(time)) {
+        let merged = [];
+        let pageOffset = 0;
+        let pageHasMore = true;
+        while (pageHasMore && merged.length < TIMEFRAME_FETCH_MAX_EVENTS) {
+          const page = await fetchPage(pageOffset, TIMEFRAME_FETCH_PAGE_SIZE, effectiveWindow);
+          if (!page) {
+            if (!merged.length) {
+              setHistory([]);
+              setHistoryOffset(0);
+            }
+            setHistoryHasMore(false);
+            return;
+          }
+          merged = mergeHistoryById(merged, page.rows);
+          pageHasMore = page.apiHasMore && page.rows.length > 0;
+          pageOffset = page.nextOff;
+          if (!page.rows.length) break;
         }
+        setHistory(merged);
+        setHistoryOffset(merged.length);
+        historyPageHasMoreRef.current = false;
         setHistoryHasMore(false);
+      } else {
+        let effectiveOffset = offset;
+        let lastRows = [];
+        let lastApiHasMore = false;
+        let lastNextOffset = offset;
+
+        for (let attempt = 0; attempt < 32; attempt += 1) {
+          const page = await fetchPage(effectiveOffset, limit, effectiveWindow);
+          if (!page) {
+            if (!append) {
+              setHistory([]);
+              setHistoryOffset(0);
+            }
+            setHistoryHasMore(false);
+            return;
+          }
+          lastRows = page.rows;
+          lastApiHasMore = page.apiHasMore;
+          lastNextOffset = page.nextOff;
+
+          const shouldAutoExtend = autoFillEmpty
+            && time === 'all'
+            && page.rows.length === 0
+            && canExtendHistoryWindow(time, effectiveWindow);
+          if (shouldAutoExtend) {
+            effectiveWindow = nextHistoryWindowHours(effectiveWindow);
+            setHistoryWindowHours(effectiveWindow);
+            effectiveOffset = 0;
+            continue;
+          }
+          break;
+        }
+
+        if (append) {
+          setHistory((prev) => mergeHistoryById(prev, lastRows));
+        } else {
+          setHistory(lastRows);
+        }
+        setHistoryOffset(lastNextOffset);
+
+        const canExtend = time === 'all' && canExtendHistoryWindow(time, effectiveWindow);
+        historyPageHasMoreRef.current = lastApiHasMore;
+        setHistoryHasMore(lastApiHasMore || canExtend);
       }
 
       if (viewModeRef.current === 'timeframe') {
@@ -428,11 +505,30 @@ export function TacticalProvider({ children }) {
 
   const loadMoreHistory = useCallback(() => {
     if (historyLoadingMore || !historyHasMore) return;
-    fetchHistory(historyFilterRef.current, timeFrameRef.current, {
-      append: true,
-      offset: historyOffsetRef.current,
-      limit: HISTORY_PAGE_SIZE,
-    });
+
+    if (historyPageHasMoreRef.current) {
+      fetchHistory(historyFilterRef.current, timeFrameRef.current, {
+        append: true,
+        offset: historyOffsetRef.current,
+        limit: HISTORY_PAGE_SIZE,
+        windowHours: historyWindowHoursRef.current,
+        autoFillEmpty: false,
+      });
+      return;
+    }
+
+    if (timeFrameRef.current === 'all' && canExtendHistoryWindow('all', historyWindowHoursRef.current)) {
+      const nextWindow = nextHistoryWindowHours(historyWindowHoursRef.current);
+      setHistoryWindowHours(nextWindow);
+      fetchHistory(historyFilterRef.current, 'all', {
+        append: true,
+        offset: historyOffsetRef.current,
+        limit: HISTORY_PAGE_SIZE,
+        windowHours: nextWindow,
+        extendWindow: true,
+        autoFillEmpty: true,
+      });
+    }
   }, [fetchHistory, historyHasMore, historyLoadingMore]);
 
   useEffect(() => {
@@ -594,8 +690,10 @@ export function TacticalProvider({ children }) {
     if (viewMode === 'sandbox') return sandboxEvent ? [sandboxEvent] : [];
     if (viewMode === 'archive') return archiveEvent ? [archiveEvent] : [];
     if (viewMode === 'timeframe') {
-      if (!mergeTimeFrameClusters) return filteredHistory;
-      return mergeTimeFrameEvents(filteredHistory);
+      const base = mergeTimeFrameClusters
+        ? mergeTimeFrameEvents(filteredHistory)
+        : filteredHistory;
+      return hydrateEventsForMap(base);
     }
     return liveEvents;
   }, [viewMode, liveEvents, filteredHistory, archiveEvent, sandboxEvent, mergeTimeFrameClusters]);

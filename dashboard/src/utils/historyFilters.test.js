@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { filterArchiveHistory, filterHistoryByOrigin, mergeHistoryById } from './historyFilters';
+import {
+  canExtendHistoryWindow,
+  filterArchiveHistory,
+  filterHistoryByOrigin,
+  HISTORY_MAX_WINDOW_H,
+  HISTORY_PAGE_SIZE,
+  HISTORY_WINDOW_STEP_H,
+  mergeHistoryById,
+  nextHistoryWindowHours,
+  resolveHistoryHoursParam,
+} from './historyFilters';
 
 const events = [
   { id: '1', trajectories: [{ origin: 'Iran' }] },
@@ -33,6 +43,32 @@ describe('filterHistoryByOrigin', () => {
 
   it('returns empty for empty input', () => {
     expect(filterHistoryByOrigin(null, 'Iran')).toEqual([]);
+  });
+});
+
+describe('resolveHistoryHoursParam', () => {
+  it('uses rolling window for All Time', () => {
+    expect(resolveHistoryHoursParam('all', 24)).toBe('24');
+    expect(resolveHistoryHoursParam('all', 48)).toBe('48');
+  });
+
+  it('passes fixed timeframe filters through', () => {
+    expect(resolveHistoryHoursParam('12')).toBe('12');
+    expect(resolveHistoryHoursParam('range:2026-01-01,2026-01-02')).toBe('range:2026-01-01,2026-01-02');
+  });
+});
+
+describe('history window extend', () => {
+  it('steps by 24h until max', () => {
+    expect(nextHistoryWindowHours(24)).toBe(48);
+    expect(canExtendHistoryWindow('all', 24)).toBe(true);
+    expect(canExtendHistoryWindow('all', HISTORY_MAX_WINDOW_H)).toBe(false);
+    expect(canExtendHistoryWindow('12', 24)).toBe(false);
+  });
+
+  it('defaults page size to 10', () => {
+    expect(HISTORY_PAGE_SIZE).toBe(10);
+    expect(HISTORY_WINDOW_STEP_H).toBe(24);
   });
 });
 

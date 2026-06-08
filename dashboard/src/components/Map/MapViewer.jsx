@@ -13,6 +13,7 @@ import {
   getBoundaryOuter,
 } from '../../utils/constants';
 import { getFitPadding, boundsKey, resolveOriginPinCoords } from '../../utils/mapGeometry';
+import { shouldSuppressCityDetail } from '../../utils/mapRenderBudget';
 import { useTactical } from '../../context/TacticalContext';
 import { formatTime } from '../../utils/formatters';
 import ThreatOverlay from './ThreatOverlay';
@@ -272,6 +273,11 @@ export default function MapViewer() {
     refitMap(map, mapConfigRef.current);
   }, []);
 
+  const suppressCityDetail = useMemo(
+    () => shouldSuppressCityDetail(viewMode, renderableEvents),
+    [viewMode, renderableEvents],
+  );
+
   const timeframeOriginLayers = useMemo(() => {
     if (viewMode !== 'timeframe') {
       return { originHalos: [], originPins: [] };
@@ -415,6 +421,7 @@ export default function MapViewer() {
             tacticalColor={tacticalColor}
             highlightColor={highlightColor}
             mapZoom={mapZoom}
+            suppressCityDetail={suppressCityDetail}
           />
         ))}
         </TacticalMotionProvider>
