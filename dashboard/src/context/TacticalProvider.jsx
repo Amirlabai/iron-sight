@@ -148,10 +148,6 @@ export function TacticalProvider({ children }) {
   const { themeMode, isLightMode, toggleThemeMode } = useThemeMode();
   const alertPrefsRef = useRef(alertPrefs);
 
-  useEffect(() => {
-    alertPrefsRef.current = alertPrefs;
-  }, [alertPrefs]);
-
   useAudioEngine(liveEvents, isMuted, alertPrefs);
   useScopedNotifications(liveEvents, alertPrefs);
   const ws = useRef(null);
@@ -166,6 +162,7 @@ export function TacticalProvider({ children }) {
   const isReadyRef = useRef(isReady);
 
   useSyncRefs([
+    [alertPrefsRef, alertPrefs],
     [viewModeRef, viewMode],
     [historyFilterRef, historyFilter],
     [timeFrameRef, timeFrame],
@@ -414,41 +411,45 @@ export function TacticalProvider({ children }) {
     fetchHistory(historyFilter, timeFrame, { append: false, offset: 0, limit: HISTORY_PAGE_SIZE });
   }, [historyFilter, timeFrame, fetchHistory]);
 
-  const selectArchive = (event) => {
+  const selectArchive = useCallback((event) => {
     setArchiveEvent(event);
     setViewMode('archive');
     setMapConfig(calculateArchiveMapConfig(event));
-  };
+  }, []);
 
-  const toggleCity = (city) => {
-    const currentCities = parseSandboxCities(sandboxInput);
-    if (currentCities.includes(city)) {
-      setSandboxInput(currentCities.filter(c => c !== city).join('; '));
-    } else {
-      setSandboxInput([...currentCities, city].join('; '));
-    }
-  };
+  const toggleCity = useCallback((city) => {
+    setSandboxInput((prev) => {
+      const currentCities = parseSandboxCities(prev);
+      if (currentCities.includes(city)) {
+        return currentCities.filter((c) => c !== city).join('; ');
+      }
+      return [...currentCities, city].join('; ');
+    });
+  }, []);
 
-  const toggleRegion = (regionName, e) => {
+  const toggleRegion = useCallback((regionName, e) => {
     e.stopPropagation();
-    const regionCities = Object.keys(regionalData[regionName]);
-    const currentCities = parseSandboxCities(sandboxInput);
-    const allInRegionSelected = regionCities.every(c => currentCities.includes(c));
-    if (allInRegionSelected) {
-      setSandboxInput(currentCities.filter(c => !regionCities.includes(c)).join('; '));
-    } else {
-      setSandboxInput([...new Set([...currentCities, ...regionCities])].join('; '));
-    }
-  };
+    setSandboxInput((prev) => {
+      const regionCities = Object.keys(regionalData[regionName] || {});
+      const currentCities = parseSandboxCities(prev);
+      const allInRegionSelected = regionCities.every((c) => currentCities.includes(c));
+      if (allInRegionSelected) {
+        return currentCities.filter((c) => !regionCities.includes(c)).join('; ');
+      }
+      return [...new Set([...currentCities, ...regionCities])].join('; ');
+    });
+  }, [regionalData]);
 
-  const toggleExpand = (region) => {
-    const next = new Set(expandedRegions);
-    if (next.has(region)) next.delete(region);
-    else next.add(region);
-    setExpandedRegions(next);
-  };
+  const toggleExpand = useCallback((region) => {
+    setExpandedRegions((prev) => {
+      const next = new Set(prev);
+      if (next.has(region)) next.delete(region);
+      else next.add(region);
+      return next;
+    });
+  }, []);
 
-  const returnToLive = () => {
+  const returnToLive = useCallback(() => {
     setViewMode('live');
     setActiveTab('live');
     setTimeFrame('all');
@@ -456,14 +457,14 @@ export function TacticalProvider({ children }) {
     setOriginFilter('all');
     setMapConfig(resolveMapConfig(liveEvents, alertPrefsRef.current));
     setMapAutoFollowToken((t) => t + 1);
-  };
+  }, [liveEvents]);
 
   useEffect(() => {
     if (viewMode !== 'live') return;
     setMapConfig(resolveMapConfig(liveEvents, alertPrefs));
   }, [alertPrefs.mapZoomLevels, liveEvents, viewMode]);
 
-  const runSandboxAnalysis = async () => {
+  const runSandboxAnalysis = useCallback(async () => {
     if (!sandboxInput.trim()) return;
     setIsAnalyzing(true);
     try {
@@ -471,7 +472,7 @@ export function TacticalProvider({ children }) {
       const resp = await fetch(`${TACTICAL_API_URL}/api/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cities })
+        body: JSON.stringify({ cities }),
       });
       if (resp.ok) {
         const data = await resp.json();
@@ -485,15 +486,15 @@ export function TacticalProvider({ children }) {
         });
       }
     } catch (err) {
-      if (!IS_PROD) console.error("SANDBOX_ANALYSIS_FAILED:", err);
+      if (!IS_PROD) console.error('SANDBOX_ANALYSIS_FAILED:', err);
     } finally {
       setIsAnalyzing(false);
     }
-  };
+  }, [sandboxInput]);
 
-  const handleTabChange = (tab) => {
+  const handleTabChange = useCallback((tab) => {
     setActiveTab(tab);
-  };
+  }, []);
 
   const filteredHistory = useMemo(
     () => filterHistoryByOrigin(history, originFilter),
@@ -586,7 +587,10 @@ export function TacticalProvider({ children }) {
     alertPrefsApi,
     themeMode,
     isLightMode,
+    toggleThemeMode,
     fetchHistory, loadMoreHistory,
+    selectArchive, toggleCity, toggleRegion, toggleExpand,
+    returnToLive, runSandboxAnalysis, handleTabChange,
   ]);
 
   return (

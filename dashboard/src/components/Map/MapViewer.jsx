@@ -246,7 +246,7 @@ export default function MapViewer() {
     : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
 
   const [mapFollowAuto, setMapFollowAuto] = useState(true);
-  const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
+  const [mapZoom, setMapZoom] = useState(() => mapConfig.zoom ?? DEFAULT_ZOOM);
   const suppressProgrammaticRef = useRef(false);
   const mapRef = useRef(null);
   const mapConfigRef = useRef(mapConfig);
@@ -323,27 +323,16 @@ export default function MapViewer() {
       const outer = getBoundaryOuter(boundary);
       const color = STRATEGIC_METADATA[origin]?.color || tacticalColor;
       if (!outer?.length) return null;
-      return (
-        <OriginHaloPolygons
-          key={`timeframe-origin-${origin}`}
-          positions={outer}
-          color={color}
-          smoothFactor={1.0}
-        />
-      );
+      return { origin, outer, color };
     }).filter(Boolean);
 
     const originPins = Object.entries(originData)
       .filter(([origin]) => !INTERNAL_ORIGIN_TERMS.has(origin))
-      .map(([origin, data]) => (
-        <Marker
-          key={`timeframe-pin-${origin}`}
-          position={data.coords}
-          icon={buildOriginMarkerIcon(origin, data.color)}
-        >
-          <Popup>Launch Origin: {origin}</Popup>
-        </Marker>
-      ));
+      .map(([origin, data]) => ({
+        origin,
+        coords: data.coords,
+        color: data.color,
+      }));
 
     return { originHalos, originPins };
   }, [viewMode, renderableEvents, tacticalColor]);
@@ -399,8 +388,23 @@ export default function MapViewer() {
         <IsraelBaseLayer />
         <UserLocationMarker />
 
-        {timeframeOriginLayers.originHalos}
-        {timeframeOriginLayers.originPins}
+        {timeframeOriginLayers.originHalos.map(({ origin, outer, color }) => (
+          <OriginHaloPolygons
+            key={`timeframe-origin-${origin}`}
+            positions={outer}
+            color={color}
+            smoothFactor={1.0}
+          />
+        ))}
+        {timeframeOriginLayers.originPins.map(({ origin, coords, color }) => (
+          <Marker
+            key={`timeframe-pin-${origin}`}
+            position={coords}
+            icon={buildOriginMarkerIcon(origin, color)}
+          >
+            <Popup>Launch Origin: {origin}</Popup>
+          </Marker>
+        ))}
 
         {renderableEvents.map((currentEvent, eventIdx) => (
           <ThreatOverlay

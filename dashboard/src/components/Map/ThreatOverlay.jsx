@@ -16,7 +16,7 @@ const CITY_FALLBACK_RADIUS_METERS = 500;
 
 const SVG_PATH_RENDERER = getSvgPathRenderer();
 
-export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor, highlightColor, mapZoom }) {
+export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor, highlightColor, mapZoom = 0 }) {
   const isLive = viewMode === 'live';
 
   const animatedPathOptions = useMemo(

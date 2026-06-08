@@ -3,17 +3,34 @@ import { getConvexHull, getCentroid, getDistance } from './geoUtils';
 /** Proximity threshold (km) for merging clusters in timeframe view. */
 export const CLUSTER_MERGE_DISTANCE_KM = 8;
 
+/** Record separator — cannot appear in category/origin names. */
+const GROUP_KEY_SEP = '\x1e';
+
+function makeGroupKey(category, origin) {
+  return `${category}${GROUP_KEY_SEP}${origin}`;
+}
+
+function parseGroupKey(key) {
+  const sep = key.indexOf(GROUP_KEY_SEP);
+  return {
+    category: key.slice(0, sep),
+    origin: key.slice(sep + GROUP_KEY_SEP.length),
+  };
+}
+
 function copyEventBase(source) {
   return {
     title: source.title,
     time: source.time,
-    visual_config: source.visual_config,
+    visual_config: source.visual_config ? { ...source.visual_config } : source.visual_config,
     verified: source.verified,
     manual_origin: source.manual_origin,
     is_simulation: source.is_simulation,
     center: source.center,
     zoom_level: source.zoom_level,
-    highlight_origins: source.highlight_origins,
+    highlight_origins: source.highlight_origins
+      ? source.highlight_origins.map((o) => ({ ...o }))
+      : source.highlight_origins,
   };
 }
 
@@ -70,7 +87,7 @@ function groupClustersByProximity(allClusters, mergeDistanceKm) {
   return superClusters;
 }
 
-function buildSuperEvent(group, events, category, origin, key, sIdx) {
+function buildSuperEvent(group, events, category, origin, sIdx) {
   const baseEvent = copyEventBase(events[0]);
 
   const times = group.map((c) => new Date(c.time || baseEvent.time).getTime());
@@ -80,7 +97,7 @@ function buildSuperEvent(group, events, category, origin, key, sIdx) {
 
   const superEvent = {
     ...baseEvent,
-    id: `merged_${key}_${sIdx}`,
+    id: `merged_${category}_${origin}_${sIdx}`,
     category,
     mergedCount: group.length,
     timeRange: timeRangeStr,
@@ -154,7 +171,7 @@ export function mergeTimeFrameEvents(filteredHistory, options = {}) {
   filteredHistory.forEach((ev) => {
     const category = ev.category || 'missiles';
     const origin = ev.trajectories?.[0]?.origin || ev.clusters?.[0]?.origin || 'unknown';
-    const key = `${category}_${origin}`;
+    const key = makeGroupKey(category, origin);
     if (!eventGroups[key]) eventGroups[key] = [];
     eventGroups[key].push(ev);
   });
@@ -162,9 +179,7 @@ export function mergeTimeFrameEvents(filteredHistory, options = {}) {
   const mergedEvents = [];
 
   Object.entries(eventGroups).forEach(([key, events]) => {
-    const sep = key.indexOf('_');
-    const category = key.slice(0, sep);
-    const origin = key.slice(sep + 1);
+    const { category, origin } = parseGroupKey(key);
 
     const allClusters = [];
     events.forEach((ev) => {
@@ -176,7 +191,7 @@ export function mergeTimeFrameEvents(filteredHistory, options = {}) {
     const superClusters = groupClustersByProximity(allClusters, mergeDistanceKm);
 
     superClusters.forEach((group, sIdx) => {
-      mergedEvents.push(buildSuperEvent(group, events, category, origin, key, sIdx));
+      mergedEvents.push(buildSuperEvent(group, events, category, origin, sIdx));
     });
   });
 

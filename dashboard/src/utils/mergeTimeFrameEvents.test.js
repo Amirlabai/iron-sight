@@ -69,6 +69,73 @@ describe('mergeTimeFrameEvents', () => {
     expect(merged).toHaveLength(2);
   });
 
+  it('groups origins containing underscores correctly', () => {
+    const history = [
+      {
+        id: 'a',
+        category: 'missiles',
+        time: '2024-01-01T10:00:00Z',
+        clusters: [{
+          origin: 'north_sector',
+          centroid: [32.0, 34.0],
+          cities: [{ name: 'City A', coords: [32.0, 34.0] }],
+        }],
+        trajectories: [{ origin: 'north_sector' }],
+      },
+      {
+        id: 'b',
+        category: 'missiles',
+        time: '2024-01-01T10:05:00Z',
+        clusters: [{
+          origin: 'north_sector',
+          centroid: [32.01, 34.01],
+          cities: [{ name: 'City B', coords: [32.01, 34.01] }],
+        }],
+        trajectories: [{ origin: 'north_sector' }],
+      },
+    ];
+
+    const merged = mergeTimeFrameEvents(history);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].id).toBe('merged_missiles_north_sector_0');
+    expect(merged[0].mergedCount).toBe(2);
+  });
+
+  it('shallow-clones nested fields so merged events do not share references', () => {
+    const visualConfig = { color: 'red', movement: 'pulse-animation' };
+    const highlightOrigins = [{ name: 'Iran', coords: [33.0, 44.0] }];
+    const history = [
+      {
+        id: 'a',
+        category: 'missiles',
+        visual_config: visualConfig,
+        highlight_origins: highlightOrigins,
+        clusters: [{
+          origin: 'Iran',
+          centroid: [32.0, 34.0],
+          cities: [{ name: 'Tel Aviv', coords: [32.0, 34.0] }],
+        }],
+        trajectories: [{ origin: 'Iran' }],
+      },
+      {
+        id: 'b',
+        category: 'missiles',
+        clusters: [{
+          origin: 'Iran',
+          centroid: [32.01, 34.01],
+          cities: [{ name: 'Haifa', coords: [32.01, 34.01] }],
+        }],
+        trajectories: [{ origin: 'Iran' }],
+      },
+    ];
+
+    const merged = mergeTimeFrameEvents(history);
+    expect(merged[0].visual_config).not.toBe(visualConfig);
+    expect(merged[0].visual_config).toEqual(visualConfig);
+    expect(merged[0].highlight_origins).not.toBe(highlightOrigins);
+    expect(merged[0].highlight_origins).toEqual(highlightOrigins);
+  });
+
   it('merges clusters sharing a city name even when far apart', () => {
     const history = [{
       id: 'a',

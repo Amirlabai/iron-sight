@@ -24,6 +24,7 @@ export default function DateRangeFilter({ timeFrame, onTimeFrameChange }) {
       <span style={{ fontSize: '10px', color: 'var(--text-sub)', fontWeight: '600' }}>FROM:</span>
       <input
         type="date"
+        aria-label="From date"
         style={dateInputStyle}
         value={fromValue}
         onChange={(e) => {
@@ -33,6 +34,7 @@ export default function DateRangeFilter({ timeFrame, onTimeFrameChange }) {
       <span style={{ fontSize: '10px', color: 'var(--text-sub)', fontWeight: '600' }}>TO:</span>
       <input
         type="date"
+        aria-label="To date"
         style={dateInputStyle}
         value={toValue}
         onChange={(e) => {

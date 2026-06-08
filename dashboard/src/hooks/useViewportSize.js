@@ -20,10 +20,12 @@ export function useViewportSize() {
       setViewport((prev) => (prev.width === w && prev.height === h ? prev : { width: w, height: h }));
     };
     vv?.addEventListener('resize', onVisualViewport);
+    vv?.addEventListener('scroll', onVisualViewport);
     return () => {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onResize);
       vv?.removeEventListener('resize', onVisualViewport);
+      vv?.removeEventListener('scroll', onVisualViewport);
     };
   }, []);
 
