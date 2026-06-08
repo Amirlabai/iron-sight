@@ -52,6 +52,59 @@ body, html, #root {
 .header-controls {
   display: flex;
   gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tool-tabs {
+  display: flex;
+  gap: 4px;
+  margin-right: 4px;
+}
+
+.tool-tab {
+  background: #1a1a24;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tool-tab.active {
+  color: var(--text-primary);
+  border-color: var(--accent-blue);
+  background: rgba(77, 148, 255, 0.12);
+}
+
+.replay-view {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.replay-btn {
+  background: rgba(77, 148, 255, 0.15);
+  border: 1px solid var(--accent-blue);
+  color: var(--text-primary);
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.replay-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .header-controls select, .data-group select {
@@ -153,6 +206,18 @@ body, html, #root {
 .city-filter-clear:hover {
   color: var(--text-primary);
   border-color: var(--accent-blue);
+}
+
+.origin-filter-select {
+  flex: 1;
+  min-width: 0;
+  background: #1a1a24;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
 }
 
 .sidebar-header {

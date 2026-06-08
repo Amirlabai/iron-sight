@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, useMap } from 'react-leaflet';
-import { Shield, Clock, MapPin, ChevronRight, CheckCircle, SplitSquareVertical, Filter, RefreshCcw, Combine } from 'lucide-react';
+import { Shield, Clock, CheckCircle, SplitSquareVertical, Filter, RefreshCcw, Combine, Play } from 'lucide-react';
+import OriginReplayView from './views/OriginReplayView';
 import { fetchHistory, updateAlertOrigin, splitAlert, mergeAlerts, suggestOrigin, projectEntry, fetchTrainingExport } from './api/apiService';
 import {
   ISRAEL_CENTER, DEFAULT_ZOOM, TACTICAL_RED, HIGHLIGHT_RED, ORIGINS_DATA,
@@ -8,6 +9,10 @@ import {
 } from './utils/constants';
 import { fetchHealth } from './api/apiService';
 import { TACTICAL_BOUNDARIES } from './utils/tactical_geodata';
+import {
+  ORIGIN_FILTER_OPTIONS,
+  filterHistoryByOrigin,
+} from './utils/historyFilters';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 
@@ -84,11 +89,13 @@ function App() {
   const [queueFilter, setQueueFilter] = useState('all');
   const [minCities, setMinCities] = useState('');
   const [maxCities, setMaxCities] = useState('');
+  const [originFilter, setOriginFilter] = useState('all');
   const [originMarker, setOriginMarker] = useState(null);
   const [originName, setOriginName] = useState('Gaza');
   const [mlSuggestion, setMlSuggestion] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [apiOnline, setApiOnline] = useState(null);
+  const [activeTool, setActiveTool] = useState('audit');
 
   useEffect(() => {
     loadHistory();
@@ -105,7 +112,7 @@ function App() {
         setApiOnline(false);
         throw new Error(
           `Cannot reach API via ${TACTICAL_API_URL}/api (proxy → ${API_PROXY_TARGET}). ` +
-          `Ensure backend is running on port 8080, then restart Vite. ${healthErr.message}`,
+          `Run .\\scripts\\run-operator.ps1 or python backend/operator_main.py, then restart Vite. ${healthErr.message}`,
         );
       }
 
@@ -177,23 +184,28 @@ function App() {
     setOriginMarker([latlng.lat, latlng.lng]);
   };
 
-  const displayedHistory = useMemo(() => history.filter((ev) => {
-    if (hideVerified && ev.verified) return false;
-    if (queueFilter === 'needs_review' && ev.verified) return false;
-    if (queueFilter === 'newsFlash' && ev.category !== 'newsFlash') return false;
-    if (queueFilter === 'multi_origin') {
-      const cands = ev.origin_candidates || [];
-      const trajCount = (ev.trajectories || []).length;
-      if (!(cands.length >= 2 || trajCount >= 2)) return false;
-    }
-    if (queueFilter === 'low_confidence') {
-      const conf = ev.origin_ml_confidence;
-      if (!(conf !== undefined && conf !== null && conf < 0.5)) return false;
-    }
-    return passesCityCountFilter(ev, minCities, maxCities);
-  }), [history, hideVerified, queueFilter, minCities, maxCities]);
+  const displayedHistory = useMemo(() => {
+    const queueFiltered = history.filter((ev) => {
+      if (hideVerified && ev.verified) return false;
+      if (queueFilter === 'needs_review' && ev.verified) return false;
+      if (queueFilter === 'newsFlash' && ev.category !== 'newsFlash') return false;
+      if (queueFilter === 'multi_origin') {
+        const cands = ev.origin_candidates || [];
+        const trajCount = (ev.trajectories || []).length;
+        if (!(cands.length >= 2 || trajCount >= 2)) return false;
+      }
+      if (queueFilter === 'low_confidence') {
+        const conf = ev.origin_ml_confidence;
+        if (!(conf !== undefined && conf !== null && conf < 0.5)) return false;
+      }
+      return passesCityCountFilter(ev, minCities, maxCities);
+    });
+    return filterHistoryByOrigin(queueFiltered, originFilter);
+  }, [history, hideVerified, queueFilter, minCities, maxCities, originFilter]);
 
   const cityFilterActive = minCities !== '' || maxCities !== '';
+  const originFilterActive = originFilter !== 'all';
+  const sidebarFiltersActive = cityFilterActive || originFilterActive;
 
   useEffect(() => {
     if (loading || loadError) return;
@@ -318,6 +330,23 @@ function App() {
           <h1>IRON SIGHT <span>HISTORY AUDITOR</span></h1>
         </div>
         <div className="header-controls">
+          <div className="tool-tabs" role="group" aria-label="Operator tool">
+            <button
+              type="button"
+              className={`tool-tab ${activeTool === 'audit' ? 'active' : ''}`}
+              onClick={() => setActiveTool('audit')}
+            >
+              Audit
+            </button>
+            <button
+              type="button"
+              className={`tool-tab ${activeTool === 'replay' ? 'active' : ''}`}
+              onClick={() => setActiveTool('replay')}
+            >
+              Pipeline Replay
+            </button>
+          </div>
+
           <button 
             className={`filter-toggle ${hideVerified ? 'active' : ''}`}
             onClick={() => setHideVerified(!hideVerified)}
@@ -408,12 +437,31 @@ function App() {
               onChange={(e) => setMaxCities(e.target.value)}
               title="Maximum number of cities"
             />
-            {cityFilterActive && (
+          </div>
+          <div className="sidebar-filters">
+            <label className="sidebar-filter-label" htmlFor="origin-filter">Origin</label>
+            <select
+              id="origin-filter"
+              className="origin-filter-select"
+              value={originFilter}
+              onChange={(e) => setOriginFilter(e.target.value)}
+              title="Filter by launch origin"
+            >
+              <option value="all">All</option>
+              {ORIGIN_FILTER_OPTIONS.map((origin) => (
+                <option key={origin} value={origin}>{origin}</option>
+              ))}
+            </select>
+            {sidebarFiltersActive && (
               <button
                 type="button"
                 className="city-filter-clear"
-                onClick={() => { setMinCities(''); setMaxCities(''); }}
-                title="Clear city filter"
+                onClick={() => {
+                  setMinCities('');
+                  setMaxCities('');
+                  setOriginFilter('all');
+                }}
+                title="Clear sidebar filters"
               >
                 Clear
               </button>
@@ -439,7 +487,8 @@ function App() {
             {!loading && !loadError && history.length > 0 && displayedHistory.length === 0 && (
               <div className="sidebar-status">
                 {history.length} loaded; none match the current filters
-                {cityFilterActive && ` (cities ${minCities || '0'}–${maxCities || '∞'})`}.
+                {cityFilterActive && ` (cities ${minCities || '0'}–${maxCities || '∞'})`}
+                {originFilterActive && ` (origin ${originFilter})`}.
               </div>
             )}
             {displayedHistory.map(ev => (
@@ -474,6 +523,11 @@ function App() {
           </div>
         </aside>
 
+        {activeTool === 'replay' ? (
+          <section className="replay-view">
+            <OriginReplayView selectedEvent={selectedEvent} active={activeTool === 'replay'} />
+          </section>
+        ) : (
         <section className="map-view">
           <MapContainer center={ISRAEL_CENTER} zoom={DEFAULT_ZOOM} style={{ height: '100%', width: '100%' }}>
             <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
@@ -542,7 +596,9 @@ function App() {
             )}
           </MapContainer>
         </section>
+        )}
 
+        {activeTool === 'audit' && (
         <aside className="control-panel">
           {selectedEvent ? (
             <div className="control-content">
@@ -611,6 +667,17 @@ function App() {
                 >
                   <CheckCircle size={18} /> COMMIT & VERIFY
                 </button>
+
+                {selectedEvent.category === 'missiles' && (
+                  <button
+                    type="button"
+                    className="replay-btn"
+                    onClick={() => setActiveTool('replay')}
+                    disabled={loading}
+                  >
+                    <Play size={18} /> REPLAY PIPELINE
+                  </button>
+                )}
                 
                 <button 
                   className="split-btn" 
@@ -649,6 +716,7 @@ function App() {
             </div>
           )}
         </aside>
+        )}
       </main>
     </div>
   );

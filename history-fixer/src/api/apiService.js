@@ -24,11 +24,25 @@ export const fetchHistory = async (category = 'all') => {
   const params = new URLSearchParams();
   if (category !== 'all') params.set('category', category);
   params.set('limit', String(HISTORY_FETCH_LIMIT));
+  params.set('view', 'full');
   const qs = params.toString();
   const url = `${TACTICAL_API_URL}/api/history${qs ? `?${qs}` : ''}`;
   const res = await fetch(url);
   const data = await parseJsonResponse(res, 'History fetch');
   return Array.isArray(data) ? data : [];
+};
+
+export const fetchOriginReplay = async ({ id, category = 'missiles', allowStrategic = true }) => {
+  const res = await fetch(`${TACTICAL_API_URL}/api/origin/replay`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      id,
+      category,
+      allow_strategic: allowStrategic,
+    }),
+  });
+  return parseJsonResponse(res, 'Origin replay');
 };
 
 export const updateAlertOrigin = async (id, category, origin_name, origin_coords, origin_ml_scores = null) => {
@@ -96,7 +110,11 @@ export const fetchCities = async () => {
 };
 
 export const fetchHealth = async () => {
-  const res = await fetch(`${TACTICAL_API_URL}/api/history?limit=1`);
+  let res = await fetch(`${TACTICAL_API_URL}/api/health`);
+  if (res.ok) {
+    return parseJsonResponse(res, 'Health');
+  }
+  res = await fetch(`${TACTICAL_API_URL}/api/history?limit=1&view=full`);
   const data = await parseJsonResponse(res, 'Health');
   return Array.isArray(data) ? { status: 'OPERATIONAL', rows: data.length } : data;
 };

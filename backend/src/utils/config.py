@@ -8,6 +8,7 @@ load_dotenv(os.path.join(_BACKEND_DIR, ".env"))
 
 # --- Network Configuration ---
 WS_PORT = int(os.environ.get("PORT", 8080))
+OPERATOR_PORT = int(os.environ.get("OPERATOR_PORT", 8081))
 POLL_INTERVAL = 3
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 TIMEZONE = ZoneInfo("Asia/Jerusalem")

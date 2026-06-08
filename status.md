@@ -8,6 +8,13 @@ Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`
 
 ## Recently completed
 
+### Operator console (2026-06-08)
+
+- `backend/src/api/history_operator.py`: shared history/replay HTTP routes; `ws_manager` delegates.
+- `backend/operator_main.py`: slim API on :8081 (Mongo + history fixer routes only).
+- `history-fixer`: **Audit** + **Pipeline Replay** tabs; origin-replay merged in.
+- `scripts/run-operator.ps1`: one command starts operator API + Vite UI.
+
 ### Backend observability (worktree `.worktrees/observability`, branch `fix/observability-logs`)
 
 - `observability.py`: RSS memory, HTTP timing middleware, structured log helpers.

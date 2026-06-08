@@ -38,7 +38,8 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 |-------|-------|-------|
 | Backend | Python 3.12, `backend/src/` | Core engine, REST/WS API, MongoDB persistence |
 | Dashboard | Vite + React, `dashboard/` | Leaflet map, glassmorphic UI, PWA |
-| Origin Replay | Vite + React, `origin-replay/` | Dev tool: step-through origin pipeline replay (`:5175`) |
+| Operator console | `history-fixer/` + `backend/operator_main.py` | Archive audit + pipeline replay; API :8081, UI :5174; `scripts/run-operator.ps1` |
+| Origin Replay | `origin-replay/` (deprecated standalone) | Merged into history-fixer **Pipeline Replay** tab |
 | Database | MongoDB Atlas (M0) | Threat archives + `event_logs` lifecycle |
 | Deploy | Render (API) / Vercel (UI) / Kamatera (relay) | Prod WS: `wss://iron-sight-hjwf.onrender.com/ws`; REST via Vercel `/api` rewrite |
 | Relay | Node.js scout (`63.250.61.251`) | GET `/alerts` + `x-relay-auth`; sole uplink |
@@ -46,7 +47,7 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 ### Backend modules
 
 - `src/core/` — `event_store.py` (stub+master), `lifecycle.py`, `relay_ingest.py`, `missile_origins.py`, clustering/PCA, multi-threat processing; `origin_replay.py` for dev step-through trace.
-- `src/api/` — WebSocket sync, REST history/cities, push routes; `POST /api/origin/replay` for origin pipeline replay.
+- `src/api/` — WebSocket sync, REST history/cities, push routes; `history_operator.py` shared routes; `operator_main.py` slim server for archive tools.
 - `src/utils/` — trajectory helpers, `archive_normalize.py` (legacy missile archive rebuild).
 - Geodata — `tactical_borders.json` (visuals), `calculation_borders.json` (logic), `cities.json` / `polygons.json` (city boundaries).
 

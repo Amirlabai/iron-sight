@@ -36,7 +36,7 @@ function resolveApiBase() {
 export const TACTICAL_API_URL = resolveApiBase();
 
 export const API_PROXY_TARGET =
-  import.meta.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8080';
+  import.meta.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8081';
 
 export const MISSION_KEY =
   import.meta.env.VITE_MISSION_KEY || 'IS-TAC-7A2B-91C4-8E6F-D25B';
