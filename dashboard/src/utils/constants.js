@@ -59,8 +59,8 @@ export const STRATEGIC_METADATA = TACTICAL_GEOJSON.features.reduce((acc, feature
   return acc;
 }, {});
 
-// Networking — dev uses Vite origin + proxy. Prod: REST via Vercel /api rewrite; WS direct to Render
-// (Vercel edge does not reliably proxy WebSocket upgrades on /ws — GET /ws returns index.html).
+// Networking — dev: Vite origin + proxy to localhost:8080, unless VITE_WS_URL set (direct to Render).
+// Prod: REST via Vercel /api rewrite; WS direct to Render (Vercel edge does not proxy /ws upgrades).
 export const IS_PROD = import.meta.env.PROD;
 const PROD_WS_HOST = 'iron-sight-hjwf.onrender.com';
 
@@ -68,12 +68,19 @@ function normalizeHost(raw) {
   return String(raw || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
 }
 
+const REMOTE_HOST = normalizeHost(import.meta.env.VITE_WS_URL || '');
 const WS_HOST = IS_PROD
-  ? normalizeHost(import.meta.env.VITE_WS_URL || PROD_WS_HOST)
-  : window.location.host;
-const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ? (REMOTE_HOST || PROD_WS_HOST)
+  : (REMOTE_HOST || (typeof window !== 'undefined' ? window.location.host : 'localhost'));
+const WS_PROTOCOL = (!IS_PROD && REMOTE_HOST) || (typeof window !== 'undefined' && window.location.protocol === 'https:')
+  ? 'wss:'
+  : 'ws:';
 export const WEBSOCKET_URL = `${WS_PROTOCOL}//${WS_HOST}/ws`;
-export const TACTICAL_API_URL = IS_PROD ? '' : `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${window.location.host}`;
+export const TACTICAL_API_URL = IS_PROD
+  ? ''
+  : (REMOTE_HOST
+    ? `https://${REMOTE_HOST}`
+    : `${typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'https:' : 'http:'}//${typeof window !== 'undefined' ? window.location.host : 'localhost'}`);
 export const MISSION_KEY = import.meta.env.VITE_MISSION_KEY;
 
 // Tactical Color Tokens
