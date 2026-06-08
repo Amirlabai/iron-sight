@@ -24,7 +24,8 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 | History-fixer verify commit | Operator-chosen pin (typically calc entry from suggest-origin) |
 
 - Origin projection via regression from cluster cities; depth calibration: Gaza/Lebanon 0.5, Iran 16.0, Yemen 20.0. Trajectory entry: calc-border ray-march along oriented PCA, then ~0.1° inset inside calc polygon. Display pin: first **tactical silhouette** crossing on the full ray (to `tac_max` 42° Iran / 50° Yemen) plus 0.1° inset—never calc entry coords. Fallback: on-ray point at `tac_max` if inside silhouette, else country-centroid. Optional `calc_entry_coords` on trajectory for replay/debug.
-- ID-driven lifecycle: `EventStore` (stub per relay ID + one master analysis per cluster); 10s end grace; 20 min inactivity timeout. Duplicate relay ticks (+0 cities) skip reprocess, broadcast, DB `UPDATED`, and cluster timeout extension.
+- ID-driven lifecycle: `EventStore` (stub per relay ID + one master analysis per cluster); master assignment clusters on union cities; 10s end grace; 20 min inactivity timeout (`lifecycle.maintain_lifecycle`). Relay ingest in `relay_ingest.ingest_relay_batch`; clearance without `alert_id` ends all live events when `CLEARANCE_BROADCAST_ALL_WHEN_UNKNOWN_ID`. Duplicate relay ticks (+0 cities) skip reprocess, broadcast, DB `UPDATED`, and cluster timeout extension.
+- Missile origin pipeline: `missile_origins.build_missile_origins` shared by `threat_processor`, `cluster_utils` merge, and `archive_normalize`.
 - Live RAM uses coord-based hulls; polygon hulls built only for WebSocket broadcast and DB persist.
 - Strategic origins (Iran/Yemen) gated by warning-shaped `newsFlash` (`data` or `cities` present).
 - When **≥2** geometric origin candidates exist, `origin_ml.resolve_origin_ml` picks the winner from **verified** `salvo_history` / `drone_history` (labels: `verified`, `manual_origin`, `trajectories[0].origin`).
@@ -44,7 +45,7 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 
 ### Backend modules
 
-- `src/core/` — clustering, PCA vectoring, multi-threat processing (missiles, drones, infiltration, earthquake, newsFlash); `origin_replay.py` for dev step-through trace.
+- `src/core/` — `event_store.py` (stub+master), `lifecycle.py`, `relay_ingest.py`, `missile_origins.py`, clustering/PCA, multi-threat processing; `origin_replay.py` for dev step-through trace.
 - `src/api/` — WebSocket sync, REST history/cities, push routes; `POST /api/origin/replay` for origin pipeline replay.
 - `src/utils/` — trajectory helpers, `archive_normalize.py` (legacy missile archive rebuild).
 - Geodata — `tactical_borders.json` (visuals), `calculation_borders.json` (logic), `cities.json` / `polygons.json` (city boundaries).

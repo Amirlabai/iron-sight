@@ -7,11 +7,9 @@ from datetime import datetime
 
 import numpy as np
 
-from src.utils.cluster_utils import get_cluster_groups
+from src.utils.cluster_utils import group_events
 
 logger = logging.getLogger("IronSightTerminal")
-
-MAX_ACTIVE_MEMBERS_PER_CLUSTER = 8
 
 
 class EventStore:
@@ -75,6 +73,12 @@ class EventStore:
             self._view_cache = self._build_view()
         return self._view_cache
 
+    def has_active_newsflash(self):
+        return any(
+            s["category"] == "newsFlash" and s["end_time"] is None
+            for s in self._stubs.values()
+        )
+
     def _build_view(self):
         view = {}
         for aid, stub in self._stubs.items():
@@ -99,6 +103,32 @@ class EventStore:
             "master_id": stub["master_id"],
         }
 
+    def _clustering_view(self):
+        """Union-city view for master assignment (matches broadcast merge geometry)."""
+        view = {}
+        union_cache = {}
+        for aid, stub in self._stubs.items():
+            master_id = stub["master_id"]
+            if master_id not in union_cache:
+                union_cache[master_id] = self._union_cities_for_master(master_id)
+            union = union_cache[master_id]
+            master = self._masters[master_id]
+            data = dict(master["data"])
+            data["all_cities"] = union
+            if union:
+                coords = np.array([c["coords"] for c in union])
+                data["center"] = np.mean(coords, axis=0).tolist()
+            view[aid] = {
+                "data": data,
+                "last_update_time": stub["last_update_time"],
+                "end_time": stub["end_time"],
+                "category": stub["category"],
+                "is_transient": stub.get("is_transient", False),
+                "lifecycle_status": stub.get("lifecycle_status"),
+                "master_id": master_id,
+            }
+        return view
+
     def _maybe_drop_master(self, master_id):
         if any(s["master_id"] == master_id for s in self._stubs.values()):
             return
@@ -116,7 +146,7 @@ class EventStore:
         return list(seen.values())
 
     def _resolve_master_id(self, alert_id):
-        groups = get_cluster_groups(self.active_events, threshold_km=15)
+        groups = group_events(self._clustering_view(), threshold_km=15, include_all=False)
         for group in groups:
             if alert_id in group:
                 return sorted(group)[0]
@@ -132,20 +162,20 @@ class EventStore:
         master_id,
         processor,
         a_type,
-        has_newsflash_in_batch,
+        allow_strategic,
     ):
         union = self._union_cities_for_master(master_id)
         if not union:
-            return None
+            return None, 0
         full_analysis = await processor.process(
             a_type,
             [c["name"] for c in union],
-            self.active_events,
-            has_newsflash_in_batch,
+            active_events=None,
+            has_newsflash_in_batch=allow_strategic,
             use_polygon_hulls=False,
         )
         if not full_analysis:
-            return None
+            return None, len(union)
         lead_stub = self._stubs.get(master_id) or next(
             (self._stubs[sid] for sid in self._cluster_stub_ids(master_id) if sid in self._stubs),
             None,
@@ -157,8 +187,8 @@ class EventStore:
             )
         self._masters[master_id]["data"] = full_analysis
         self._masters[master_id]["dirty"] = True
-        self._invalidate_merge_only()
-        return full_analysis
+        self._invalidate()
+        return full_analysis, len(union)
 
     def compute_broadcast_hash(self):
         parts = []
@@ -225,15 +255,9 @@ class EventStore:
             self._maybe_drop_master(alert_id)
 
         master_id = self._stubs[alert_id]["master_id"]
-        cluster_size = len(self._cluster_stub_ids(master_id))
-        if cluster_size > MAX_ACTIVE_MEMBERS_PER_CLUSTER:
-            logger.info(
-                f"CLUSTER_MEMBER_CAP: master {master_id} "
-                f"has {cluster_size} members (cap {MAX_ACTIVE_MEMBERS_PER_CLUSTER})"
-            )
-
-        if cluster_size > 1 and processor is not None:
-            await self._rebuild_master(master_id, processor, a_type, has_newsflash_in_batch)
+        allow_strategic = has_newsflash_in_batch or self.has_active_newsflash()
+        if len(self._cluster_stub_ids(master_id)) > 1 and processor is not None:
+            await self._rebuild_master(master_id, processor, a_type, allow_strategic)
             self._masters[master_id]["data"]["is_simulation"] = is_simulation
             self._masters[master_id]["data"]["time"] = event_time
 
@@ -248,7 +272,7 @@ class EventStore:
         event_time,
         now,
         processor,
-        has_newsflash_in_batch,
+        allow_strategic,
     ):
         """Apply relay update. Returns (changed, new_city_count, total_cities) or (False, 0, 0) on duplicate."""
         stub = self._stubs[alert_id]
@@ -271,19 +295,25 @@ class EventStore:
         name_to_city = {c["name"]: c for c in stub["member_cities"] if c.get("name")}
         for c in new_city_objs:
             name_to_city[c["name"]] = c
+        prev_cities = stub["member_cities"]
+        prev_end_time = stub["end_time"]
+        prev_last_update = stub["last_update_time"]
         stub["member_cities"] = list(name_to_city.values())
         stub["end_time"] = None
         stub["last_update_time"] = now
         self._invalidate()
 
         master_id = stub["master_id"]
-        full_analysis = await self._rebuild_master(
-            master_id, processor, a_type, has_newsflash_in_batch
+        full_analysis, total = await self._rebuild_master(
+            master_id, processor, a_type, allow_strategic
         )
         if not full_analysis:
-            return False, 0, len(stub["member_cities"])
+            stub["member_cities"] = prev_cities
+            stub["end_time"] = prev_end_time
+            stub["last_update_time"] = prev_last_update
+            self._invalidate()
+            return False, 0, len(prev_cities)
 
-        full_analysis["id"] = alert_id
         full_analysis["is_simulation"] = is_simulation
         full_analysis["time"] = (
             self._masters[master_id]["data"].get("time")
@@ -292,29 +322,33 @@ class EventStore:
         )
         self._masters[master_id]["data"]["time"] = full_analysis["time"]
 
-        self._sync_cluster_timeouts(alert_id, now, len(new_city_objs))
-        total = len(self._union_cities_for_master(master_id))
+        self._sync_cluster_timeouts(master_id, alert_id, now, len(new_city_objs))
         return True, len(new_city_objs), total
 
-    def _sync_cluster_timeouts(self, alert_id, now, new_city_count):
+    def _sync_cluster_timeouts(self, master_id, alert_id, now, new_city_count):
         if new_city_count <= 0:
             return
-        cluster_groups = get_cluster_groups(self.active_events, threshold_km=15)
-        for group in cluster_groups:
-            if alert_id in group and len(group) > 1:
-                for sibling_id in group:
-                    if sibling_id != alert_id and sibling_id in self._stubs:
-                        self._stubs[sibling_id]["last_update_time"] = now
-                logger.info(
-                    f"CLUSTER_TIMEOUT_SYNC: {len(group)} events synchronized (trigger: {alert_id})"
-                )
-                self._invalidate_merge_only()
-                break
+        siblings = self._cluster_stub_ids(master_id)
+        if len(siblings) <= 1:
+            return
+        for sibling_id in siblings:
+            if sibling_id != alert_id and sibling_id in self._stubs:
+                self._stubs[sibling_id]["last_update_time"] = now
+        logger.info(
+            f"CLUSTER_TIMEOUT_SYNC: {len(siblings)} events synchronized (trigger: {alert_id})"
+        )
+        self._invalidate()
 
     def set_field(self, alert_id, field, value):
         if alert_id not in self._stubs:
             return
         self._stubs[alert_id][field] = value
+        self._invalidate()
+
+    def set_fields(self, alert_id, **fields):
+        if alert_id not in self._stubs:
+            return
+        self._stubs[alert_id].update(fields)
         self._invalidate()
 
     def master_data_for_persist(self, master_id):

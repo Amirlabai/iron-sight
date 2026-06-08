@@ -3,9 +3,8 @@
 import copy
 import numpy as np
 
-from src.core.origin_ml import collapse_missile_origins, resolve_origin_ml
+from src.core.missile_origins import build_missile_origins
 from src.utils.config import MAX_IRAN_THRESHOLD, MISSILE_INFLATION_FACTOR
-from src.utils.trajectory_utils import apply_projected_origin
 
 
 def is_history_fixer_committed(alert):
@@ -94,71 +93,38 @@ async def normalize_missile_archive(engine, alert, *, allow_strategic=True):
     total_unique = len({c["name"] for c in cities})
     force_iran = total_unique > MAX_IRAN_THRESHOLD and allow_strategic
 
-    raw_clusters = engine.cluster(cities)
-    processed_clusters = []
-    origin_groups = {}
-
-    for rc in raw_clusters:
-        raw_org, cl_depth = await engine.get_origin(rc["cities"], allow_strategic=allow_strategic)
-        cl_org = raw_org.strip()
-        if force_iran:
-            cl_org, cl_depth = "Iran", engine.strategic_depths["Iran"]
-
-        processed_clusters.append({
-            "origin": cl_org,
-            "centroid": rc["centroid"],
-            "cities": rc["cities"],
-            "hull": engine.get_inflated_hull(
-                [c["coords"] for c in rc["cities"]],
-                MISSILE_INFLATION_FACTOR,
-                cities=rc["cities"],
-            ),
-        })
-        if cl_org not in origin_groups:
-            origin_groups[cl_org] = {"cities": [], "depth": cl_depth}
-        origin_groups[cl_org]["cities"].extend(rc["cities"])
-        origin_groups[cl_org]["depth"] = max(origin_groups[cl_org]["depth"], cl_depth)
-
-    trajectories = []
-    for org, group_data in origin_groups.items():
-        g_cities = group_data["cities"]
-        g_depth = group_data["depth"]
-        g_coords = np.array([c["coords"] for c in g_cities])
-        g_cnt = np.mean(g_coords, axis=0).tolist()
-        traj = {"origin": org, "target_coords": g_cnt, "depth": g_depth}
-        apply_projected_origin(engine, traj, g_cities, org, g_depth)
-        trajectories.append(traj)
-
-    origin_candidates = None
-    if len(origin_groups) == 1:
-        org_name = next(iter(origin_groups))
-        alert["title"] = f"{_display_origin_name(org_name)} Salvo"
-        alert["zoom_level"] = engine.zoom_levels.get(org_name, 6)
-    elif len(origin_groups) >= 2:
-        candidates = list(origin_groups.keys())
-        winner, confidence, scores, resolved_by = await resolve_origin_ml(
-            engine, cities, candidates
-        )
+    def _archive_ml_resolver(winner, confidence, scores, resolved_by, candidates):
         if resolved_by == "geometry_fallback" and len(candidates) > 1:
             winner = _pick_winner_from_stored(alert, candidates)
             confidence = scores.get(winner, 0.0) if scores else 0.0
             resolved_by = "archive_stored_winner"
-        payload_stub = {
-            "clusters": processed_clusters,
-            "trajectories": trajectories,
-            "all_cities": cities,
-        }
-        collapse_missile_origins(
-            payload_stub, winner, confidence, scores, resolved_by, engine
-        )
-        processed_clusters = payload_stub["clusters"]
-        trajectories = payload_stub["trajectories"]
-        alert["title"] = payload_stub["title"]
-        alert["zoom_level"] = payload_stub["zoom_level"]
-        origin_candidates = payload_stub.get("origin_candidates")
-        alert["origin_ml_scores"] = payload_stub.get("origin_ml_scores")
-        alert["origin_resolved_by"] = payload_stub.get("origin_resolved_by")
-        alert["origin_ml_confidence"] = payload_stub.get("origin_ml_confidence")
+        return winner, confidence, resolved_by
+
+    raw_clusters = engine.cluster(cities)
+    origin_result = await build_missile_origins(
+        engine,
+        raw_clusters,
+        cities,
+        allow_strategic=allow_strategic,
+        force_iran=force_iran,
+        hull_for_cities=lambda rc_cities: engine.get_inflated_hull(
+            [c["coords"] for c in rc_cities],
+            MISSILE_INFLATION_FACTOR,
+            cities=rc_cities,
+        ),
+        ml_winner_resolver=_archive_ml_resolver,
+    )
+    processed_clusters = origin_result["clusters"]
+    trajectories = origin_result["trajectories"]
+    alert["title"] = origin_result["title"]
+    alert["zoom_level"] = origin_result["zoom_level"]
+    origin_candidates = origin_result.get("origin_candidates")
+    if origin_result.get("origin_ml_scores") is not None:
+        alert["origin_ml_scores"] = origin_result["origin_ml_scores"]
+    if origin_result.get("origin_resolved_by") is not None:
+        alert["origin_resolved_by"] = origin_result["origin_resolved_by"]
+    if origin_result.get("origin_ml_confidence") is not None:
+        alert["origin_ml_confidence"] = origin_result["origin_ml_confidence"]
 
     winner_origin = trajectories[0]["origin"] if trajectories else None
     if winner_origin:

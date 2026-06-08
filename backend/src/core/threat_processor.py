@@ -2,8 +2,7 @@ import logging
 import numpy as np
 from src.utils.config import MAX_IRAN_THRESHOLD, MISSILE_INFLATION_FACTOR, DRONE_INFLATION_FACTOR, DEFAULT_INFLATION_FACTOR
 from src.utils.text_utils import standardize_name
-from src.core.origin_ml import resolve_origin_ml, collapse_missile_origins
-from src.utils.trajectory_utils import apply_projected_origin
+from src.core.missile_origins import build_missile_origins
 
 logger = logging.getLogger("IronSightBackend")
 
@@ -19,8 +18,7 @@ class ThreatProcessor:
         has_newsflash_in_batch=False,
         use_polygon_hulls=False,
     ):
-        """Route threat analysis based on category and inject visual orchestration.
-        No more DBSCAN clustering. All cities within a single alert ID form one unified cluster."""
+        """Route threat analysis based on category and inject visual orchestration."""
         if alert_type == "missiles":
             return await self._process_missiles(
                 cities_raw, active_events, has_newsflash_in_batch, use_polygon_hulls
@@ -40,12 +38,17 @@ class ThreatProcessor:
         hull_cities = city_coords if use_polygon_hulls else None
         return self.engine.get_inflated_hull(coords, factor, cities=hull_cities)
 
+    def _centroid(self, city_coords):
+        if not city_coords:
+            return [0, 0]
+        coords = np.array([c["coords"] for c in city_coords])
+        return np.mean(coords, axis=0).tolist()
+
     def _build_unified_cluster(self, city_coords, factor=DEFAULT_INFLATION_FACTOR, use_polygon_hulls=False):
         """Treat all cities as a single cluster: one hull, one centroid."""
         if not city_coords:
             return [0, 0], []
-        coords = np.array([c['coords'] for c in city_coords])
-        cnt = np.mean(coords, axis=0).tolist()
+        cnt = self._centroid(city_coords)
         hull = self._cluster_hull(city_coords, factor, use_polygon_hulls)
         return cnt, hull
 
@@ -54,117 +57,53 @@ class ThreatProcessor:
     ):
         """Ballistic trajectory analysis. Single unified cluster per ID, no DBSCAN."""
         city_coords = self._map_cities(cities_raw)
-        if not city_coords: return None
+        if not city_coords:
+            return None
 
-        cnt, hull = self._build_unified_cluster(
-            city_coords, MISSILE_INFLATION_FACTOR, use_polygon_hulls
-        )
-
-        # Strategic origin gate: Iran/Yemen only valid when newsFlash context is present
+        cnt = self._centroid(city_coords)
         allow_strategic = has_newsflash_in_batch
-        if not allow_strategic and active_events:
-            allow_strategic = any(
-                ev.get("category") == "newsFlash" and ev.get("end_time") is None
-                for ev in active_events.values()
-            )
-
-        total_unique = len({c['name'] for c in city_coords})
+        total_unique = len({c["name"] for c in city_coords})
         force_iran = total_unique > MAX_IRAN_THRESHOLD and allow_strategic
 
         raw_clusters = self.engine.cluster(city_coords)
-        processed_clusters = []
-        origin_groups = {}
-        
-        for rc in raw_clusters:
-            raw_org, cl_depth = await self.engine.get_origin(rc['cities'], allow_strategic=allow_strategic)
-            cl_org = raw_org.strip()
-            if force_iran:
-                cl_org, cl_depth = "Iran", self.engine.strategic_depths["Iran"]
-                
-            processed_clusters.append({
-                "origin": cl_org,
-                "centroid": rc['centroid'],
-                "cities": rc['cities'],
-                "hull": self._cluster_hull(rc["cities"], MISSILE_INFLATION_FACTOR, use_polygon_hulls),
-            })
-            if cl_org not in origin_groups:
-                origin_groups[cl_org] = {"cities": [], "depth": cl_depth}
-            origin_groups[cl_org]["cities"].extend(rc['cities'])
-            # Standardize depth: Use the deepest calculated trajectory if multiple exist for same origin
-            origin_groups[cl_org]["depth"] = max(origin_groups[cl_org]["depth"], cl_depth)
-            
-        trajectories = []
-        for org, group_data in origin_groups.items():
-            g_cities = group_data["cities"]
-            g_depth = group_data["depth"]
-            g_coords = np.array([c['coords'] for c in g_cities])
-            g_cnt = np.mean(g_coords, axis=0).tolist()
-            traj = {"origin": org, "target_coords": g_cnt, "depth": g_depth}
-            apply_projected_origin(self.engine, traj, g_cities, org, g_depth)
-            trajectories.append(traj)
-
-        title = "Missile Salvo"
-        zoom_level = 6
-        origin_candidates = None
-        origin_ml_scores = None
-        origin_resolved_by = None
-        origin_ml_confidence = None
-
-        if len(origin_groups) == 1:
-            org_name = list(origin_groups.keys())[0]
-            display_origin = "Iran" if org_name == "North Iran" else org_name
-            title = f"{display_origin} Salvo"
-            zoom_level = self.engine.zoom_levels.get(org_name, 6)
-        elif len(origin_groups) >= 2:
-            candidates = list(origin_groups.keys())
-            winner, confidence, scores, resolved_by = await resolve_origin_ml(
-                self.engine, city_coords, candidates
-            )
-            payload_stub = {
-                "clusters": processed_clusters,
-                "trajectories": trajectories,
-                "all_cities": city_coords,
-            }
-            collapse_missile_origins(
-                payload_stub, winner, confidence, scores, resolved_by, self.engine
-            )
-            processed_clusters = payload_stub["clusters"]
-            trajectories = payload_stub["trajectories"]
-            title = payload_stub["title"]
-            zoom_level = payload_stub["zoom_level"]
-            origin_candidates = payload_stub.get("origin_candidates")
-            origin_ml_scores = payload_stub.get("origin_ml_scores")
-            origin_resolved_by = payload_stub.get("origin_resolved_by")
-            origin_ml_confidence = payload_stub.get("origin_ml_confidence")
+        origin_result = await build_missile_origins(
+            self.engine,
+            raw_clusters,
+            city_coords,
+            allow_strategic=allow_strategic,
+            force_iran=force_iran,
+            hull_for_cities=lambda cities: self._cluster_hull(
+                cities, MISSILE_INFLATION_FACTOR, use_polygon_hulls
+            ),
+        )
 
         result = {
             "type": "alert",
             "category": "missiles",
-            "title": title,
-            "clusters": processed_clusters,
-            "trajectories": trajectories,
+            "title": origin_result["title"],
+            "clusters": origin_result["clusters"],
+            "trajectories": origin_result["trajectories"],
             "all_cities": city_coords,
             "center": cnt,
-            "zoom_level": zoom_level,
+            "zoom_level": origin_result["zoom_level"],
             "visual_config": {
                 "color": "#ff3b30",
                 "pulse": "high",
                 "movement": "linear"
             }
         }
-        if origin_candidates is not None:
-            result["origin_candidates"] = origin_candidates
-            result["origin_ml_scores"] = origin_ml_scores
-            result["origin_resolved_by"] = origin_resolved_by
-            result["origin_ml_confidence"] = origin_ml_confidence
+        for key in ("origin_candidates", "origin_ml_scores", "origin_resolved_by", "origin_ml_confidence"):
+            if origin_result.get(key) is not None:
+                result[key] = origin_result[key]
         return result
 
     async def _process_drone(self, cities_raw, use_polygon_hulls=False):
         """Hostile Aircraft: unified cluster for the flight path zone."""
         city_coords = self._map_cities(cities_raw)
-        if not city_coords: return None
+        if not city_coords:
+            return None
 
-        cnt, hull = self._build_unified_cluster(
+        cnt, _ = self._build_unified_cluster(
             city_coords, DRONE_INFLATION_FACTOR, use_polygon_hulls
         )
 
@@ -188,84 +127,75 @@ class ThreatProcessor:
             "center": cnt,
             "zoom_level": 10,
             "visual_config": {
-                "color": "#ff9500",  # Tactical Orange
+                "color": "#ff9500",
                 "pulse": "medium",
                 "movement": "circular_sweep",
                 "icon": "orange_arrow_tail"
             }
         }
 
-    async def _process_infiltration(self, cities_raw, use_polygon_hulls=False):
-        """Terrorist Infiltration: per-city markers within a unified group."""
-        city_coords = self._map_cities(cities_raw)
-        if not city_coords: return None
-
-        # Infiltration keeps per-city markers for tactical precision
+    def _process_per_city_markers(self, city_coords, origin, title, zoom_level, visual_config, use_polygon_hulls=False):
         processed_clusters = []
         for city in city_coords:
             processed_clusters.append({
-                 "origin": "terroristInfiltration",
-                 "centroid": city['coords'],
-                 "cities": [city],
-                 "hull": self._cluster_hull([city], 1.0, use_polygon_hulls),
+                "origin": origin,
+                "centroid": city["coords"],
+                "cities": [city],
+                "hull": self._cluster_hull([city], 1.0, use_polygon_hulls),
             })
-
-        center = city_coords[0]['coords'] if city_coords else [31.7, 35.2]
-            
+        center = city_coords[0]["coords"] if city_coords else [31.7, 35.2]
         return {
             "type": "alert",
-            "category": "terroristInfiltration",
-            "title": "Terrorist Infiltration",
+            "category": origin,
+            "title": title,
             "clusters": processed_clusters,
             "trajectories": [],
             "all_cities": city_coords,
             "center": center,
-            "zoom_level": 11,
-            "visual_config": {
-                "color": "#b518ff",  # Tactical Purple
+            "zoom_level": zoom_level,
+            "visual_config": visual_config,
+        }
+
+    async def _process_infiltration(self, cities_raw, use_polygon_hulls=False):
+        city_coords = self._map_cities(cities_raw)
+        if not city_coords:
+            return None
+        return self._process_per_city_markers(
+            city_coords,
+            "terroristInfiltration",
+            "Terrorist Infiltration",
+            11,
+            {
+                "color": "#b518ff",
                 "pulse": "ripple",
                 "movement": "converge",
-                "icon": "purple_dots"
-            }
-        }
+                "icon": "purple_dots",
+            },
+            use_polygon_hulls,
+        )
 
     async def _process_earthquake(self, cities_raw, use_polygon_hulls=False):
-        """Seismic Event: per-city static pulsing alerts."""
         city_coords = self._map_cities(cities_raw)
-        if not city_coords: return None
-        
-        # Earthquakes are handled per-city
-        processed_clusters = []
-        for city in city_coords:
-            processed_clusters.append({
-                 "origin": "earthQuake",
-                 "centroid": city['coords'],
-                 "cities": [city],
-                 "hull": self._cluster_hull([city], 1.0, use_polygon_hulls),
-            })
-            
-        center = city_coords[0]['coords'] if city_coords else [31.7, 35.2]
-
-        return {
-            "type": "alert",
-            "category": "earthQuake",
-            "title": "Earthquake Alert",
-            "clusters": processed_clusters,
-            "trajectories": [],
-            "all_cities": city_coords,
-            "center": center,
-            "zoom_level": 9,
-            "visual_config": {
-                "color": "#4cd964",  # Safety Green
+        if not city_coords:
+            return None
+        return self._process_per_city_markers(
+            city_coords,
+            "earthQuake",
+            "Earthquake Alert",
+            9,
+            {
+                "color": "#4cd964",
                 "pulse": "slow_steady",
-                "movement": "static"
-            }
-        }
+                "movement": "static",
+            },
+            use_polygon_hulls,
+        )
 
     async def _process_news_flash(self, cities_raw, use_polygon_hulls=False):
         """News Flash: originless tactical polygons for potential threat warnings."""
         city_coords = self._map_cities(cities_raw)
-        if not city_coords: return None
+        if not city_coords:
+            return None
 
         cnt, hull = self._build_unified_cluster(city_coords, use_polygon_hulls=use_polygon_hulls)
 
@@ -286,7 +216,7 @@ class ThreatProcessor:
             "center": cnt,
             "zoom_level": 8,
             "visual_config": {
-                "color": "#f8f8f8",  # Ghost White
+                "color": "#f8f8f8",
                 "pulse": "slow_steady",
                 "movement": "static",
                 "opacity": 0.4

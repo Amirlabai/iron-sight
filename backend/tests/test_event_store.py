@@ -111,11 +111,24 @@ class TestEventStoreClusterMaster:
 
 
 class TestEventStoreMergeCache:
-    def test_cache_invalidates_on_mutation(self):
+    def test_cache_invalidates_on_stub_mutation(self):
         store = EventStore()
-        store.set_merge_cache("hash1", [{"id": "x"}])
-        assert store.merge_cache_valid("hash1")
-        store.set_field("missing", "x", 1)  # no-op if missing
+        store._stubs["a"] = {
+            "member_cities": [_city("X")],
+            "last_update_time": 1.0,
+            "end_time": None,
+            "category": "missiles",
+            "is_transient": False,
+            "lifecycle_status": None,
+            "master_id": "a",
+            "event_time": "t",
+        }
+        store._masters["a"] = {"data": _analysis([_city("X")]), "dirty": False}
+        h = store.compute_broadcast_hash()
+        store.set_merge_cache(h, [{"id": "x"}])
+        assert store.merge_cache_valid(h) is True
+        store.set_field("a", "last_update_time", 2.0)
+        assert store.merge_cache_valid(h) is False
 
     def test_broadcast_hash_changes_on_end_time(self):
         store = EventStore()

@@ -1,11 +1,10 @@
 import math
 import logging
 import numpy as np
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, QhullError
 from src.utils.text_utils import standardize_name
 from src.utils.config import DEFAULT_INFLATION_FACTOR, DRONE_INFLATION_FACTOR, MISSILE_INFLATION_FACTOR
-from src.core.origin_ml import resolve_origin_ml, collapse_missile_origins
-from src.utils.trajectory_utils import apply_projected_origin
+from src.core.missile_origins import build_missile_origins
 
 logger = logging.getLogger("IronSightClustering")
 
@@ -94,7 +93,7 @@ def recalculate_unified_metadata(
                 cnt = np.array(centroid)
                 inflated = cnt + (hull_pts - cnt) * factor
                 hull = inflated.tolist()
-            except:
+            except QhullError:
                 hull = coords.tolist()
             
     return centroid, hull
@@ -336,7 +335,29 @@ async def merge_event_group(group_ids, active_events, engine=None, use_polygon_h
         else:
             merge_factor = DEFAULT_INFLATION_FACTOR
 
-        if engine:
+        if category == "missiles" and engine:
+            allow_strategic = any(
+                ev.get("category") == "newsFlash" and ev.get("end_time") is None
+                for ev in active_events.values()
+            )
+            spatial_clusters = engine.cluster(merged_all_cities)
+            origin_result = await build_missile_origins(
+                engine,
+                spatial_clusters,
+                merged_all_cities,
+                allow_strategic=allow_strategic,
+                hull_for_cities=lambda cities: _hull_for_cities(
+                    engine, cities, merge_factor, use_polygon_hulls
+                ),
+            )
+            merged_clusters = origin_result["clusters"]
+            merged_trajectories = origin_result["trajectories"]
+            base_data["title"] = origin_result["title"]
+            base_data["zoom_level"] = origin_result["zoom_level"]
+            for key in ("origin_candidates", "origin_ml_scores", "origin_resolved_by", "origin_ml_confidence"):
+                if origin_result.get(key) is not None:
+                    base_data[key] = origin_result[key]
+        elif engine:
             raw_clusters = engine.cluster(merged_all_cities)
             for rc in raw_clusters:
                 merged_clusters.append({
@@ -353,57 +374,6 @@ async def merge_event_group(group_ids, active_events, engine=None, use_polygon_h
                 "cities": merged_all_cities,
                 "hull": new_hull
             }]
-        
-        if category == "missiles" and engine:
-            # Smart Multi-Origin Trajectory Grouping (v1.0.2)
-            # Strategic origin gate: respect newsFlash context during merge recalculation
-            allow_strategic = any(
-                ev.get("category") == "newsFlash" and ev.get("end_time") is None
-                for ev in active_events.values()
-            )
-            # Group clusters by their standardized origin to ensure exactly one trajectory per front
-            origin_groups = {} # { origin_name: { "cities": [], "depth": float } }
-            
-            for mc in merged_clusters:
-                raw_org, cl_depth = await engine.get_origin(mc['cities'], allow_strategic=allow_strategic)
-                cl_org = raw_org.strip()
-                mc['origin'] = cl_org 
-                
-                if cl_org not in origin_groups:
-                    origin_groups[cl_org] = {"cities": [], "depth": cl_depth}
-                origin_groups[cl_org]["cities"].extend(mc['cities'])
-                # Standardize depth: Use the deepest calculated trajectory if multiple exist for same origin
-                origin_groups[cl_org]["depth"] = max(origin_groups[cl_org]["depth"], cl_depth)
-            
-            merged_trajectories = []
-            for org, group_data in origin_groups.items():
-                g_cities = group_data["cities"]
-                g_depth = group_data["depth"]
-                # Unified target center for this origin
-                g_coords = np.array([c['coords'] for c in g_cities])
-                g_cnt = np.mean(g_coords, axis=0).tolist()
-                
-                # Global origin projection for the entire front
-                traj = {"origin": org, "target_coords": g_cnt, "depth": g_depth}
-                apply_projected_origin(engine, traj, g_cities, org, g_depth)
-                merged_trajectories.append(traj)
-            
-            if len(origin_groups) >= 2:
-                candidates = list(origin_groups.keys())
-                winner, confidence, scores, resolved_by = await resolve_origin_ml(
-                    engine, merged_all_cities, candidates
-                )
-                base_data["clusters"] = merged_clusters
-                base_data["all_cities"] = merged_all_cities
-                collapse_missile_origins(
-                    base_data, winner, confidence, scores, resolved_by, engine
-                )
-                merged_trajectories = base_data["trajectories"]
-            elif len(origin_groups) == 1:
-                org_name = list(origin_groups.keys())[0]
-                display_origin = "Iran" if org_name == "North Iran" else org_name
-                base_data["title"] = f"{display_origin} Salvo"
-                base_data["zoom_level"] = engine.zoom_levels.get(org_name, 6)
     else:
         # Multi-cluster threats (Infiltration, Earthquake) accumulate original markers
         merged_clusters = list(base_data.get("clusters", []))
@@ -463,11 +433,3 @@ async def build_merged_payloads(
             merged_payloads.append(payload)
             
     return merged_payloads
-
-
-def get_cluster_groups(active_events, threshold_km=15):
-    """
-    Lightweight wrapper for cluster-aware timeout synchronization.
-    Note: Always filters to active-only events.
-    """
-    return group_events(active_events, threshold_km, include_all=False)

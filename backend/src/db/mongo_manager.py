@@ -96,6 +96,14 @@ class MongoManager:
             logger.error(f"DB_DELETE_FAILURE: {alert_id} - {e}")
             return False
 
+    @staticmethod
+    def _updated_lifecycle_op(ts, timeline_entry, *, debounced=False):
+        op = {"$set": {"last_update_time": ts}}
+        if not debounced:
+            op["$push"] = {"timeline": timeline_entry}
+            op["$inc"] = {"updates_count": 1}
+        return op
+
     async def log_event(self, event_id, a_type, status, data=None):
         """Non-blocking lifecycle logger. Upserts event documents in event_logs."""
         if self.event_logs is None:
@@ -119,29 +127,21 @@ class MongoManager:
                     if existing.get("city_count") == new_count:
                         last_entries = existing.get("timeline") or []
                         last_entry = last_entries[-1] if last_entries else None
+                        debounced = False
                         if last_entry and last_entry.get("status") == "UPDATED":
                             try:
                                 last_ts = datetime.fromisoformat(
                                     last_entry["time"].replace("Z", "+00:00")
                                 )
-                                if (now_utc - last_ts).total_seconds() < 30:
-                                    await self.event_logs.update_one(
-                                        {"event_id": event_id},
-                                        {"$set": {"last_update_time": ts}},
-                                    )
-                                    logger.info(f"LOG_EVENT: {event_id} -> UPDATED (debounced)")
-                                    return
+                                debounced = (now_utc - last_ts).total_seconds() < 30
                             except (ValueError, TypeError):
-                                pass
+                                debounced = False
                         await self.event_logs.update_one(
                             {"event_id": event_id},
-                            {
-                                "$set": {"last_update_time": ts},
-                                "$push": {"timeline": timeline_entry},
-                                "$inc": {"updates_count": 1},
-                            },
+                            self._updated_lifecycle_op(ts, timeline_entry, debounced=debounced),
                         )
-                        logger.info(f"LOG_EVENT: {event_id} -> UPDATED")
+                        label = "UPDATED (debounced)" if debounced else "UPDATED"
+                        logger.info(f"LOG_EVENT: {event_id} -> {label}")
                         return
 
             if status == "DETECTED":

@@ -8,6 +8,16 @@ Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`
 
 ## Recently completed
 
+### EventStore review refactor (branch `refactor/event-store-review`, worktree `.worktrees/refactor-review`)
+
+- `missile_origins.py`: shared `build_missile_origins` — live, merge, and archive paths use one pipeline.
+- `lifecycle.py` / `relay_ingest.py`: `main.py` slimmed to poll loop + `maintain_lifecycle` + `ingest_relay_batch`.
+- `event_store.py`: union-city clustering view for master assignment; `_rebuild_master` returns total; timeout sync via `_cluster_stub_ids`; full invalidate on stub mutations.
+- `threat_processor.py`: `_process_per_city_markers`; missiles path uses centroid only (no discarded hull).
+- `cluster_utils.py`: `QhullError` instead of bare except; removed `get_cluster_groups` alias.
+- `mongo_manager.py`: single `_updated_lifecycle_op` for debounced vs full UPDATED writes.
+- Tests: merge-cache invalidation on real `set_field`; 220 passed.
+
 ### OOM memory refactor (2026-06-08)
 
 - `event_store.py`: stub+master in-memory model — one canonical analysis payload per cluster, per-relay city subsets on stubs.
