@@ -16,3 +16,20 @@ def test_rss_mb_optional():
     # May be None on some platforms; must not raise.
     mb = rss_mb()
     assert mb is None or mb >= 0
+
+
+async def test_http_observability_middleware_is_registered():
+    from aiohttp import web
+    from aiohttp.test_utils import TestClient, TestServer
+
+    from src.utils.observability import http_observability_middleware
+
+    async def ok_handler(_request):
+        return web.json_response({"ok": True})
+
+    app = web.Application(middlewares=[http_observability_middleware])
+    app.router.add_get("/", ok_handler)
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.get("/")
+        assert resp.status == 200
+        assert await resp.json() == {"ok": True}

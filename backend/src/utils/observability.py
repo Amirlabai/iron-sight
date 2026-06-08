@@ -5,6 +5,8 @@ import logging
 import sys
 import time
 
+from aiohttp import web
+
 try:
     import resource
 except ImportError:
@@ -49,6 +51,7 @@ def response_body_bytes(response):
     return 0
 
 
+@web.middleware
 async def http_observability_middleware(request, handler):
     """Log method, path, status, bytes, duration, and RSS for HTTP handlers."""
     if request.path == "/ws" or request.path.startswith("/api/history"):
