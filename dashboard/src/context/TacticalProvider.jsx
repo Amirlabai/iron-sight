@@ -11,7 +11,9 @@ import {
 } from '../utils/mapGeometry';
 import { resolveMapConfig, getEventOrigin } from '../utils/mapZoomPresets';
 import { filterArchiveHistory, filterHistoryByOrigin, mergeHistoryById } from '../utils/historyFilters';
-import { getConvexHull, getCentroid, getDistance } from '../utils/geoUtils';
+import { mergeTimeFrameEvents } from '../utils/mergeTimeFrameEvents';
+import { parseSandboxCities } from '../utils/parseSandboxCities';
+import { useSyncRefs } from '../hooks/useSyncRefs';
 import missileSound from '../assets/sounds/missile_alert.mp3';
 import droneSound from '../assets/sounds/hostileAircraftIntrusion_alert.mp3';
 import { filterEventsByScope, matchesAlertScope, buildAlertNotifyKey } from '../utils/alertMatching';
@@ -163,32 +165,20 @@ export function TacticalProvider({ children }) {
   const viewModeRef = useRef(viewMode);
   const isReadyRef = useRef(isReady);
 
-  useEffect(() => {
-    viewModeRef.current = viewMode;
-  }, [viewMode]);
-
-  useEffect(() => {
-    historyFilterRef.current = historyFilter;
-  }, [historyFilter]);
-
-  useEffect(() => {
-    timeFrameRef.current = timeFrame;
-  }, [timeFrame]);
-
-  useEffect(() => {
-    originFilterRef.current = originFilter;
-  }, [originFilter]);
+  useSyncRefs([
+    [viewModeRef, viewMode],
+    [historyFilterRef, historyFilter],
+    [timeFrameRef, timeFrame],
+    [originFilterRef, originFilter],
+    [historyOffsetRef, historyOffset],
+    [isReadyRef, isReady],
+  ]);
 
   useEffect(() => {
     originAutoLoadRef.current = 0;
   }, [historyFilter, timeFrame, originFilter]);
 
   useEffect(() => {
-    historyOffsetRef.current = historyOffset;
-  }, [historyOffset]);
-
-  useEffect(() => {
-    isReadyRef.current = isReady;
     if (isReady) markSessionBooted();
   }, [isReady]);
 
@@ -431,7 +421,7 @@ export function TacticalProvider({ children }) {
   };
 
   const toggleCity = (city) => {
-    const currentCities = sandboxInput.split(/[;\n]/).map(c => c.trim()).filter(c => c);
+    const currentCities = parseSandboxCities(sandboxInput);
     if (currentCities.includes(city)) {
       setSandboxInput(currentCities.filter(c => c !== city).join('; '));
     } else {
@@ -442,7 +432,7 @@ export function TacticalProvider({ children }) {
   const toggleRegion = (regionName, e) => {
     e.stopPropagation();
     const regionCities = Object.keys(regionalData[regionName]);
-    const currentCities = sandboxInput.split(/[;\n]/).map(c => c.trim()).filter(c => c);
+    const currentCities = parseSandboxCities(sandboxInput);
     const allInRegionSelected = regionCities.every(c => currentCities.includes(c));
     if (allInRegionSelected) {
       setSandboxInput(currentCities.filter(c => !regionCities.includes(c)).join('; '));
@@ -477,7 +467,7 @@ export function TacticalProvider({ children }) {
     if (!sandboxInput.trim()) return;
     setIsAnalyzing(true);
     try {
-      const cities = sandboxInput.split(/[;\n]/).map(c => c.trim()).filter(c => c);
+      const cities = parseSandboxCities(sandboxInput);
       const resp = await fetch(`${TACTICAL_API_URL}/api/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -506,7 +496,7 @@ export function TacticalProvider({ children }) {
   };
 
   const filteredHistory = useMemo(
-    () => filterHistoryByOrigin(filterArchiveHistory(history), originFilter),
+    () => filterHistoryByOrigin(history, originFilter),
     [history, originFilter],
   );
 
@@ -538,159 +528,7 @@ export function TacticalProvider({ children }) {
     if (viewMode === 'archive') return archiveEvent ? [archiveEvent] : [];
     if (viewMode === 'timeframe') {
       if (!mergeTimeFrameClusters) return filteredHistory;
-
-      const eventGroups = {}; // category_origin -> [events]
-      filteredHistory.forEach(ev => {
-        const category = ev.category || 'missiles';
-        const origin = ev.trajectories?.[0]?.origin || ev.clusters?.[0]?.origin || 'unknown';
-        const key = `${category}_${origin}`;
-        if (!eventGroups[key]) eventGroups[key] = [];
-        eventGroups[key].push(ev);
-      });
-
-      const mergedEvents = [];
-
-      Object.entries(eventGroups).forEach(([key, events]) => {
-        const sep = key.indexOf('_');
-        const category = key.slice(0, sep);
-        const origin = key.slice(sep + 1);
-        
-        // 1. Flatten all individual clusters from all events in this group
-        const allClusters = [];
-        events.forEach(ev => {
-          if (ev.clusters) allClusters.push(...ev.clusters);
-        });
-
-        if (allClusters.length === 0) return;
-
-        // 2. Group clusters by proximity (35km threshold) or shared cities
-        const superClusters = []; // Array of arrays of clusters
-        const visited = new Set();
-
-        for (let i = 0; i < allClusters.length; i++) {
-          if (visited.has(i)) continue;
-
-          const currentGroup = [];
-          const queue = [i];
-          visited.add(i);
-
-          while (queue.length > 0) {
-            const idx = queue.shift();
-            const c1 = allClusters[idx];
-            currentGroup.push(c1);
-
-            for (let j = 0; j < allClusters.length; j++) {
-              if (visited.has(j)) continue;
-              const c2 = allClusters[j];
-
-              // Check if c1 and c2 should merge
-              let shouldMerge = false;
-
-              // Proximity check (centroids)
-              if (c1.centroid && c2.centroid) {
-                const dist = getDistance(c1.centroid, c2.centroid);
-                if (dist < 8) shouldMerge = true;
-              }
-
-              // Shared city check
-              if (!shouldMerge && c1.cities && c2.cities) {
-                const names1 = new Set(c1.cities.map(c => typeof c === 'string' ? c : c.name));
-                const names2 = new Set(c2.cities.map(c => typeof c === 'string' ? c : c.name));
-                for (const name of names1) {
-                  if (names2.has(name)) {
-                    shouldMerge = true;
-                    break;
-                  }
-                }
-              }
-
-              if (shouldMerge) {
-                visited.add(j);
-                queue.push(j);
-              }
-            }
-          }
-          superClusters.push(currentGroup);
-        }
-
-        // 3. Create one "Super Event" per proximity island
-        superClusters.forEach((group, sIdx) => {
-          const baseEvent = JSON.parse(JSON.stringify(events[0]));
-          
-          // Calculate time range for the group
-          const times = group.map(c => new Date(c.time || baseEvent.time).getTime());
-          const minTime = new Date(Math.min(...times));
-          const maxTime = new Date(Math.max(...times));
-          const timeRangeStr = minTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + 
-                               ' - ' + 
-                               maxTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-          const superEvent = {
-            ...baseEvent,
-            id: `merged_${key}_${sIdx}`,
-            category,
-            mergedCount: group.length,
-            timeRange: timeRangeStr,
-            all_cities: [],
-            clusters: [{
-              origin: origin,
-              cities: [],
-              hull: [],
-              centroid: null
-            }]
-          };
-
-          const masterCluster = superEvent.clusters[0];
-          const points = [];
-          const cityNames = new Set();
-
-          group.forEach(c => {
-            if (c.cities) {
-              c.cities.forEach(city => {
-                const name = typeof city === 'string' ? city : city.name;
-                if (!cityNames.has(name)) {
-                  masterCluster.cities.push(city);
-                  superEvent.all_cities.push(city);
-                  cityNames.add(name);
-                }
-                if (city.coords) points.push(city.coords);
-              });
-            }
-            if (c.hull) points.push(...c.hull);
-            if (c.centroid) points.push(c.centroid);
-          });
-
-          if (points.length > 0) {
-            masterCluster.hull = getConvexHull(points);
-            masterCluster.centroid = getCentroid(points);
-          }
-
-          const trajSample = events
-            .flatMap(e => e.trajectories || [])
-            .find(t => t.origin === origin);
-          if (trajSample) {
-            superEvent.trajectories = [trajSample];
-          } else {
-            const memberEntries = events
-              .flatMap(e => e.trajectories || [])
-              .filter(t => t.origin === origin && t.origin_coords?.length >= 2);
-            if (memberEntries.length > 0) {
-              const avgLat = memberEntries.reduce((s, t) => s + t.origin_coords[0], 0) / memberEntries.length;
-              const avgLng = memberEntries.reduce((s, t) => s + t.origin_coords[1], 0) / memberEntries.length;
-              const avg = [avgLat, avgLng];
-              superEvent.trajectories = [{
-                origin,
-                origin_coords: avg,
-                marker_coords: avg,
-              }];
-            }
-          }
-
-          mergedEvents.push(superEvent);
-        });
-      });
-
-      return mergedEvents;
+      return mergeTimeFrameEvents(filteredHistory);
     }
     return liveEvents;
   }, [viewMode, liveEvents, filteredHistory, archiveEvent, sandboxEvent, mergeTimeFrameClusters]);
@@ -713,7 +551,7 @@ export function TacticalProvider({ children }) {
     && filteredHistory.length === 0
     && historyHasMore;
 
-  const value = {
+  const value = useMemo(() => ({
     liveEvents, history, viewMode, archiveEvent, mapConfig,
     isConnected, activeTab, isReady, isMuted, loadingProgress,
     sandboxEvent, isAnalyzing, regionalData, expandedRegions,
@@ -733,7 +571,23 @@ export function TacticalProvider({ children }) {
     themeMode,
     isLightMode,
     toggleThemeMode,
-  };
+  }), [
+    liveEvents, history, viewMode, archiveEvent, mapConfig,
+    isConnected, activeTab, isReady, isMuted, loadingProgress,
+    sandboxEvent, isAnalyzing, regionalData, expandedRegions,
+    citySearch, sandboxInput, tacticalHealth, isSidebarExpanded, historyFilter,
+    originFilter, filteredHistory, originFilterLoading,
+    renderableEvents, sidebarEvents, hasSimulation, totalClusters, totalTargets,
+    timeFrame, mergeTimeFrameClusters,
+    historyOffset, historyHasMore, historyLoadingMore,
+    mapAutoFollowToken,
+    tacticalColor, highlightColor,
+    alertPrefs,
+    alertPrefsApi,
+    themeMode,
+    isLightMode,
+    fetchHistory, loadMoreHistory,
+  ]);
 
   return (
     <TacticalContext.Provider value={value}>

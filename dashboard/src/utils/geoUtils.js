@@ -40,19 +40,22 @@ export function getConvexHull(points) {
     return lower.concat(upper);
 }
 
+/** Shared haversine angular distance (radians along great circle). */
+export function haversineCore(p1, p2) {
+    const dLat = (p2[0] - p1[0]) * Math.PI / 180;
+    const dLng = (p2[1] - p1[1]) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(p1[0] * Math.PI / 180) * Math.cos(p2[0] * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 /**
  * Calculates the Haversine distance between two [lat, lng] points in kilometers.
  */
 export function getDistance(p1, p2) {
-    const R = 6371; // Earth radius in km
-    const dLat = (p2[0] - p1[0]) * Math.PI / 180;
-    const dLng = (p2[1] - p1[1]) * Math.PI / 180;
-    const a = 
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(p1[0] * Math.PI / 180) * Math.cos(p2[0] * Math.PI / 180) * 
-        Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    return 6371 * haversineCore(p1, p2);
 }
 
 /**

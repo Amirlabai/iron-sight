@@ -7,6 +7,8 @@ import {
   flattenBoundary,
   getBoundaryOuter,
 } from './constants';
+import { getCentroid } from './geoUtils';
+import { resolveTrajectoryOrigin } from './motionEndpoints';
 import { getZoomLevel, normalizeOriginName, zoomForCategory, zoomForOrigin } from './mapZoomLevels';
 
 export function getFitPadding() {
@@ -24,25 +26,14 @@ export function boundsKey(bounds) {
   return `${bounds.length}:${first[0]},${first[1]}:${last[0]},${last[1]}`;
 }
 
-function centroidOf(points) {
-  if (!points.length) return ISRAEL_CENTER;
-  const lat = points.reduce((s, p) => s + p[0], 0) / points.length;
-  const lng = points.reduce((s, p) => s + p[1], 0) / points.length;
-  return [lat, lng];
-}
-
 /** Pin on map for origin border entry (same point as trajectory line start). */
 export function resolveOriginPinCoords(origin, trajectory = null) {
-  if (trajectory?.origin_coords?.length >= 2) {
-    return trajectory.origin_coords;
-  }
-  if (trajectory?.marker_coords?.length >= 2) {
-    return trajectory.marker_coords;
-  }
+  const fromTraj = resolveTrajectoryOrigin(trajectory);
+  if (fromTraj) return fromTraj;
   const boundary = TACTICAL_BOUNDARIES[origin];
   const outer = getBoundaryOuter(boundary);
   if (outer?.length >= 2) {
-    return centroidOf(outer);
+    return getCentroid(outer) ?? ISRAEL_CENTER;
   }
   return null;
 }
@@ -96,7 +87,7 @@ export function calculateBestMapConfig(events, mapZoomLevels = null) {
     const missilePoints = missileEvents.flatMap((e) => getEventTargetPoints(e));
     if (missilePoints.length >= 2) {
       return {
-        center: centroidOf(missilePoints),
+        center: getCentroid(missilePoints) ?? ISRAEL_CENTER,
         zoom: zoomForCategory('missiles', mapZoomLevels),
         bounds: missilePoints,
         maxZoom: window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT ? 10 : 12,
@@ -167,7 +158,7 @@ export function calculateArchiveMapConfig(event) {
 
   if (points.length >= 2) {
     return {
-      center: centroidOf(points),
+      center: getCentroid(points) ?? ISRAEL_CENTER,
       zoom: getDefaultZoom(),
       bounds: points,
       maxZoom: window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT ? 10 : 12,

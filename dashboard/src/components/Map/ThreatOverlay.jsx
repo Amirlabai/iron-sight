@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Circle, Polyline, Marker, Popup, Polygon, Tooltip, useMap } from 'react-leaflet';
+import { Circle, Polyline, Marker, Popup, Polygon, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import { TACTICAL_BOUNDARIES, STRATEGIC_METADATA, getBoundaryOuter } from '../../utils/constants';
 import { resolveCanvasColor, resolveMarkerColor } from '../../utils/mapColors';
@@ -8,6 +8,7 @@ import { normalizeDroneWaypoints, resolveMissileEndpoints, trajectoriesForDispla
 import { MissileMotionRegistrar } from './MotionRegistrars';
 import TrackingDrone from './TrackingDrone';
 import { PulsingInfiltrationCircle, PulsingInfiltrationHull } from './PulsingInfiltrationHull';
+import OriginHaloPolygons from './OriginHaloPolygons';
 
 const CITY_LABEL_MIN_ZOOM = 11;
 const LIVE_CITY_LABEL_CAP = 12;
@@ -15,19 +16,8 @@ const CITY_FALLBACK_RADIUS_METERS = 500;
 
 const SVG_PATH_RENDERER = getSvgPathRenderer();
 
-export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor, highlightColor }) {
-  const map = useMap();
-  const [mapZoom, setMapZoom] = React.useState(() => map.getZoom());
+export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor, highlightColor, mapZoom }) {
   const isLive = viewMode === 'live';
-
-  React.useEffect(() => {
-    const handleZoomEnd = () => setMapZoom(map.getZoom());
-    map.on('zoomend', handleZoomEnd);
-    return () => map.off('zoomend', handleZoomEnd);
-  }, [map]);
-
-  const baseZoom = 12;
-  const pathWeight = Math.max(1, 2 * (mapZoom / baseZoom));
 
   const animatedPathOptions = useMemo(
     () => ({ renderer: SVG_PATH_RENDERER }),
@@ -280,25 +270,12 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
 
         return (
           <React.Fragment key={`${eventKey}-traj-${idx}`}>
-            {boundary && viewMode !== 'timeframe' && (() => {
-              const outer = getBoundaryOuter(boundary);
-              if (!outer?.length) return null;
-              return (
-                <React.Fragment>
-                  <Polygon positions={outer}
-                    pathOptions={{
-                      color: trajColor, weight: 15, opacity: 0.05, fill: false, smoothFactor: 2.0, className: 'origin-threat-halo'
-                    }}
-                  />
-                  <Polygon positions={outer}
-                    pathOptions={{
-                      fillColor: trajColor, fillOpacity: 0.1, color: trajColor,
-                      weight: 1, smoothFactor: 2.0, className: 'origin-threat-glow'
-                    }}
-                  />
-                </React.Fragment>
-              );
-            })()}
+            {boundary && viewMode !== 'timeframe' && (
+              <OriginHaloPolygons
+                positions={getBoundaryOuter(boundary)}
+                color={trajColor}
+              />
+            )}
 
             {hasLine && viewMode !== 'timeframe' && (
               <React.Fragment>
@@ -350,21 +327,10 @@ export default function ThreatOverlay({ event, eventKey, viewMode, tacticalColor
       {viewMode !== 'timeframe' && event.highlight_origins?.map((org, idx) => (
         <React.Fragment key={`${eventKey}-highlight-${idx}`}>
           {TACTICAL_BOUNDARIES[org.name] ? (
-            <React.Fragment>
-              <Polygon positions={TACTICAL_BOUNDARIES[org.name]}
-                pathOptions={{
-                  color: STRATEGIC_METADATA[org.name]?.color || highlightColor,
-                  weight: 15, opacity: 0.05, fill: false, smoothFactor: 2.0, className: 'origin-threat-halo'
-                }}
-              />
-              <Polygon positions={TACTICAL_BOUNDARIES[org.name]}
-                pathOptions={{
-                  fillColor: STRATEGIC_METADATA[org.name]?.color || highlightColor,
-                  fillOpacity: 0.1, color: STRATEGIC_METADATA[org.name]?.color || highlightColor,
-                  weight: 1, smoothFactor: 2.0, className: 'origin-threat-glow'
-                }}
-              />
-            </React.Fragment>
+            <OriginHaloPolygons
+              positions={getBoundaryOuter(TACTICAL_BOUNDARIES[org.name])}
+              color={STRATEGIC_METADATA[org.name]?.color || highlightColor}
+            />
           ) : (
             <React.Fragment>
               <Circle center={org.coords} radius={40000}

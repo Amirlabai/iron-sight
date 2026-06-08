@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Polygon, Marker, Popup, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
 import { Crosshair } from 'lucide-react';
 import L from 'leaflet';
@@ -16,6 +16,7 @@ import { getFitPadding, boundsKey, resolveOriginPinCoords } from '../../utils/ma
 import { useTactical } from '../../context/TacticalContext';
 import { formatTime } from '../../utils/formatters';
 import ThreatOverlay from './ThreatOverlay';
+import OriginHaloPolygons from './OriginHaloPolygons';
 import { TacticalMotionProvider } from './TacticalMotionLayer';
 import UserLocationMarker from './UserLocationMarker';
 import { agentDebugBurst, agentDebugLog, MAP_RESIZE_BURST } from '../../utils/agentDebugLog';
@@ -208,6 +209,32 @@ function IsraelBaseLayer() {
   );
 }
 
+function MapInstanceBridge({ mapRef }) {
+  const map = useMap();
+  useEffect(() => {
+    mapRef.current = map;
+    return () => {
+      if (mapRef.current === map) mapRef.current = null;
+    };
+  }, [map, mapRef]);
+  return null;
+}
+
+function MapZoomTracker({ onZoomChange }) {
+  const map = useMap();
+  useEffect(() => {
+    onZoomChange(map.getZoom());
+    const handleZoomEnd = () => onZoomChange(map.getZoom());
+    map.on('zoomend', handleZoomEnd);
+    return () => map.off('zoomend', handleZoomEnd);
+  }, [map, onZoomChange]);
+  return null;
+}
+
+const INTERNAL_ORIGIN_TERMS = new Set([
+  'Israel', 'terroristInfiltration', 'hostileAircraftIntrusion', 'missiles', 'earthQuake', 'unknown',
+]);
+
 export default function MapViewer() {
   const {
     mapConfig, renderableEvents, viewMode, archiveEvent,
@@ -219,10 +246,15 @@ export default function MapViewer() {
     : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
 
   const [mapFollowAuto, setMapFollowAuto] = useState(true);
+  const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
   const suppressProgrammaticRef = useRef(false);
   const mapRef = useRef(null);
   const mapConfigRef = useRef(mapConfig);
   mapConfigRef.current = mapConfig;
+
+  const handleZoomChange = useCallback((zoom) => {
+    setMapZoom(zoom);
+  }, []);
 
   useEffect(() => {
     setMapFollowAuto(true);
@@ -240,16 +272,81 @@ export default function MapViewer() {
     refitMap(map, mapConfigRef.current);
   }, []);
 
-  function MapInstanceBridge() {
-    const map = useMap();
-    useEffect(() => {
-      mapRef.current = map;
-      return () => {
-        if (mapRef.current === map) mapRef.current = null;
-      };
-    }, [map]);
-    return null;
-  }
+  const timeframeOriginLayers = useMemo(() => {
+    if (viewMode !== 'timeframe') {
+      return { originHalos: [], originPins: [] };
+    }
+
+    const uniqueOrigins = new Set();
+    const originData = {};
+
+    renderableEvents.forEach((ev) => {
+      ev.trajectories?.forEach((t) => {
+        uniqueOrigins.add(t.origin);
+        if (!originData[t.origin]) {
+          const coords = resolveOriginPinCoords(t.origin, t);
+          if (!coords) return;
+          originData[t.origin] = {
+            coords,
+            color: (ev.category && `var(--${ev.category})`) || ev.visual_config?.color || STRATEGIC_METADATA[t.origin]?.color || tacticalColor,
+          };
+        }
+      });
+      ev.highlight_origins?.forEach((o) => {
+        uniqueOrigins.add(o.name);
+        if (!originData[o.name]) {
+          const coords = resolveOriginPinCoords(o.name, { marker_coords: o.coords, origin_coords: o.coords });
+          if (!coords) return;
+          originData[o.name] = {
+            coords,
+            color: STRATEGIC_METADATA[o.name]?.color || tacticalColor,
+          };
+        }
+      });
+      if (ev.clusters?.[0]?.origin) {
+        const origin = ev.clusters[0].origin;
+        uniqueOrigins.add(origin);
+        if (!originData[origin]) {
+          const traj = ev.trajectories?.find((tr) => tr.origin === origin);
+          const coords = resolveOriginPinCoords(origin, traj);
+          if (!coords) return;
+          originData[origin] = {
+            coords,
+            color: (ev.category && `var(--${ev.category})`) || ev.visual_config?.color || STRATEGIC_METADATA[origin]?.color || tacticalColor,
+          };
+        }
+      }
+    });
+
+    const originHalos = Array.from(uniqueOrigins).map((origin) => {
+      const boundary = TACTICAL_BOUNDARIES[origin];
+      const outer = getBoundaryOuter(boundary);
+      const color = STRATEGIC_METADATA[origin]?.color || tacticalColor;
+      if (!outer?.length) return null;
+      return (
+        <OriginHaloPolygons
+          key={`timeframe-origin-${origin}`}
+          positions={outer}
+          color={color}
+          smoothFactor={1.0}
+        />
+      );
+    }).filter(Boolean);
+
+    const originPins = Object.entries(originData)
+      .filter(([origin]) => !INTERNAL_ORIGIN_TERMS.has(origin))
+      .map(([origin, data]) => (
+        <Marker
+          key={`timeframe-pin-${origin}`}
+          position={data.coords}
+          icon={buildOriginMarkerIcon(origin, data.color)}
+        >
+          <Popup>Launch Origin: {origin}</Popup>
+        </Marker>
+      ));
+
+    return { originHalos, originPins };
+  }, [viewMode, renderableEvents, tacticalColor]);
 
   return (
     <div className="map-wrapper">
@@ -279,7 +376,8 @@ export default function MapViewer() {
       >
         <TileLayer url={tileUrl} />
 
-        <MapInstanceBridge />
+        <MapInstanceBridge mapRef={mapRef} />
+        <MapZoomTracker onZoomChange={handleZoomChange} />
         <MapController
           center={mapConfig.center}
           zoom={mapConfig.zoom}
@@ -301,81 +399,9 @@ export default function MapViewer() {
         <IsraelBaseLayer />
         <UserLocationMarker />
 
-        {/* Origin Highlights for Timeframe Mode (Unified) */}
-        {viewMode === 'timeframe' && (() => {
-          const uniqueOrigins = new Set();
-          renderableEvents.forEach(ev => {
-            ev.trajectories?.forEach(t => uniqueOrigins.add(t.origin));
-            ev.highlight_origins?.forEach(o => uniqueOrigins.add(o.name));
-            // Also check cluster origin if trajectories are missing
-            if (ev.clusters?.[0]?.origin) uniqueOrigins.add(ev.clusters[0].origin);
-          });
-          return Array.from(uniqueOrigins).map(origin => {
-            const boundary = TACTICAL_BOUNDARIES[origin];
-            const outer = getBoundaryOuter(boundary);
-            const color = STRATEGIC_METADATA[origin]?.color || tacticalColor;
-            if (!outer?.length) return null;
-            return (
-              <React.Fragment key={`timeframe-origin-${origin}`}>
-                <Polygon positions={outer} pathOptions={{ color, weight: 15, opacity: 0.05, fill: false, className: 'origin-threat-halo' }} />
-                <Polygon positions={outer} pathOptions={{ fillColor: color, fillOpacity: 0.1, color, weight: 1, className: 'origin-threat-glow' }} />
-              </React.Fragment>
-            );
-          });
-        })()}
+        {timeframeOriginLayers.originHalos}
+        {timeframeOriginLayers.originPins}
 
-        {/* Unified Origin Pins for Timeframe Mode */}
-        {viewMode === 'timeframe' && (() => {
-          const originData = {};
-          renderableEvents.forEach(ev => {
-            ev.trajectories?.forEach(t => {
-              if (!originData[t.origin]) {
-                const coords = resolveOriginPinCoords(t.origin, t);
-                if (!coords) return;
-                originData[t.origin] = {
-                  coords,
-                  color: (ev.category && `var(--${ev.category})`) || ev.visual_config?.color || STRATEGIC_METADATA[t.origin]?.color || tacticalColor
-                };
-              }
-            });
-            ev.highlight_origins?.forEach(o => {
-              if (!originData[o.name]) {
-                const coords = resolveOriginPinCoords(o.name, { marker_coords: o.coords, origin_coords: o.coords });
-                if (!coords) return;
-                originData[o.name] = {
-                  coords,
-                  color: STRATEGIC_METADATA[o.name]?.color || tacticalColor
-                };
-              }
-            });
-            if (ev.clusters?.[0]?.origin && !originData[ev.clusters[0].origin]) {
-              const origin = ev.clusters[0].origin;
-              const traj = ev.trajectories?.find(tr => tr.origin === origin);
-              const coords = resolveOriginPinCoords(origin, traj);
-              if (!coords) return;
-              originData[origin] = {
-                coords,
-                color: (ev.category && `var(--${ev.category})`) || ev.visual_config?.color || STRATEGIC_METADATA[origin]?.color || tacticalColor
-              };
-            }
-          });
-          return Object.entries(originData)
-            .filter(([origin]) => {
-              const internalTerms = ['Israel', 'terroristInfiltration', 'hostileAircraftIntrusion', 'missiles', 'earthQuake', 'unknown'];
-              return !internalTerms.includes(origin);
-            })
-            .map(([origin, data]) => (
-              <Marker
-                key={`timeframe-pin-${origin}`}
-                position={data.coords}
-                icon={buildOriginMarkerIcon(origin, data.color)}
-              >
-                <Popup>Launch Origin: {origin}</Popup>
-              </Marker>
-            ));
-        })()}
-
-        {/* Render ALL active events simultaneously */}
         {renderableEvents.map((currentEvent, eventIdx) => (
           <ThreatOverlay
             key={currentEvent?.id || `event-${eventIdx}`}
@@ -384,6 +410,7 @@ export default function MapViewer() {
             viewMode={viewMode}
             tacticalColor={tacticalColor}
             highlightColor={highlightColor}
+            mapZoom={mapZoom}
           />
         ))}
         </TacticalMotionProvider>

@@ -17,6 +17,8 @@ import {
 import { calculateTimeframeMapConfig } from '../../utils/mapGeometry';
 import { ORIGIN_FILTER_OPTIONS } from '../../utils/mapZoomPresets';
 import { agentDebugBurst, agentDebugLog } from '../../utils/agentDebugLog';
+import { useViewportSize } from '../../hooks/useViewportSize';
+import DateRangeFilter from './DateRangeFilter';
 
 export default function Sidebar() {
   const {
@@ -44,48 +46,7 @@ export default function Sidebar() {
   const dragControls = useDragControls();
   const sheetY = useMotionValue(0);
 
-  const [viewport, setViewport] = React.useState(() => ({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  }));
-
-  React.useEffect(() => {
-    const onResize = () => {
-      // #region agent log
-      agentDebugBurst(
-        'sidebar-viewport-resize',
-        'Sidebar.jsx:onResize',
-        'viewport resize burst',
-        { w: window.innerWidth, h: window.innerHeight },
-        'F',
-      );
-      // #endregion
-      setViewport({ width: window.innerWidth, height: window.innerHeight });
-    };
-    window.addEventListener('resize', onResize);
-    window.addEventListener('orientationchange', onResize);
-    const vv = window.visualViewport;
-    const onVisualViewport = () => {
-      const w = Math.round(vv?.width ?? window.innerWidth);
-      const h = Math.round(vv?.height ?? window.innerHeight);
-      setViewport((prev) => (prev.width === w && prev.height === h ? prev : { width: w, height: h }));
-      // #region agent log
-      agentDebugBurst(
-        'visual-viewport',
-        'Sidebar.jsx:visualViewport',
-        'visualViewport resize burst',
-        { w, h, innerH: window.innerHeight },
-        'F',
-      );
-      // #endregion
-    };
-    vv?.addEventListener('resize', onVisualViewport);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('orientationchange', onResize);
-      vv?.removeEventListener('resize', onVisualViewport);
-    };
-  }, []);
+  const viewport = useViewportSize();
 
   const isMobile = viewport.width <= MOBILE_LAYOUT_BREAKPOINT;
   const sidebarHeight = `${MOBILE_SIDEBAR_HEIGHT_RATIO * 100}%`;
@@ -316,56 +277,14 @@ export default function Sidebar() {
                     {tf.label}
                   </button>
                 ))}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ fontSize: '10px', color: 'var(--text-sub)', fontWeight: '600' }}>FROM:</span>
-                  <input
-                    type="date"
-                    style={{
-                      background: 'rgba(255,255,255,0.08)',
-                      border: '1px solid var(--border)',
-                      color: 'white',
-                      fontSize: '11px',
-                      padding: '4px 6px',
-                      width: 'auto',
-                      minWidth: '105px',
-                      borderRadius: '4px',
-                      fontFamily: 'monospace'
-                    }}
-                    value={timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : ''}
-                    onChange={(e) => {
-                      const isoDate = e.target.value;
-                      const currentTo = timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : '';
-                      const newVal = `range:${isoDate},${currentTo}`;
-                      setTimeFrame(newVal);
-                      setViewMode('timeframe');
-                      setMapConfig(calculateTimeframeMapConfig());
-                    }}
-                  />
-                  <span style={{ fontSize: '10px', color: 'var(--text-sub)', fontWeight: '600' }}>TO:</span>
-                  <input
-                    type="date"
-                    style={{
-                      background: 'rgba(255,255,255,0.08)',
-                      border: '1px solid var(--border)',
-                      color: 'white',
-                      fontSize: '11px',
-                      padding: '4px 6px',
-                      width: 'auto',
-                      minWidth: '105px',
-                      borderRadius: '4px',
-                      fontFamily: 'monospace'
-                    }}
-                    value={timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[1] : ''}
-                    onChange={(e) => {
-                      const isoDate = e.target.value;
-                      const currentFrom = timeFrame.startsWith('range:') ? timeFrame.split(':')[1].split(',')[0] : '';
-                      const newVal = `range:${currentFrom},${isoDate}`;
-                      setTimeFrame(newVal);
-                      setViewMode('timeframe');
-                      setMapConfig(calculateTimeframeMapConfig());
-                    }}
-                  />
-                </div>
+                <DateRangeFilter
+                  timeFrame={timeFrame}
+                  onTimeFrameChange={(newVal) => {
+                    setTimeFrame(newVal);
+                    setViewMode('timeframe');
+                    setMapConfig(calculateTimeframeMapConfig());
+                  }}
+                />
 
                 {timeFrame !== 'all' && (
                   <label className="merge-toggle" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', color: 'var(--text-sub)', marginLeft: 'auto', cursor: 'pointer', width: '100%' }}>

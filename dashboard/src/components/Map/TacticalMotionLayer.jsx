@@ -11,6 +11,7 @@ import {
   MIN_MISSILE_LOOP_MS,
   motionSpeedMps,
   positionAtArcDistance,
+  positionAndBearingAtDistance,
 } from '../../utils/trajectoryPaths';
 import { applyMotionSpriteBearing } from '../../utils/motionSprites';
 import {
@@ -195,23 +196,13 @@ function enterMissileHold(inst, now) {
 }
 
 function screenTangentBearing(map, path, cumDist, distance) {
-  const pos = positionAtArcDistance(path, cumDist, distance);
-  if (!pos) return null;
-
-  const total = cumDist[cumDist.length - 1];
-  if (total <= 0) return 0;
-
-  const eps = Math.max(80, total * 0.03);
-  if (distance + eps < total) {
-    const ahead = positionAtArcDistance(path, cumDist, distance + eps);
-    return screenBearingBetween(map, pos, ahead);
-  }
-  if (distance > eps) {
-    const behind = positionAtArcDistance(path, cumDist, distance - eps);
-    return screenBearingBetween(map, behind, pos);
-  }
-  const ahead = positionAtArcDistance(path, cumDist, Math.min(eps, total));
-  return screenBearingBetween(map, pos, ahead);
+  const result = positionAndBearingAtDistance(
+    path,
+    cumDist,
+    distance,
+    (a, b) => screenBearingBetween(map, a, b),
+  );
+  return result?.bearing ?? null;
 }
 
 function applyMissileBearing(marker, screenBearing) {

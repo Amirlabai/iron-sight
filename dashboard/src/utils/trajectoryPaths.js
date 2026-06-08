@@ -9,6 +9,8 @@ export const HOLD_MS = 550;
 export const INTERCEPTOR_COUNT = 3;
 export const MIN_MISSILE_LOOP_MS = 1000;
 
+import { haversineCore } from './geoUtils';
+
 const EARTH_RADIUS_M = 6371000;
 
 /** Minimum on-screen speed so sprites move visibly at country zoom (6–8). */
@@ -46,14 +48,7 @@ export function motionSpeedMps(baseMps, zoom, latitude, arcMeters, maxDurationSe
 }
 
 export function haversineMeters(p1, p2) {
-  const lat1 = (p1[0] * Math.PI) / 180;
-  const lat2 = (p2[0] * Math.PI) / 180;
-  const dLat = lat2 - lat1;
-  const dLng = ((p2[1] - p1[1]) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(a));
+  return EARTH_RADIUS_M * haversineCore(p1, p2);
 }
 
 export function lerpCoord(a, b, t) {
