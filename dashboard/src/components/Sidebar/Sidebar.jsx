@@ -356,7 +356,7 @@ export default function Sidebar() {
               ) : filteredHistory.length === 0 && !historyHasMore && originFilter !== 'all' ? (
                 <div className="empty-state"><Clock size={48} color="#333" /><p>NO EVENTS FOR THIS ORIGIN</p></div>
               ) : (
-                <>
+                <div className="archive-panel-body">
                   <div className="history-list">
                     {filteredHistory.length === 0 && originFilter !== 'all' ? (
                       <p className="history-origin-empty-hint">
@@ -479,7 +479,7 @@ export default function Sidebar() {
                   })}
                   </div>
                   {historyShowMoreFooter}
-                </>
+                </div>
               )}
             </motion.div>
           )}

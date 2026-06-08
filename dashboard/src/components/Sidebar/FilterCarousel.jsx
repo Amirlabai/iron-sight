@@ -2,7 +2,6 @@ import React from 'react';
 
 const TIMEFRAME_PRESET_IDS = ['all', '1', '12', '24'];
 const DRAG_CLICK_THRESHOLD_PX = 6;
-const SCROLL_SETTLE_MS = 180;
 
 function prefersReducedMotion() {
   return typeof window !== 'undefined'
@@ -26,9 +25,8 @@ export default function FilterCarousel({
 }) {
   const scrollerRef = React.useRef(null);
   const itemRefs = React.useRef(new Map());
-  const isUserScrollingRef = React.useRef(false);
-  const scrollEndTimerRef = React.useRef(null);
-  const hasInitialScrollRef = React.useRef(false);
+  const didInitialScrollRef = React.useRef(false);
+  const isDraggingRef = React.useRef(false);
   const dragRef = React.useRef({
     active: false,
     moved: false,
@@ -49,16 +47,9 @@ export default function FilterCarousel({
     scroller.style.setProperty('--carousel-edge-pad', `${scroller.clientWidth / 2}px`);
   }, []);
 
-  const scrollToValue = React.useCallback((targetValue, behavior = 'auto', align = 'center') => {
+  const scrollToValue = React.useCallback((targetValue, behavior = 'auto') => {
     const scroller = scrollerRef.current;
-    if (!scroller) return;
-
-    if (align === 'start') {
-      scroller.scrollTo({ left: 0, behavior });
-      return;
-    }
-
-    if (targetValue == null) return;
+    if (!scroller || targetValue == null) return;
     const item = items.find((entry) => getItemValue(entry) === targetValue);
     if (!item) return;
     const el = itemRefs.current.get(getItemKey(item));
@@ -88,45 +79,48 @@ export default function FilterCarousel({
     return closest;
   }, [items, getItemKey, getItemValue]);
 
-  const settleCarousel = React.useCallback((behavior) => {
+  const settleAfterUserScroll = React.useCallback(() => {
     const centered = findCenteredValue();
-    if (centered == null) return;
-    scrollToValue(centered, behavior, 'center');
+    if (centered == null || value == null) return;
     if (centered !== value) {
       onChange(centered);
     }
-  }, [findCenteredValue, onChange, scrollToValue, value]);
-
-  const scheduleSettle = React.useCallback((behavior) => {
-    clearTimeout(scrollEndTimerRef.current);
-    scrollEndTimerRef.current = setTimeout(() => {
-      isUserScrollingRef.current = false;
-      settleCarousel(behavior);
-    }, SCROLL_SETTLE_MS);
-  }, [settleCarousel]);
+  }, [findCenteredValue, onChange, value]);
 
   React.useEffect(() => {
     if (!enabled) return undefined;
     const scroller = scrollerRef.current;
     if (!scroller) return undefined;
+
     updateEdgePadding();
-    const ro = new ResizeObserver(updateEdgePadding);
+    const ro = new ResizeObserver(() => {
+      const activeValue = value ?? findCenteredValue();
+      updateEdgePadding();
+      if (activeValue != null) {
+        requestAnimationFrame(() => scrollToValue(activeValue, 'auto'));
+      }
+    });
     ro.observe(scroller);
     return () => ro.disconnect();
-  }, [enabled, updateEdgePadding]);
+  }, [enabled, findCenteredValue, scrollToValue, updateEdgePadding, value]);
 
   React.useEffect(() => {
-    if (!enabled || value == null) return undefined;
+    if (!enabled || didInitialScrollRef.current) return undefined;
     const frame = requestAnimationFrame(() => {
-      scrollToValue(value, 'auto', 'start');
-      hasInitialScrollRef.current = true;
+      if (value != null) {
+        scrollToValue(value, 'auto');
+      } else {
+        scrollerRef.current?.scrollTo({ left: 0, behavior: 'auto' });
+      }
+      didInitialScrollRef.current = true;
     });
     return () => cancelAnimationFrame(frame);
-  }, [enabled, scrollToValue]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, scrollToValue, value]);
 
   React.useEffect(() => {
-    if (!enabled || !hasInitialScrollRef.current || value == null || isUserScrollingRef.current) return;
-    scrollToValue(value, prefersReducedMotion() ? 'auto' : 'smooth', 'center');
+    if (!enabled || !didInitialScrollRef.current || isDraggingRef.current) return;
+    if (value == null) return;
+    scrollToValue(value, prefersReducedMotion() ? 'auto' : 'smooth');
   }, [enabled, value, scrollToValue]);
 
   React.useEffect(() => {
@@ -134,33 +128,21 @@ export default function FilterCarousel({
     const scroller = scrollerRef.current;
     if (!scroller) return undefined;
 
-    const settleBehavior = prefersReducedMotion() ? 'auto' : 'smooth';
-
-    const onScroll = () => {
-      isUserScrollingRef.current = true;
-      scheduleSettle(settleBehavior);
-    };
-
     const onScrollEnd = () => {
-      isUserScrollingRef.current = false;
-      clearTimeout(scrollEndTimerRef.current);
-      settleCarousel(settleBehavior);
+      if (isDraggingRef.current) return;
+      settleAfterUserScroll();
     };
 
-    scroller.addEventListener('scroll', onScroll, { passive: true });
     scroller.addEventListener('scrollend', onScrollEnd);
-    return () => {
-      scroller.removeEventListener('scroll', onScroll);
-      scroller.removeEventListener('scrollend', onScrollEnd);
-      clearTimeout(scrollEndTimerRef.current);
-    };
-  }, [enabled, scheduleSettle, settleCarousel]);
+    return () => scroller.removeEventListener('scrollend', onScrollEnd);
+  }, [enabled, settleAfterUserScroll]);
 
   const handlePointerDown = (event) => {
     if (!enabled || event.pointerType === 'mouse' && event.button !== 0) return;
     const scroller = scrollerRef.current;
     if (!scroller) return;
 
+    isDraggingRef.current = true;
     dragRef.current = {
       active: true,
       moved: false,
@@ -183,7 +165,6 @@ export default function FilterCarousel({
     const scroller = scrollerRef.current;
     if (!scroller) return;
     scroller.scrollLeft = drag.startScrollLeft - deltaX;
-    isUserScrollingRef.current = true;
   };
 
   const finishPointerDrag = (event) => {
@@ -198,20 +179,25 @@ export default function FilterCarousel({
     const wasMoved = drag.moved;
     drag.active = false;
     drag.moved = false;
+    isDraggingRef.current = false;
+
     if (wasMoved) {
       suppressClickRef.current = true;
       window.setTimeout(() => {
         suppressClickRef.current = false;
       }, 0);
-      scheduleSettle(prefersReducedMotion() ? 'auto' : 'smooth');
+      settleAfterUserScroll();
+      return;
     }
+
+    isDraggingRef.current = false;
   };
 
   const handleItemClick = (itemValue) => {
     if (suppressClickRef.current) return;
     onChange(itemValue);
     if (enabled) {
-      scrollToValue(itemValue, prefersReducedMotion() ? 'auto' : 'smooth', 'center');
+      scrollToValue(itemValue, prefersReducedMotion() ? 'auto' : 'smooth');
     }
   };
 

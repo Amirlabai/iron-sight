@@ -409,7 +409,7 @@ export function TacticalProvider({ children }) {
         const rows = filterArchiveHistory(raw);
         const apiHasMore = Array.isArray(data)
           ? raw.length === pageLimit
-          : Boolean(data.has_more);
+          : (data.has_more != null ? Boolean(data.has_more) : raw.length >= pageLimit);
         const nextOff = Array.isArray(data)
           ? pageOffset + raw.length
           : (data.next_offset ?? pageOffset + raw.length);

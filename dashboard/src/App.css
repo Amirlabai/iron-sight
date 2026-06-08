@@ -656,9 +656,10 @@ html[data-theme='light'] .tab-btn.active {
 }
 
 .history-show-more-btn {
+    display: block;
     flex-shrink: 0;
-    width: calc(100% - 24px);
-    margin: 10px 12px 0;
+    width: 100%;
+    margin: 0;
     padding: 10px 12px;
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -1008,6 +1009,21 @@ html[data-theme='light'] .tab-btn.active {
     overflow: hidden;
 }
 
+.archive-panel > .history-filters,
+.archive-panel > .filter-carousel-wrap,
+.archive-panel > .timeframe-filters,
+.archive-panel > .origin-filters {
+    flex-shrink: 0;
+}
+
+.archive-panel-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .history-list {
     flex: 1;
     min-height: 0;
@@ -1023,9 +1039,11 @@ html[data-theme='light'] .tab-btn.active {
 
 .history-show-more-footer {
     flex-shrink: 0;
+    position: relative;
+    z-index: 3;
     background: var(--bg-secondary);
     border-top: 1px solid var(--border);
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding: 8px 12px max(12px, env(safe-area-inset-bottom));
 }
 
 .live-panel {
@@ -1040,13 +1058,13 @@ html[data-theme='light'] .tab-btn.active {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 15px;
-    background: rgba(0, 0, 0, 0.2);
-    border-bottom: 1px solid var(--border);
+    padding: 10px 15px 10px;
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .timeframe-filters {
-    padding: 0 15px 10px;
+    padding: 10px 15px 10px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1110,7 +1128,7 @@ html[data-theme='light'] .tab-btn.active {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    padding: 8px 15px 10px;
+    padding: 10px 15px 10px;
     overflow: visible;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
