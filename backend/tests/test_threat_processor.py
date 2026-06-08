@@ -48,7 +48,7 @@ class TestThreatProcessorMissileOrigins:
             {"cities": [{"name": "NorthCity", "coords": [33.3, 35.6]}], "centroid": [33.3, 35.6]}
         ]
         engine.get_origin = AsyncMock(return_value=("Lebanon", 0.5))
-        engine.get_projected_origin.return_value = [33.6, 35.2]
+        engine.project_origin_display.return_value = ([33.6, 35.2], [33.5, 35.3])
         engine.origins = {"Lebanon": [33.9, 35.7]}
         engine.strategic_depths = {"Iran": 16.0}
         engine.zoom_levels = {"Lebanon": 8}

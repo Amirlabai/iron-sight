@@ -102,12 +102,48 @@ class MongoManager:
             return
         
         ts = datetime.now(timezone.utc).isoformat()
+        now_utc = datetime.now(timezone.utc)
         timeline_entry = {"status": status, "time": ts}
         
         if data:
             timeline_entry["cities"] = len(data.get("all_cities", []))
         
         try:
+            if status == "UPDATED" and data:
+                existing = await self.event_logs.find_one(
+                    {"event_id": event_id},
+                    {"city_count": 1, "timeline": {"$slice": -1}},
+                )
+                if existing:
+                    new_count = len(data.get("all_cities", []))
+                    if existing.get("city_count") == new_count:
+                        last_entries = existing.get("timeline") or []
+                        last_entry = last_entries[-1] if last_entries else None
+                        if last_entry and last_entry.get("status") == "UPDATED":
+                            try:
+                                last_ts = datetime.fromisoformat(
+                                    last_entry["time"].replace("Z", "+00:00")
+                                )
+                                if (now_utc - last_ts).total_seconds() < 30:
+                                    await self.event_logs.update_one(
+                                        {"event_id": event_id},
+                                        {"$set": {"last_update_time": ts}},
+                                    )
+                                    logger.info(f"LOG_EVENT: {event_id} -> UPDATED (debounced)")
+                                    return
+                            except (ValueError, TypeError):
+                                pass
+                        await self.event_logs.update_one(
+                            {"event_id": event_id},
+                            {
+                                "$set": {"last_update_time": ts},
+                                "$push": {"timeline": timeline_entry},
+                                "$inc": {"updates_count": 1},
+                            },
+                        )
+                        logger.info(f"LOG_EVENT: {event_id} -> UPDATED")
+                        return
+
             if status == "DETECTED":
                 # Create new lifecycle document
                 city_list = [c.get("name", c) if isinstance(c, dict) else c for c in (data or {}).get("all_cities", [])]

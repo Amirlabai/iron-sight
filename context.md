@@ -24,7 +24,8 @@ Real-time tactical intelligence for the Israeli theater. Ingests Pikud HaOref al
 | History-fixer verify commit | Operator-chosen pin (typically calc entry from suggest-origin) |
 
 - Origin projection via regression from cluster cities; depth calibration: Gaza/Lebanon 0.5, Iran 16.0, Yemen 20.0. Trajectory entry: calc-border ray-march along oriented PCA, then ~0.1° inset inside calc polygon. Display pin: first **tactical silhouette** crossing on the full ray (to `tac_max` 42° Iran / 50° Yemen) plus 0.1° inset—never calc entry coords. Fallback: on-ray point at `tac_max` if inside silhouette, else country-centroid. Optional `calc_entry_coords` on trajectory for replay/debug.
-- ID-driven lifecycle: `active_events{}` keyed by alert ID; 10s end grace; 5 min inactivity timeout.
+- ID-driven lifecycle: `EventStore` (stub per relay ID + one master analysis per cluster); 10s end grace; 20 min inactivity timeout. Duplicate relay ticks (+0 cities) skip reprocess, broadcast, DB `UPDATED`, and cluster timeout extension.
+- Live RAM uses coord-based hulls; polygon hulls built only for WebSocket broadcast and DB persist.
 - Strategic origins (Iran/Yemen) gated by warning-shaped `newsFlash` (`data` or `cities` present).
 - When **≥2** geometric origin candidates exist, `origin_ml.resolve_origin_ml` picks the winner from **verified** `salvo_history` / `drone_history` (labels: `verified`, `manual_origin`, `trajectories[0].origin`).
 - newsFlash persisted to `newsflash_history` with `lifecycle_status` (`ended` / `superseded` / `cleared`); excluded from origin ML.

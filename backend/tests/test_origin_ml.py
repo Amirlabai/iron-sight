@@ -93,7 +93,7 @@ class TestCollapseMissileOrigins:
         engine.strategic_depths = {"Lebanon": 0.5, "Iran": 16.0}
         engine.origins = {"Lebanon": [33.9, 35.7]}
         engine.zoom_levels = {"Lebanon": 8}
-        engine.get_projected_origin = MagicMock(return_value=[33.5, 35.5])
+        engine.project_origin_display = MagicMock(return_value=([33.5, 35.5], [33.4, 35.4]))
 
         payload = {
             "clusters": [{"origin": "Iran", "cities": []}],

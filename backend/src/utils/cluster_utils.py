@@ -50,7 +50,15 @@ def is_subset(cities_a, cities_b):
         return False
     return set_a.issubset(set_b)
 
-def recalculate_unified_metadata(cities, factor=DRONE_INFLATION_FACTOR, engine=None):
+def _hull_for_cities(engine, cities, factor, use_polygon_hulls=True):
+    coords = [c["coords"] for c in cities]
+    hull_cities = cities if use_polygon_hulls else None
+    return engine.get_inflated_hull(coords, factor, cities=hull_cities)
+
+
+def recalculate_unified_metadata(
+    cities, factor=DRONE_INFLATION_FACTOR, engine=None, use_polygon_hulls=True
+):
     """
     Given a list of cities, recalculate a single unified centroid and convex hull.
     This replaces the multiple sub-clusters from merged events.
@@ -62,7 +70,7 @@ def recalculate_unified_metadata(cities, factor=DRONE_INFLATION_FACTOR, engine=N
     centroid = np.mean(coords, axis=0).tolist()
     
     if engine:
-        hull = engine.get_inflated_hull(coords, factor, cities=cities)
+        hull = _hull_for_cities(engine, cities, factor, use_polygon_hulls)
     else:
         if len(coords) == 1:
             # Create a small tactical diamond for single points
@@ -265,7 +273,7 @@ def group_events(active_events, threshold_km=15, include_all=False):
     
     return [[event_items[idx]["id"] for idx in comp] for comp in components]
 
-async def merge_event_group(group_ids, active_events, engine=None):
+async def merge_event_group(group_ids, active_events, engine=None, use_polygon_hulls=True):
     """
     Consolidates a group of alert IDs into a single master payload.
     Uses the first lexicographical ID as the stable Master ID.
@@ -281,6 +289,8 @@ async def merge_event_group(group_ids, active_events, engine=None):
         data = dict(ev["ev"]["data"] if "ev" in ev else ev["data"])
         data["id"] = eid
         data["merged_ids"] = [eid]
+        if engine and use_polygon_hulls and data.get("clusters"):
+            data = upgrade_payload_hulls(data, engine)
         return data
         
     # Sort IDs for stability
@@ -333,7 +343,7 @@ async def merge_event_group(group_ids, active_events, engine=None):
                     "origin": category,
                     "centroid": rc['centroid'],
                     "cities": rc['cities'],
-                    "hull": engine.get_inflated_hull([c['coords'] for c in rc['cities']], merge_factor, cities=rc['cities'])
+                    "hull": _hull_for_cities(engine, rc["cities"], merge_factor, use_polygon_hulls),
                 })
         else:
             _, new_hull = recalculate_unified_metadata(merged_all_cities, merge_factor, engine=engine)
@@ -413,7 +423,32 @@ async def merge_event_group(group_ids, active_events, engine=None):
         
     return base_data
 
-async def build_merged_payloads(active_events, engine=None, threshold_km=15):
+def upgrade_payload_hulls(payload, engine):
+    """Upgrade coord-based hulls to polygon hulls for client broadcast."""
+    if not engine or not payload:
+        return payload
+    upgraded = dict(payload)
+    category = upgraded.get("category")
+    if category == "missiles":
+        factor = MISSILE_INFLATION_FACTOR
+    elif category == "hostileAircraftIntrusion":
+        factor = DRONE_INFLATION_FACTOR
+    else:
+        factor = DEFAULT_INFLATION_FACTOR
+    new_clusters = []
+    for cluster in upgraded.get("clusters", []):
+        cities = cluster.get("cities", [])
+        new_clusters.append({
+            **cluster,
+            "hull": _hull_for_cities(engine, cities, factor, use_polygon_hulls=True),
+        })
+    upgraded["clusters"] = new_clusters
+    return upgraded
+
+
+async def build_merged_payloads(
+    active_events, engine=None, threshold_km=15, use_polygon_hulls=True
+):
     """
     Legacy wrapper for websocket broadcast, utilizing refactored grouping logic.
     """
@@ -421,7 +456,9 @@ async def build_merged_payloads(active_events, engine=None, threshold_km=15):
     
     merged_payloads = []
     for group_ids in clusters:
-        payload = await merge_event_group(group_ids, active_events, engine)
+        payload = await merge_event_group(
+            group_ids, active_events, engine, use_polygon_hulls=use_polygon_hulls
+        )
         if payload:
             merged_payloads.append(payload)
             

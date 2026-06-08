@@ -8,6 +8,14 @@ Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`
 
 ## Recently completed
 
+### OOM memory refactor (2026-06-08)
+
+- `event_store.py`: stub+master in-memory model — one canonical analysis payload per cluster, per-relay city subsets on stubs.
+- `main.py`: skip no-op relay updates (+0 cities); merge broadcast cache; `CLUSTER_TIMEOUT_SYNC` only on real city deltas.
+- `threat_processor.py` / `cluster_utils.py`: coord-only hulls in live RAM; polygon hulls at broadcast/persist only.
+- `mongo_manager.py`: debounce `UPDATED` lifecycle writes when city count unchanged within 30s.
+- Tests: `test_event_store.py`, `test_log_event_dedup.py`.
+
 ### PWA WebSocket reconnect (2026-06-08)
 
 - `wsReconnect.js`: first 3 reconnect waits stay at 3s each, then 6s → 12s → … (cap 60s).

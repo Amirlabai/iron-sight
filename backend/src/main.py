@@ -4,18 +4,18 @@ import json
 import logging
 import os
 import time
-import numpy as np
 from datetime import datetime
 from src.utils.config import POLL_INTERVAL, RELAY_URL, RELAY_AUTH_KEY, TIMEZONE, VAPID_CLAIMS_EMAIL
 from src.db.mongo_manager import MongoManager
 from src.data.data_manager import LamasDataManager
 from src.core.engine import TrackingEngine
+from src.core.event_store import EventStore
 from src.core.threat_processor import ThreatProcessor
 from src.api.ws_manager import WebSocketManager
 from src.services.push_manager import PushManager
 from src.services.telegram_notifier import TelegramNotifier
 from src.utils.kfar_kama import collect_active_track_ids
-from src.utils.cluster_utils import build_merged_payloads, get_cluster_groups, group_events, merge_event_group
+from src.utils.cluster_utils import build_merged_payloads, group_events, merge_event_group
 from src.utils.outbound_policy import relay_upstream_label
 
 # Global Logging Setup
@@ -52,9 +52,8 @@ async def main():
     await ws.start()
     await dm.load()
 
-    # ID-Driven Active Events Dictionary
-    # Structure: { alert_id: { "data": <analysis_payload>, "last_update_time": <float>, "end_time": <float|None>, "category": <str> } }
-    active_events = {}
+    store = EventStore()
+    memory_log_counter = 0
 
     try:
         async with aiohttp.ClientSession(headers={'User-Agent': 'IronSight/0.0.0'}) as session:
@@ -64,7 +63,7 @@ async def main():
                     events_changed = False
 
                     # --- Cluster-Aware Lifecycle Maintenance ---
-                    clusters = get_cluster_groups(active_events, threshold_km=15) # Only active-only groups for sync
+                    active_events = store.active_events
                     all_groups = group_events(active_events, include_all=True) # All groups including ended
                 
                     purged_ids = []
@@ -76,9 +75,11 @@ async def main():
                         for gid in group_ids:
                             ev = active_events[gid]
                             if ev["end_time"] is None and (now - ev["last_update_time"] > INACTIVITY_TIMEOUT):
-                                ev["end_time"] = now
+                                store.set_field(gid, "end_time", now)
                                 if ev.get("category") == "newsFlash" and not ev.get("lifecycle_status"):
-                                    ev["lifecycle_status"] = "ended"
+                                    store.set_field(gid, "lifecycle_status", "ended")
+                                active_events = store.active_events
+                                ev = active_events[gid]
                                 logger.info(f"EVENT_TIMEOUT: {gid} - Silence depth exceeded. Marking for termination.")
                                 if not ev["data"].get("is_simulation"):
                                     await db.log_event(gid, ev["category"], "TIMEOUT", ev["data"])
@@ -91,7 +92,9 @@ async def main():
                     
                         if all_ended and any_expired:
                             # Generate Unified Master Payload
-                            master_payload = await merge_event_group(group_ids, active_events, engine)
+                            master_payload = await merge_event_group(
+                                group_ids, active_events, engine, use_polygon_hulls=True
+                            )
                         
                             has_persistent = any(
                                 not active_events[gid].get("is_transient")
@@ -143,7 +146,7 @@ async def main():
                                 if not purge_ev["data"].get("is_simulation"):
                                     await db.log_event(gid, category, "PURGED", purge_ev["data"])
                                 await _telegram_kfar_kama_ended(telegram_notifier, gid, purge_ev["data"])
-                                del active_events[gid]
+                                store.pop(gid)
                                 purged_ids.append(gid)
                                 logger.info(f"EVENT_PURGED: {gid} ({category}, {city_count} cities)")
                 
@@ -152,9 +155,9 @@ async def main():
 
                     # If events were purged, broadcast updated state
                     if events_changed:
-                        ws.active_events = active_events
-                        await _broadcast_multi_alert(ws, active_events, engine, push_manager, telegram_notifier)
-                        if not active_events:
+                        ws.active_events = store.active_events
+                        await _broadcast_multi_alert(ws, store, engine, push_manager, telegram_notifier)
+                        if not store:
                             await ws.broadcast({"type": "reset"})
 
                     # --- Fetch Tactical Feeds ---
@@ -173,6 +176,7 @@ async def main():
                                     for a in alerts
                                 )
                                 relay_batch_changed = False
+                                active_events = store.active_events
 
                                 for alert_payload in alerts:
                                     a_type = str(alert_payload.get('type', ''))
@@ -205,42 +209,44 @@ async def main():
                                                         ended_ids.append(eid)
                                         
                                             for eid in ended_ids:
-                                                active_events[eid]["end_time"] = now
-                                                if active_events[eid].get("category") == "newsFlash":
-                                                    active_events[eid]["lifecycle_status"] = "cleared"
+                                                store.set_field(eid, "end_time", now)
+                                                if store.get(eid, {}).get("category") == "newsFlash":
+                                                    store.set_field(eid, "lifecycle_status", "cleared")
+                                                ev = store.get(eid, {})
                                                 logger.info(f"GRANULAR_END_SIGNAL: {eid} terminated based on region match in newsFlash.")
-                                                if not active_events[eid]["data"].get("is_simulation"):
-                                                    await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
+                                                if not ev.get("data", {}).get("is_simulation"):
+                                                    await db.log_event(eid, ev["category"], "END_SIGNAL", ev["data"])
                                                 await _telegram_kfar_kama_ended(
-                                                    telegram_notifier, eid, active_events[eid]["data"],
+                                                    telegram_notifier, eid, ev["data"],
                                                 )
                                             if ended_ids:
                                                 relay_batch_changed = True
                                             
                                         if not ended_ids:
-                                            if alert_id and alert_id in active_events:
-                                                active_events[alert_id]["end_time"] = now
-                                                if active_events[alert_id].get("category") == "newsFlash":
-                                                    active_events[alert_id]["lifecycle_status"] = "cleared"
+                                            if alert_id and alert_id in store:
+                                                store.set_field(alert_id, "end_time", now)
+                                                if store.get(alert_id, {}).get("category") == "newsFlash":
+                                                    store.set_field(alert_id, "lifecycle_status", "cleared")
                                                 logger.info(f"END_SIGNAL_RECEIVED: {alert_id}")
-                                                if not active_events[alert_id]["data"].get("is_simulation"):
-                                                    await db.log_event(alert_id, active_events[alert_id]["category"], "END_SIGNAL", active_events[alert_id]["data"])
+                                                ev = store.get(alert_id, {})
+                                                if not ev.get("data", {}).get("is_simulation"):
+                                                    await db.log_event(alert_id, ev["category"], "END_SIGNAL", ev["data"])
                                                 await _telegram_kfar_kama_ended(
-                                                    telegram_notifier, alert_id, active_events[alert_id]["data"],
+                                                    telegram_notifier, alert_id, ev["data"],
                                                 )
-                                            elif alert_id is None or alert_id not in active_events:
-                                                for eid in active_events:
-                                                    if active_events[eid]["end_time"] is None:
-                                                        active_events[eid]["end_time"] = now
-                                                        if active_events[eid].get("category") == "newsFlash":
-                                                            active_events[eid]["lifecycle_status"] = "cleared"
-                                                        if not active_events[eid]["data"].get("is_simulation"):
-                                                            await db.log_event(eid, active_events[eid]["category"], "END_SIGNAL", active_events[eid]["data"])
+                                            elif alert_id is None or alert_id not in store:
+                                                for eid, ev in store.items():
+                                                    if ev["end_time"] is None:
+                                                        store.set_field(eid, "end_time", now)
+                                                        if ev.get("category") == "newsFlash":
+                                                            store.set_field(eid, "lifecycle_status", "cleared")
+                                                        if not ev["data"].get("is_simulation"):
+                                                            await db.log_event(eid, ev["category"], "END_SIGNAL", ev["data"])
                                                         await _telegram_kfar_kama_ended(
-                                                            telegram_notifier, eid, active_events[eid]["data"],
+                                                            telegram_notifier, eid, ev["data"],
                                                         )
-                                                if active_events:
-                                                    logger.info(f"END_SIGNAL_BROADCAST: All {len(active_events)} active events marked for termination.")
+                                                if store:
+                                                    logger.info(f"END_SIGNAL_BROADCAST: All {len(store)} active events marked for termination.")
                                         relay_batch_changed = True
                                         continue
 
@@ -258,86 +264,86 @@ async def main():
                                             continue
                                     
                                         is_simulation = alert_payload.get("is_simulation", False)
-                                        analysis = await processor.process(a_type, cities_raw, active_events, has_newsflash_in_batch)
+                                        analysis = await processor.process(
+                                            a_type,
+                                            cities_raw,
+                                            store.active_events,
+                                            has_newsflash_in_batch,
+                                            use_polygon_hulls=False,
+                                        )
                                         if not analysis:
                                             continue
 
                                         # Superseding Logic: Actual missiles supersede overlapping newsFlash ghosts
                                         if a_type == "missiles":
                                             incoming_cities = {c['name'] for c in analysis.get("all_cities", [])}
-                                            for gid, gv in list(active_events.items()):
+                                            for gid, gv in list(store.items()):
                                                 if gv["category"] == "newsFlash" and gv["end_time"] is None:
                                                     gv_cities = {c['name'] for c in gv["data"].get("all_cities", [])}
                                                     if gv_cities.intersection(incoming_cities):
-                                                        gv["end_time"] = now
-                                                        gv["lifecycle_status"] = "superseded"
+                                                        store.set_field(gid, "end_time", now)
+                                                        store.set_field(gid, "lifecycle_status", "superseded")
                                                         logger.info(f"NEWSFLASH_SUPERSEDED: {gid} terminated by incoming missile alert {alert_id}")
                                                         if not gv["data"].get("is_simulation") and not is_simulation:
                                                             await db.log_event(gid, "newsFlash", "SUPERSEDED", gv["data"])
                                                         await _telegram_kfar_kama_ended(telegram_notifier, gid, gv["data"])
                                                         relay_batch_changed = True
 
-                                        if alert_id in active_events:
-                                            # Rolling update: merge new cities into existing event
-                                            existing = active_events[alert_id]
-                                            existing_names_arr = np.array([c['name'] for c in existing["data"]["all_cities"]])
-                                        
-                                            if analysis:
-                                                incoming_names = np.array([c['name'] for c in analysis["all_cities"]])
-                                                is_new = ~np.isin(incoming_names, existing_names_arr)
-                                                new_cities = [c for c, flag in zip(analysis["all_cities"], is_new) if flag]
-                                                existing["data"]["all_cities"].extend(new_cities)
-                                            
-                                                # Recalculate with full city set
-                                                full_analysis = await processor.process(a_type, [c['name'] for c in existing["data"]["all_cities"]], active_events, has_newsflash_in_batch)
-                                                if full_analysis:
-                                                    full_analysis["id"] = alert_id
-                                                    full_analysis["is_simulation"] = is_simulation
-                                                    full_analysis["time"] = existing["data"].get("time") or alert_payload.get("alertDate", "").replace(" ", "T") or datetime.now(TIMEZONE).isoformat()
-                                                    existing["data"] = full_analysis
-                                                    existing["end_time"] = None  # Reset any pending end
-                                                    existing["last_update_time"] = now  # Reset inactivity timer
-                                                
-                                                    # Cluster-Aware Timeout Extension:
-                                                    # Synchronize last_update_time for all cluster siblings
-                                                    cluster_groups = get_cluster_groups(active_events, threshold_km=15)
-                                                    for group in cluster_groups:
-                                                        if alert_id in group and len(group) > 1:
-                                                            for sibling_id in group:
-                                                                if sibling_id != alert_id and sibling_id in active_events:
-                                                                    active_events[sibling_id]["last_update_time"] = now
-                                                            logger.info(f"CLUSTER_TIMEOUT_SYNC: {len(group)} events synchronized (trigger: {alert_id})")
-                                                            break
-                                                
-                                                    total_cities = len(full_analysis.get("all_cities", []))
-                                                    logger.info(f"ROLLING_UPDATE: {alert_id} ({a_type}) - +{len(new_cities)} new cities. Total: {total_cities}")
-                                                    if not is_simulation:
-                                                        await db.log_event(alert_id, a_type, "UPDATED", full_analysis)
-                                                    relay_batch_changed = True
+                                        event_time = (
+                                            alert_payload.get("alertDate", "").replace(" ", "T")
+                                            or datetime.now(TIMEZONE).isoformat()
+                                        )
+
+                                        if alert_id in store:
+                                            changed, new_count, total_cities = await store.apply_rolling_update(
+                                                alert_id,
+                                                analysis,
+                                                a_type,
+                                                is_simulation,
+                                                event_time,
+                                                now,
+                                                processor,
+                                                has_newsflash_in_batch,
+                                            )
+                                            if changed:
+                                                master_id = store.get(alert_id, {}).get("master_id", alert_id)
+                                                full_analysis = store.master_data_for_persist(master_id)
+                                                logger.info(
+                                                    f"ROLLING_UPDATE: {alert_id} ({a_type}) - "
+                                                    f"+{new_count} new cities. Total: {total_cities}"
+                                                )
+                                                if not is_simulation and full_analysis:
+                                                    await db.log_event(alert_id, a_type, "UPDATED", full_analysis)
+                                                relay_batch_changed = True
                                         else:
-                                            # New event
-                                        
                                             analysis["id"] = alert_id
-                                            analysis["is_simulation"] = is_simulation
-                                            analysis["time"] = alert_payload.get("alertDate", "").replace(" ", "T") or datetime.now(TIMEZONE).isoformat()
-                                        
-                                            active_events[alert_id] = {
-                                                "data": analysis,
-                                                "last_update_time": now,
-                                                "end_time": None,
-                                                "category": a_type,
-                                                "is_transient": a_type == "newsFlash"
-                                            }
-                                        
-                                            city_count = len(analysis.get("all_cities", []))
-                                            logger.info(f"DETECTION_SIGNAL: {alert_id} ({a_type}) - {city_count} cities detected. Active events: {len(active_events)}")
+                                            city_count = await store.register_detection(
+                                                alert_id,
+                                                analysis,
+                                                a_type,
+                                                is_simulation,
+                                                event_time,
+                                                now,
+                                                processor=processor,
+                                                has_newsflash_in_batch=has_newsflash_in_batch,
+                                            )
+                                            logger.info(
+                                                f"DETECTION_SIGNAL: {alert_id} ({a_type}) - "
+                                                f"{city_count} cities detected. Active events: {len(store)}"
+                                            )
                                             if not is_simulation:
-                                                await db.log_event(alert_id, a_type, "DETECTED", analysis)
+                                                master_id = store.get(alert_id, {}).get("master_id", alert_id)
+                                                persist_data = store.master_data_for_persist(master_id) or analysis
+                                                await db.log_event(alert_id, a_type, "DETECTED", persist_data)
                                             relay_batch_changed = True
 
                                 if relay_batch_changed:
-                                    ws.active_events = active_events
-                                    await _broadcast_multi_alert(ws, active_events, engine, push_manager, telegram_notifier)
+                                    ws.active_events = store.active_events
+                                    await _broadcast_multi_alert(ws, store, engine, push_manager, telegram_notifier)
+
+                                memory_log_counter += 1
+                                if memory_log_counter % 100 == 0 and store:
+                                    store.log_memory_stats()
                             
                             await ws.broadcast({
                                 "type": "health_status", 
@@ -365,10 +371,17 @@ async def _telegram_kfar_kama_ended(telegram_notifier, alert_id, event_data):
         await telegram_notifier.notify_kfar_kama_terminated(event_data, alert_id)
 
 
-async def _broadcast_multi_alert(ws, active_events, engine, push_manager=None, telegram_notifier=None):
+async def _broadcast_multi_alert(ws, store, engine, push_manager=None, telegram_notifier=None):
     """Push the full active events array to all connected clients."""
-    events_list = await build_merged_payloads(active_events, engine, threshold_km=15)
-    
+    state_hash = store.compute_broadcast_hash()
+    if store.merge_cache_valid(state_hash):
+        events_list = store.get_cached_merge_payloads()
+    else:
+        events_list = await build_merged_payloads(
+            store.active_events, engine, threshold_km=15, use_polygon_hulls=True
+        )
+        store.set_merge_cache(state_hash, events_list)
+
     await ws.broadcast({
         "type": "multi_alert",
         "events": events_list
@@ -379,7 +392,7 @@ async def _broadcast_multi_alert(ws, active_events, engine, push_manager=None, t
         await push_manager.notify_matching_subscriptions(push_events)
 
     if telegram_notifier and events_list:
-        active_ids = collect_active_track_ids(events_list, active_events)
+        active_ids = collect_active_track_ids(events_list, store.active_events)
         telegram_notifier.clear_stale_keys(active_ids)
         telegram_notifier.schedule_notify_events_if_kfar_kama(events_list)
 
