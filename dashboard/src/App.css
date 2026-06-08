@@ -1275,10 +1275,16 @@ html[data-theme='light'] .tab-btn.active {
         scroll-snap-align: center;
     }
 
-    .filter-carousel-wrap.history-filters,
+    .filter-carousel-wrap.history-filters {
+        padding-block: 2px;
+        padding-inline: 0;
+        background: transparent;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
     .filter-carousel-wrap.origin-filters,
     .filter-carousel-wrap.timeframe-filters-carousel {
-        padding-block: 8px;
+        padding-block: 2px;
         padding-inline: 0;
         background: transparent;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -1288,7 +1294,8 @@ html[data-theme='light'] .tab-btn.active {
         flex-direction: column;
         align-items: stretch;
         gap: 0;
-        padding: 0;
+        padding-block: 2px;
+        padding-inline: 0;
         overflow: hidden;
     }
 
