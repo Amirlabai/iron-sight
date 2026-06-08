@@ -150,9 +150,14 @@ class WebSocketManager:
         active_count = len(self.active_events)
 
         try:
-            history = await self.db.get_consolidated_history(limit=50, slim=True)
+            history, has_more = await self.db.get_consolidated_history_page(limit=50, slim=True)
             history_rows = len(history)
-            await ws.send_str(json.dumps({"type": "history_sync", "data": history, "version": self.version}))
+            await ws.send_str(json.dumps({
+                "type": "history_sync",
+                "data": history,
+                "has_more": has_more,
+                "version": self.version,
+            }))
 
             if self.active_events:
                 events_list = await build_merged_payloads(self.active_events, self.engine, threshold_km=15)
@@ -193,9 +198,12 @@ class WebSocketManager:
         limit_raw = request.query.get("limit")
         offset_raw = request.query.get("offset")
 
+        view = (request.query.get("view") or "list").lower()
+        slim = view != "full"
+
         limit = 50
-        if hours and hours != 'all':
-            limit = 1000 # Increase limit when searching by time
+        if hours and hours != 'all' and not slim:
+            limit = 1000  # Full-detail time windows only (operator tools)
         if limit_raw is not None:
             try:
                 limit = max(1, min(1000, int(limit_raw)))
@@ -208,13 +216,22 @@ class WebSocketManager:
             except ValueError:
                 pass
 
-        view = (request.query.get("view") or "list").lower()
-        slim = view != "full"
+        paged = request.query.get("page") == "1"
 
         started = time.perf_counter()
+        has_more = None
         if category:
-            history = await self.db.get_history(
-                alert_type=category, limit=limit, hours=hours, offset=offset, slim=slim,
+            if paged:
+                history, has_more = await self.db.get_history_page(
+                    alert_type=category, limit=limit, hours=hours, offset=offset, slim=slim,
+                )
+            else:
+                history = await self.db.get_history(
+                    alert_type=category, limit=limit, hours=hours, offset=offset, slim=slim,
+                )
+        elif paged:
+            history, has_more = await self.db.get_consolidated_history_page(
+                limit=limit, hours=hours, offset=offset, slim=slim,
             )
         else:
             history = await self.db.get_consolidated_history(
@@ -229,6 +246,12 @@ class WebSocketManager:
             payload_bytes=estimate_json_bytes(history),
             duration_ms=duration_ms,
         )
+        if paged:
+            return web.json_response({
+                "items": history,
+                "has_more": has_more,
+                "next_offset": offset + len(history),
+            })
         return web.json_response(history)
 
     async def history_event_handler(self, request):
@@ -308,8 +331,10 @@ class WebSocketManager:
             
             logger.info(f"HISTORY_FIXED_FULL: {alert_id} ({alert_type}) synchronized to {origin_name} by operator.")
             # Broadcast history refresh
-            history = await self.db.get_consolidated_history(limit=50, slim=True)
-            await self.broadcast({"type": "history_sync", "data": history})
+            history, has_more = await self.db.get_consolidated_history_page(limit=50, slim=True)
+            await self.broadcast({
+                "type": "history_sync", "data": history, "has_more": has_more,
+            })
             return web.json_response({"status": "SUCCESS", "event": existing})
             
         except Exception as e:
@@ -332,8 +357,10 @@ class WebSocketManager:
             if success:
                 logger.info(f"HISTORY_SPLIT: {alert_id} ({alert_type}) removed for re-processing.")
                 # Broadcast history refresh
-                history = await self.db.get_consolidated_history(limit=50, slim=True)
-                await self.broadcast({"type": "history_sync", "data": history})
+                history, has_more = await self.db.get_consolidated_history_page(limit=50, slim=True)
+                await self.broadcast({
+                    "type": "history_sync", "data": history, "has_more": has_more,
+                })
                 return web.json_response({"status": "SUCCESS"})
             else:
                 return web.json_response({"error": "Split failed"}, status=500)
@@ -360,8 +387,10 @@ class WebSocketManager:
             if master_payload:
                 logger.info(f"HISTORY_MANUAL_MERGE: {len(alert_ids)} events consolidated -> {master_payload['id']}")
                 # Broadcast history refresh
-                history = await self.db.get_consolidated_history(limit=50, slim=True)
-                await self.broadcast({"type": "history_sync", "data": history})
+                history, has_more = await self.db.get_consolidated_history_page(limit=50, slim=True)
+                await self.broadcast({
+                    "type": "history_sync", "data": history, "has_more": has_more,
+                })
                 return web.json_response({"status": "SUCCESS", "event": master_payload})
             else:
                 return web.json_response({"error": "Merge failed"}, status=500)

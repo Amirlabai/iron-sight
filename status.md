@@ -16,6 +16,20 @@ Production live: Render backend + Vercel dashboard (`iron-sight-drab.vercel.app`
 - `LOG_LEVEL` and `POLL_HEARTBEAT_EVERY` env vars.
 - Slim history API: `view=list` (default) for pagination; `GET /api/history/event` for full archive on select; WS `history_sync` uses slim rows.
 
+### History pagination fix (2026-06-08)
+
+- `mongo_manager.py`: `get_consolidated_history_page` / `get_history_page` with limit+1 `has_more`; consolidated queries exclude `newsFlash`.
+- `GET /api/history?page=1` returns `{ items, has_more, next_offset }`; legacy array response unchanged without `page=1`.
+- Dashboard: consumes page envelope; WS `history_sync` sets `historyHasMore` from server `has_more`.
+- Fixes sidebar SHOW MORE hidden when API had newsFlash rows or WS sync cleared pagination state.
+
+### History memory trim (2026-06-08)
+
+- Dashboard always uses `view=list` for sidebar/timeframe fetches (was `view=full` for time filters → 17MB responses, RSS ~380MB).
+- Slim list rows keep cluster centroids + trajectory origin pins for timeframe merge; full geometry only on card select.
+- `selectArchive` dedupes in-flight detail fetches and caches by id; abort stale history list requests on filter change.
+- Backend: 1000-row time-window cap applies only to `view=full` (operator tools).
+
 ### EventStore review refactor (branch `refactor/event-store-review`, worktree `.worktrees/refactor-review`)
 
 - `missile_origins.py`: shared `build_missile_origins` — live, merge, and archive paths use one pipeline.

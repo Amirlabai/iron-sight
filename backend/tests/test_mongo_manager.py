@@ -99,3 +99,17 @@ class TestHistoryPagination:
         result = await manager.get_consolidated_history(limit=2, offset=1)
         # Consolidated sorted desc IDs = 8,7,5,4,3,2 -> page from offset 1 = 7,5
         assert [r["id"] for r in result] == ["7", "5"]
+
+    @pytest.mark.asyncio
+    async def test_should_report_has_more_on_consolidated_page(self, manager):
+        items, has_more = await manager.get_consolidated_history_page(limit=2, offset=0)
+        assert [r["id"] for r in items] == ["8", "7"]
+        assert has_more is True
+
+    @pytest.mark.asyncio
+    async def test_should_exclude_newsflash_from_consolidated(self, manager):
+        manager.collections["newsFlash"] = DummyCollection([
+            {"_id": "99", "id": "99", "category": "newsFlash"},
+        ])
+        result = await manager.get_consolidated_history(limit=10, offset=0)
+        assert all(r["id"] != "99" for r in result)

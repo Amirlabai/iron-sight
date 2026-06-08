@@ -199,36 +199,43 @@ class MongoManager:
         except Exception as e:
             logger.error(f"LOG_EVENT_FAILURE: {event_id} {status} - {e}")
 
+    def _archive_categories(self):
+        return [
+            name for name, coll in self.collections.items()
+            if name != "newsFlash" and coll is not None
+        ]
+
+    def _history_time_query(self, hours):
+        if not hours or hours == "all":
+            return {}
+        from datetime import datetime, timedelta, timezone
+        if hours.startswith("range:"):
+            dates = hours.replace("range:", "").split(",")
+            if len(dates) != 2:
+                return {}
+            from_date, to_date = dates[0], dates[1]
+            time_query = {}
+            if from_date:
+                time_query["$gte"] = f"{from_date}T00:00:00+00:00"
+            if to_date:
+                time_query["$lte"] = f"{to_date}T23:59:59+00:00"
+            return {"time": time_query} if time_query else {}
+        try:
+            h = int(hours)
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=h)
+            return {"time": {"$gte": cutoff.isoformat()}}
+        except ValueError:
+            return {}
+
     async def get_history(self, alert_type="missiles", limit=50, hours=None, offset=0, *, slim=False):
         """Retrieve archive for a specific threat category."""
         collection = self.collections.get(alert_type)
-        if collection is None: return []
+        if collection is None:
+            return []
         try:
             from src.utils.history_slim import HISTORY_LIST_PROJECTION, slim_history_record
 
-            query = {}
-            if hours and hours != 'all':
-                from datetime import datetime, timedelta, timezone
-                if hours.startswith("range:"):
-                    # Format: range:YYYY-MM-DD,YYYY-MM-DD
-                    dates = hours.replace("range:", "").split(",")
-                    if len(dates) == 2:
-                        from_date, to_date = dates[0], dates[1]
-                        time_query = {}
-                        if from_date:
-                            time_query["$gte"] = f"{from_date}T00:00:00+00:00"
-                        if to_date:
-                            time_query["$lte"] = f"{to_date}T23:59:59+00:00"
-                        if time_query:
-                            query["time"] = time_query
-                else:
-                    try:
-                        h = int(hours)
-                        cutoff = datetime.now(timezone.utc) - timedelta(hours=h)
-                        query["time"] = {"$gte": cutoff.isoformat()}
-                    except ValueError:
-                        pass
-
+            query = self._history_time_query(hours)
             if slim:
                 cursor = collection.find(query, HISTORY_LIST_PROJECTION)
             else:
@@ -243,6 +250,18 @@ class MongoManager:
         except Exception as e:
             logger.error(f"DB_FETCH_FAILURE for {alert_type}: {e}")
             return []
+
+    async def get_history_page(
+        self, alert_type="missiles", limit=50, hours=None, offset=0, *, slim=False,
+    ):
+        """Single-collection page with has_more via limit+1 fetch."""
+        limit = max(1, min(1000, int(limit)))
+        offset = max(0, int(offset))
+        rows = await self.get_history(
+            alert_type, limit=limit + 1, hours=hours, offset=offset, slim=slim,
+        )
+        has_more = len(rows) > limit
+        return rows[:limit], has_more
 
     async def get_alert(self, alert_id, alert_type="missiles"):
         """Retrieve a single alert from the database by ID."""
@@ -266,32 +285,42 @@ class MongoManager:
                 return doc
         return None
 
-    async def get_consolidated_history(self, limit=50, hours=None, offset=0, *, slim=False):
-        """Retrieve archive across all tactical categories, unified and sorted."""
+    async def get_consolidated_history_page(self, limit=50, hours=None, offset=0, *, slim=False):
+        """Operational archive page across categories (excludes newsFlash)."""
         import asyncio
+
         try:
+            limit = max(1, min(1000, int(limit)))
             offset = max(0, int(offset))
-            fetch_limit = limit + offset
-            # Parallel fetch from all collections. Fetch enough rows to page after consolidation sort.
+            fetch_limit = limit + offset + 1
+            categories = self._archive_categories()
+            if not categories:
+                return [], False
+
             tasks = [
                 self.get_history(alert_type, limit=fetch_limit, hours=hours, offset=0, slim=slim)
-                for alert_type in self.collections
+                for alert_type in categories
             ]
             results = await asyncio.gather(*tasks)
-            
-            # Combine all results
+
             unified = []
             for res in results:
                 unified.extend(res)
-            
-            # Sort by ID descending (Pikud HaOref IDs are chronological strings)
-            # Ensure consistent sorting across all categories
+
             unified.sort(key=lambda x: str(x.get("id", "")), reverse=True)
-            
-            return unified[offset:offset + limit]
+            page = unified[offset:offset + limit + 1]
+            has_more = len(page) > limit
+            return page[:limit], has_more
         except Exception as e:
             logger.error(f"DB_CONSOLIDATED_FETCH_FAILURE: {e}")
-            return []
+            return [], False
+
+    async def get_consolidated_history(self, limit=50, hours=None, offset=0, *, slim=False):
+        """Retrieve archive across operational categories, unified and sorted."""
+        items, _has_more = await self.get_consolidated_history_page(
+            limit, hours, offset, slim=slim,
+        )
+        return items
 
     async def get_training_export(self, alert_type="missiles", limit=5000):
         """Verified labels for scientist export (missiles by default)."""

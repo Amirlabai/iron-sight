@@ -59,7 +59,8 @@ export const STRATEGIC_METADATA = TACTICAL_GEOJSON.features.reduce((acc, feature
   return acc;
 }, {});
 
-// Networking — dev: Vite origin + proxy to localhost:8080, unless VITE_WS_URL set (direct to Render).
+// Networking — dev: Vite origin + proxy to localhost:8080, unless VITE_WS_URL set.
+// VITE_WS_URL=localhost:8080 → direct http/ws to local backend; remote host → https/wss (Render).
 // Prod: REST via Vercel /api rewrite; WS direct to Render (Vercel edge does not proxy /ws upgrades).
 export const IS_PROD = import.meta.env.PROD;
 const PROD_WS_HOST = 'iron-sight-hjwf.onrender.com';
@@ -68,18 +69,28 @@ function normalizeHost(raw) {
   return String(raw || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
 }
 
+function isLocalHost(host) {
+  const bare = normalizeHost(host).split(':')[0].toLowerCase();
+  return bare === 'localhost' || bare === '127.0.0.1' || bare === '::1';
+}
+
 const REMOTE_HOST = normalizeHost(import.meta.env.VITE_WS_URL || '');
+const REMOTE_IS_TLS = Boolean(REMOTE_HOST && !isLocalHost(REMOTE_HOST));
+
 const WS_HOST = IS_PROD
   ? (REMOTE_HOST || PROD_WS_HOST)
   : (REMOTE_HOST || (typeof window !== 'undefined' ? window.location.host : 'localhost'));
-const WS_PROTOCOL = (!IS_PROD && REMOTE_HOST) || (typeof window !== 'undefined' && window.location.protocol === 'https:')
+
+const WS_PROTOCOL = (IS_PROD || REMOTE_IS_TLS)
   ? 'wss:'
-  : 'ws:';
+  : (typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:');
+
 export const WEBSOCKET_URL = `${WS_PROTOCOL}//${WS_HOST}/ws`;
+
 export const TACTICAL_API_URL = IS_PROD
   ? ''
   : (REMOTE_HOST
-    ? `https://${REMOTE_HOST}`
+    ? `${REMOTE_IS_TLS ? 'https' : 'http'}://${REMOTE_HOST}`
     : `${typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'https:' : 'http:'}//${typeof window !== 'undefined' ? window.location.host : 'localhost'}`);
 export const MISSION_KEY = import.meta.env.VITE_MISSION_KEY;
 

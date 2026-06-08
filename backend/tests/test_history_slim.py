@@ -23,8 +23,11 @@ def test_slim_strips_geometry():
     slim = slim_history_record(_fat_archive())
     assert slim["_listView"] is True
     assert slim["all_cities"] == [{"name": "Tel Aviv", "area": "מרכז"}]
-    assert slim["trajectories"] == [{"origin": "Lebanon"}]
-    assert "clusters" not in slim
+    assert slim["trajectories"] == [{
+        "origin": "Lebanon",
+        "origin_coords": [33.0, 35.0],
+    }]
+    assert slim["clusters"] == [{"origin": "Lebanon", "cities": []}]
     assert "hull" not in str(slim)
 
 

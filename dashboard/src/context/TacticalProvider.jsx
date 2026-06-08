@@ -160,6 +160,10 @@ export function TacticalProvider({ children }) {
   const historyOffsetRef = useRef(historyOffset);
   const viewModeRef = useRef(viewMode);
   const isReadyRef = useRef(isReady);
+  const historyFetchAbortRef = useRef(null);
+  const archiveDetailCacheRef = useRef(new Map());
+  const archiveDetailInflightRef = useRef(new Map());
+  const archiveSelectedIdRef = useRef(null);
 
   useSyncRefs([
     [alertPrefsRef, alertPrefs],
@@ -251,7 +255,14 @@ export function TacticalProvider({ children }) {
         }
         if (data.type === 'history_sync') {
           if (historyFilterRef.current === 'all' && timeFrameRef.current === 'all') {
-            setHistory(filterArchiveHistory(data.data));
+            const rows = filterArchiveHistory(data.data);
+            setHistory(rows);
+            setHistoryOffset(rows.length);
+            setHistoryHasMore(
+              data.has_more !== undefined
+                ? Boolean(data.has_more)
+                : rows.length >= HISTORY_PAGE_SIZE,
+            );
           }
           setLoadingProgress(100);
           setIsReady(true);
@@ -349,31 +360,45 @@ export function TacticalProvider({ children }) {
       offset = 0,
       limit = HISTORY_PAGE_SIZE,
     } = options;
+    let controller = null;
     try {
       if (append) {
         setHistoryLoadingMore(true);
       }
+      if (historyFetchAbortRef.current) {
+        historyFetchAbortRef.current.abort();
+      }
+      controller = new AbortController();
+      historyFetchAbortRef.current = controller;
+
       const baseUrl = `${TACTICAL_API_URL}/api/history`;
       const params = new URLSearchParams();
       if (category !== 'all') params.append('category', category);
       if (time !== 'all') params.append('hours', time);
-      params.append('view', time === 'all' ? 'list' : 'full');
+      params.append('view', 'list');
+      params.append('page', '1');
       params.append('limit', String(limit));
       params.append('offset', String(offset));
       const url = `${baseUrl}?${params.toString()}`;
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (res.ok) {
         const data = await res.json();
-        const raw = Array.isArray(data) ? data : [];
+        const raw = Array.isArray(data) ? data : (data.items || []);
         const rows = filterArchiveHistory(raw);
         if (append) {
           setHistory((prev) => mergeHistoryById(prev, rows));
         } else {
           setHistory(rows);
         }
-        const nextOffset = offset + raw.length;
+        const nextOffset = Array.isArray(data)
+          ? offset + raw.length
+          : (data.next_offset ?? offset + raw.length);
+        const hasMore = Array.isArray(data)
+          ? raw.length === limit
+          : Boolean(data.has_more);
         setHistoryOffset(nextOffset);
-        setHistoryHasMore(raw.length === limit);
+        setHistoryHasMore(hasMore);
       } else {
         if (!append) {
           setHistory([]);
@@ -386,11 +411,15 @@ export function TacticalProvider({ children }) {
         setMapConfig(calculateTimeframeMapConfig());
       }
     } catch (err) {
+      if (err?.name === 'AbortError') return;
       if (!IS_PROD) console.error("HISTORY_FETCH_FAILED", err);
       if (!append) {
         setHistoryHasMore(false);
       }
     } finally {
+      if (historyFetchAbortRef.current === controller) {
+        historyFetchAbortRef.current = null;
+      }
       if (append) {
         setHistoryLoadingMore(false);
       }
@@ -413,19 +442,42 @@ export function TacticalProvider({ children }) {
   }, [historyFilter, timeFrame, fetchHistory]);
 
   const selectArchive = useCallback(async (event) => {
+    if (!event?.id) return;
+    if (archiveSelectedIdRef.current === event.id && viewModeRef.current === 'archive') {
+      return;
+    }
+
     let row = event;
     if (event?._listView) {
-      try {
-        const params = new URLSearchParams({ id: event.id });
-        if (event.category) params.append('category', event.category);
-        const res = await fetch(`${TACTICAL_API_URL}/api/history/event?${params}`);
-        if (res.ok) {
-          row = await res.json();
+      const cacheKey = `${event.category || ''}:${event.id}`;
+      const cached = archiveDetailCacheRef.current.get(cacheKey);
+      if (cached) {
+        row = cached;
+      } else {
+        let inflight = archiveDetailInflightRef.current.get(cacheKey);
+        if (!inflight) {
+          const params = new URLSearchParams({ id: event.id });
+          if (event.category) params.append('category', event.category);
+          inflight = fetch(`${TACTICAL_API_URL}/api/history/event?${params}`)
+            .then(async (res) => {
+              if (!res.ok) throw new Error(`ARCHIVE_DETAIL_${res.status}`);
+              return res.json();
+            })
+            .finally(() => {
+              archiveDetailInflightRef.current.delete(cacheKey);
+            });
+          archiveDetailInflightRef.current.set(cacheKey, inflight);
         }
-      } catch (err) {
-        if (!IS_PROD) console.error('ARCHIVE_DETAIL_FETCH_FAILED', err);
+        try {
+          row = await inflight;
+          archiveDetailCacheRef.current.set(cacheKey, row);
+        } catch (err) {
+          if (!IS_PROD) console.error('ARCHIVE_DETAIL_FETCH_FAILED', err);
+        }
       }
     }
+
+    archiveSelectedIdRef.current = event.id;
     setArchiveEvent(row);
     setViewMode('archive');
     setMapConfig(calculateArchiveMapConfig(row));

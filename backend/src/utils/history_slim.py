@@ -14,7 +14,12 @@ HISTORY_LIST_PROJECTION = {
     "all_cities.name": 1,
     "all_cities.area": 1,
     "trajectories.origin": 1,
+    "trajectories.origin_coords": 1,
+    "trajectories.marker_coords": 1,
     "clusters.origin": 1,
+    "clusters.centroid": 1,
+    "clusters.cities.name": 1,
+    "clusters.cities.coords": 1,
 }
 
 
@@ -45,7 +50,34 @@ def slim_history_record(doc):
             "area": city.get("area", "Other"),
         })
 
-    origin = _first_origin(doc)
+    slim_trajectories = []
+    for traj in doc.get("trajectories") or []:
+        if not isinstance(traj, dict) or not traj.get("origin"):
+            continue
+        entry = {"origin": traj["origin"]}
+        if traj.get("origin_coords"):
+            entry["origin_coords"] = traj["origin_coords"]
+        if traj.get("marker_coords"):
+            entry["marker_coords"] = traj["marker_coords"]
+        slim_trajectories.append(entry)
+        break
+
+    slim_clusters = []
+    for cluster in doc.get("clusters") or []:
+        if not isinstance(cluster, dict):
+            continue
+        slim_cluster = {"origin": cluster.get("origin"), "cities": [], "centroid": cluster.get("centroid")}
+        for city in cluster.get("cities") or []:
+            if isinstance(city, str):
+                slim_cluster["cities"].append(city)
+            elif isinstance(city, dict) and city.get("name"):
+                city_entry = {"name": city["name"]}
+                if city.get("coords"):
+                    city_entry["coords"] = city["coords"]
+                slim_cluster["cities"].append(city_entry)
+        if slim_cluster.get("origin") or slim_cluster["cities"] or slim_cluster.get("centroid"):
+            slim_clusters.append({k: v for k, v in slim_cluster.items() if v is not None})
+
     slim = {
         "id": doc.get("id"),
         "category": doc.get("category"),
@@ -59,6 +91,8 @@ def slim_history_record(doc):
         "all_cities": slim_cities,
         "_listView": True,
     }
-    if origin:
-        slim["trajectories"] = [{"origin": origin}]
+    if slim_trajectories:
+        slim["trajectories"] = slim_trajectories
+    if slim_clusters:
+        slim["clusters"] = slim_clusters
     return {k: v for k, v in slim.items() if v is not None}
