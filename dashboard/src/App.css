@@ -1049,8 +1049,61 @@ html[data-theme='light'] .tab-btn.active {
     padding: 0 15px 10px;
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 8px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.timeframe-filters-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.timeframe-filters-extra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.timeframe-filters-extra .merge-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-sub);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.date-range-filter {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.date-range-filter__label {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--text-sub);
+    font-weight: 600;
+}
+
+.date-range-filter__input {
+    flex: 1 1 0;
+    min-width: 0;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border);
+    color: white;
+    font-size: 11px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    box-sizing: border-box;
 }
 
 .origin-filters {
@@ -1091,39 +1144,224 @@ html[data-theme='light'] .tab-btn.active {
     line-height: 1.4;
 }
 
-@media (max-width: 768px) {
-    .history-filters,
-    .timeframe-filters,
-    .origin-filters {
-        gap: 6px;
-        padding: 8px 12px;
+/* Mobile carousel filters — matches MOBILE_LAYOUT_BREAKPOINT (1024px) */
+@media (max-width: 1024px) {
+    .archive-panel > .filter-carousel-wrap {
+        flex-shrink: 0;
+        width: 100%;
+        min-width: 0;
     }
 
-    .history-filters .filter-tab,
-    .timeframe-filters .filter-tab {
-        flex: 1 1 calc(50% - 6px);
+    .filter-carousel-wrap {
+        position: relative;
+        display: block;
+        overflow: hidden;
+        width: 100%;
         min-width: 0;
+        box-sizing: border-box;
+    }
+
+    /* Reset desktop filter-row flex on the carousel shell */
+    .filter-carousel-wrap.history-filters,
+    .filter-carousel-wrap.origin-filters,
+    .filter-carousel-wrap.timeframe-filters-carousel {
+        flex-wrap: nowrap;
+    }
+
+    .filter-carousel-fade {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 50%;
+        z-index: 2;
+        pointer-events: none;
+    }
+
+    .filter-carousel-fade--left {
+        left: 0;
+        background: linear-gradient(
+            to right,
+            rgb(20, 20, 22) 30%,
+            transparent 100%
+        );
+    }
+
+    .filter-carousel-fade--right {
+        right: 0;
+        background: linear-gradient(
+            to left,
+            rgb(20, 20, 22) 30%,
+            transparent 100%
+        );
+    }
+
+    html[data-theme='light'] .filter-carousel-fade--left {
+        background: linear-gradient(
+            to right,
+            rgb(255, 255, 255) 0%,
+            transparent 100%
+        );
+    }
+
+    html[data-theme='light'] .filter-carousel-fade--right {
+        background: linear-gradient(
+            to left,
+            rgb(255, 255, 255) 0%,
+            transparent 100%
+        );
+    }
+
+    .filter-carousel {
+        --carousel-edge-pad: 50%;
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 48px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        touch-action: pan-x;
+        cursor: grab;
+    }
+
+    .filter-carousel:active {
+        cursor: grabbing;
+    }
+
+    .filter-carousel .filter-tab,
+    .filter-carousel .filter-tab-origin {
+        touch-action: pan-x;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    .filter-carousel::-webkit-scrollbar {
+        display: none;
+    }
+
+    .filter-carousel__edge {
+        flex: 0 0 var(--carousel-edge-pad);
+        height: 1px;
+        pointer-events: none;
+    }
+
+    .filter-carousel__slot {
+        flex: 0 0 auto;
+        scroll-snap-align: center;
+    }
+
+    .filter-carousel-wrap.history-filters,
+    .filter-carousel-wrap.origin-filters,
+    .filter-carousel-wrap.timeframe-filters-carousel {
+        padding-block: 8px;
+        padding-inline: 0;
+        background: transparent;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .timeframe-filters--mobile {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .timeframe-filters--mobile .timeframe-filters-extra {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        width: 100%;
+        padding: 5px;
+        box-sizing: border-box;
+    }
+
+    .timeframe-filters--mobile .date-range-filter {
+        width: 100%;
+        padding: 0;
+        gap: 6px;
+    }
+
+    .timeframe-filters--mobile .date-range-filter__input {
+        flex: 1 1 0;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .timeframe-filters--mobile .timeframe-filters-extra .merge-toggle {
+        padding: 0 12px;
+    }
+
+    .filter-carousel-wrap .filter-tab,
+    .filter-carousel-wrap .filter-tab-origin {
         min-height: 36px;
         font-size: 12px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        padding: 8px 2px;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
     }
 
-    .timeframe-filters .filter-tab.filter-all-time {
-        flex: 1 1 100%;
+    .filter-carousel-wrap .filter-tab:hover,
+    .filter-carousel-wrap .filter-tab-origin:hover {
+        background: transparent;
+        color: var(--text-main);
     }
 
-    .origin-filters .filter-tab-origin {
-        flex: 1 1 calc(50% - 4px);
-        min-height: 36px;
-        font-size: 10px;
+    html[data-theme='light'] .filter-carousel-wrap .filter-tab:hover,
+    html[data-theme='light'] .filter-carousel-wrap .filter-tab-origin:hover {
+        background: transparent;
     }
 
-    .origin-filters .filter-tab-origin:first-child {
-        flex: 1 1 100%;
+    .filter-carousel-wrap .filter-tab.active,
+    .filter-carousel-wrap .filter-tab.active[data-category="missiles"],
+    .filter-carousel-wrap .filter-tab.active[data-category="hostileAircraftIntrusion"],
+    .filter-carousel-wrap .filter-tab.active[data-category="terroristInfiltration"],
+    .filter-carousel-wrap .filter-tab.active[data-category="earthQuake"] {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        color: var(--accent);
     }
 
+    .filter-carousel-wrap .filter-tab.active[data-category="missiles"] {
+        color: var(--missiles);
+    }
+
+    .filter-carousel-wrap .filter-tab.active[data-category="hostileAircraftIntrusion"] {
+        color: var(--hostileAircraftIntrusion);
+    }
+
+    .filter-carousel-wrap .filter-tab.active[data-category="terroristInfiltration"] {
+        color: var(--terroristInfiltration);
+    }
+
+    .filter-carousel-wrap .filter-tab.active[data-category="earthQuake"] {
+        color: var(--earthQuake);
+    }
+
+    .filter-carousel-wrap.origin-filters .filter-tab-origin {
+        font-size: 12px;
+        padding: 8px 2px;
+        min-width: 0;
+        flex: none;
+    }
+
+    .filter-carousel-wrap.origin-filters .filter-tab-origin.active {
+        color: var(--accent);
+    }
+}
+
+@media (max-width: 768px) {
     .tab-btn {
         font-size: 12px;
         padding: 10px 6px;

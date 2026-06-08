@@ -19,6 +19,30 @@ import { ORIGIN_FILTER_OPTIONS } from '../../utils/mapZoomPresets';
 import { agentDebugBurst, agentDebugLog } from '../../utils/agentDebugLog';
 import { useViewportSize } from '../../hooks/useViewportSize';
 import DateRangeFilter from './DateRangeFilter';
+import FilterCarousel, { isTimeframePreset } from './FilterCarousel';
+
+const HISTORY_FILTER_ITEMS = [
+  { id: 'all', label: 'ALL', Icon: History },
+  { id: 'missiles', label: 'MISSILES', Icon: Rocket },
+  { id: 'hostileAircraftIntrusion', label: 'DRONES', Icon: Plane },
+  { id: 'terroristInfiltration', label: 'INFILTRATION', Icon: Users },
+  { id: 'earthQuake', label: 'QUAKE', Icon: Waves },
+];
+
+const TIMEFRAME_FILTER_ITEMS = [
+  { id: 'all', label: 'All Time' },
+  { id: '1', label: 'Last 1H' },
+  { id: '12', label: 'Last 12H' },
+  { id: '24', label: 'Last 24H' },
+];
+
+const ORIGIN_FILTER_ITEMS = [
+  { id: 'all', label: 'ALL ORIGINS' },
+  ...ORIGIN_FILTER_OPTIONS.map((origin) => ({
+    id: origin,
+    label: origin.toUpperCase(),
+  })),
+];
 
 export default function Sidebar() {
   const {
@@ -235,92 +259,97 @@ export default function Sidebar() {
             </motion.div>
           ) : (
             <motion.div key="history-tab" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="archive-panel">
-              <div className="history-filters">
-                {[
-                  { id: 'all', label: 'ALL', Icon: History },
-                  { id: 'missiles', label: 'MISSILES', Icon: Rocket },
-                  { id: 'hostileAircraftIntrusion', label: 'DRONES', Icon: Plane },
-                  { id: 'terroristInfiltration', label: 'INFILTRATION', Icon: Users },
-                  { id: 'earthQuake', label: 'QUAKE', Icon: Waves },
-                ].map(({ id, label, Icon }) => (
+              <FilterCarousel
+                className="history-filters"
+                ariaLabel="History category filter"
+                enabled={isMobile}
+                value={historyFilter}
+                onChange={setHistoryFilter}
+                items={HISTORY_FILTER_ITEMS}
+                renderItem={({ id, label, Icon }, { isSelected, onSelect }) => (
                   <button
-                    key={id}
-                    className={`filter-tab ${historyFilter === id ? 'active' : ''}`}
+                    type="button"
+                    className={`filter-tab ${isSelected ? 'active' : ''}`}
                     data-category={id}
-                    onClick={() => setHistoryFilter(id)}
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={onSelect}
                   >
                     <Icon size={14} />
                     <span>{label}</span>
                   </button>
-                ))}              </div>
-
-              <div className="timeframe-filters">
-                {[
-                  { id: 'all', label: 'All Time' },
-                  { id: '1', label: 'Last 1H' },
-                  { id: '12', label: 'Last 12H' },
-                  { id: '24', label: 'Last 24H' },
-                ].map(tf => (
-                  <button
-                    key={tf.id}
-                    className={`filter-tab${tf.id === 'all' ? ' filter-all-time' : ''} ${timeFrame === tf.id ? 'active' : ''}`}
-                    onClick={() => {
-                      setTimeFrame(tf.id);
-                      if (tf.id !== 'all') {
-                        setViewMode('timeframe');
-                        setMapConfig(calculateTimeframeMapConfig());
-                      } else {
-                        setViewMode('live');
-                      }
-                    }}
-                  >
-                    {tf.label}
-                  </button>
-                ))}
-                <DateRangeFilter
-                  timeFrame={timeFrame}
-                  onTimeFrameChange={(newVal) => {
-                    setTimeFrame(newVal);
-                    setViewMode('timeframe');
-                    setMapConfig(calculateTimeframeMapConfig());
-                  }}
-                />
-
-                {timeFrame !== 'all' && (
-                  <label className="merge-toggle" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9px', color: 'var(--text-sub)', marginLeft: 'auto', cursor: 'pointer', width: '100%' }}>
-                    <input
-                      type="checkbox"
-                      checked={mergeTimeFrameClusters}
-                      onChange={(e) => setMergeTimeFrameClusters(e.target.checked)}
-                    />
-                    MERGE CLUSTERS
-                  </label>
                 )}
+              />
+
+              <div className={`timeframe-filters${isMobile ? ' timeframe-filters--mobile' : ''}`}>
+                <FilterCarousel
+                  className={isMobile ? 'timeframe-filters-carousel' : 'timeframe-filters-presets'}
+                  ariaLabel="History timeframe filter"
+                  enabled={isMobile}
+                  value={isTimeframePreset(timeFrame) ? timeFrame : null}
+                  items={TIMEFRAME_FILTER_ITEMS}
+                  onChange={(tf) => {
+                    setTimeFrame(tf);
+                    if (tf !== 'all') {
+                      setViewMode('timeframe');
+                      setMapConfig(calculateTimeframeMapConfig());
+                    } else {
+                      setViewMode('live');
+                    }
+                  }}
+                  renderItem={({ id, label }, { isSelected, onSelect }) => (
+                    <button
+                      type="button"
+                      className={`filter-tab${id === 'all' ? ' filter-all-time' : ''} ${isSelected ? 'active' : ''}`}
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={onSelect}
+                    >
+                      {label}
+                    </button>
+                  )}
+                />
+                <div className="timeframe-filters-extra">
+                  <DateRangeFilter
+                    timeFrame={timeFrame}
+                    onTimeFrameChange={(newVal) => {
+                      setTimeFrame(newVal);
+                      setViewMode('timeframe');
+                      setMapConfig(calculateTimeframeMapConfig());
+                    }}
+                  />
+                  {timeFrame !== 'all' && (
+                    <label className="merge-toggle">
+                      <input
+                        type="checkbox"
+                        checked={mergeTimeFrameClusters}
+                        onChange={(e) => setMergeTimeFrameClusters(e.target.checked)}
+                      />
+                      MERGE CLUSTERS
+                    </label>
+                  )}
+                </div>
               </div>
 
-              <div
+              <FilterCarousel
                 className="origin-filters"
-                role="group"
-                aria-label="Launch origin filter"
-              >
-                <button
-                  type="button"
-                  className={`filter-tab filter-tab-origin ${originFilter === 'all' ? 'active' : ''}`}
-                  onClick={() => setOriginFilter('all')}
-                >
-                  ALL ORIGINS
-                </button>
-                {ORIGIN_FILTER_OPTIONS.map((origin) => (
+                ariaLabel="Launch origin filter"
+                enabled={isMobile}
+                value={originFilter}
+                onChange={setOriginFilter}
+                items={ORIGIN_FILTER_ITEMS}
+                renderItem={({ id, label }, { isSelected, onSelect }) => (
                   <button
-                    key={origin}
                     type="button"
-                    className={`filter-tab filter-tab-origin ${originFilter === origin ? 'active' : ''}`}
-                    onClick={() => setOriginFilter(origin)}
+                    className={`filter-tab filter-tab-origin ${isSelected ? 'active' : ''}`}
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={onSelect}
                   >
-                    {origin.toUpperCase()}
+                    {label}
                   </button>
-                ))}
-              </div>
+                )}
+              />
 
               {history.length === 0 && !historyHasMore ? (
                 <div className="empty-state"><Clock size={48} color="#333" /><p>NO HISTORY RECORDED</p></div>
