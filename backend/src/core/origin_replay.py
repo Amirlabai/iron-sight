@@ -2,6 +2,7 @@
 
 import numpy as np
 from src.utils.config import MAX_IRAN_THRESHOLD, MISSILE_INFLATION_FACTOR
+from src.core.missile_origins import apply_large_salvo_iran_policy
 from src.core.origin_ml import resolve_origin_ml, collapse_missile_origins
 from src.utils.trajectory_utils import apply_projected_origin, set_trajectory_entry
 
@@ -380,9 +381,9 @@ async def build_origin_replay(
 
         cl_org = trace["origin"]
         cl_depth = trace["depth"]
-        if force_iran_active:
-            cl_org = "Iran"
-            cl_depth = engine.strategic_depths["Iran"]
+        cl_org, cl_depth = apply_large_salvo_iran_policy(
+            cl_org, cl_depth, force_iran_active, engine
+        )
 
         decided_markers = list(base_markers)
         calc_preview = engine.project_calc_entry(rc["cities"], cl_org, depth=cl_depth)

@@ -10,6 +10,18 @@ def display_origin_name(org_name):
     return "Iran" if org_name == "North Iran" else org_name
 
 
+def apply_large_salvo_iran_policy(cl_org, cl_depth, force_iran, engine):
+    """Nationwide salvo heuristic: assume Iran above city-count threshold.
+
+    Skipped when geometry already resolved to Yemen (strategic projection).
+    """
+    if not force_iran:
+        return cl_org, cl_depth
+    if (cl_org or "").strip() == "Yemen":
+        return cl_org, cl_depth
+    return "Iran", engine.strategic_depths["Iran"]
+
+
 async def build_missile_origins(
     engine,
     spatial_clusters,
@@ -31,8 +43,9 @@ async def build_missile_origins(
     for rc in spatial_clusters:
         raw_org, cl_depth = await engine.get_origin(rc["cities"], allow_strategic=allow_strategic)
         cl_org = raw_org.strip()
-        if force_iran:
-            cl_org, cl_depth = "Iran", engine.strategic_depths["Iran"]
+        cl_org, cl_depth = apply_large_salvo_iran_policy(
+            cl_org, cl_depth, force_iran, engine
+        )
 
         processed_clusters.append({
             "origin": cl_org,
