@@ -243,8 +243,8 @@ export default function MapViewer() {
     setIsSidebarExpanded, mapAutoFollowToken, isLightMode,
   } = useTactical();
   const tileUrl = isLightMode
-    ? 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
+    ? 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+    : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
 
   const [mapFollowAuto, setMapFollowAuto] = useState(true);
   const [mapZoom, setMapZoom] = useState(() => mapConfig.zoom ?? DEFAULT_ZOOM);
@@ -366,10 +366,10 @@ export default function MapViewer() {
         zoom={DEFAULT_ZOOM}
         className="leaflet-container"
         zoomControl={false}
-        attributionControl={false}
+        attributionControl={true}
         preferCanvas={true}
       >
-        <TileLayer url={tileUrl} />
+        <TileLayer key={tileUrl} url={tileUrl} attribution="Tiles &copy; Esri" />
 
         <MapInstanceBridge mapRef={mapRef} />
         <MapZoomTracker onZoomChange={handleZoomChange} />
